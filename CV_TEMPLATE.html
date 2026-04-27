@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rita Cordahi - Ultimate VMAX CV</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #0f172a; --secondary: #0ea5e9; --secondary-glow: #38bdf8;
+            --bg-sidebar: rgba(15, 23, 42, 0.98); --text-sidebar: #cbd5e1; 
+            --heading-sidebar: #f8fafc; --text-main: #334155; 
+            --border-color: #e2e8f0; --accent-light: #f0f9ff;
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
+            display: flex; justify-content: center; padding: 3rem 0; margin: 0; 
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; 
+        }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #0284c7; }
+
+        .a4-page { 
+            width: 210mm; min-height: 297mm; background: #ffffff; 
+            display: grid; grid-template-columns: 280px 1fr; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4), 0 0 30px rgba(14, 165, 233, 0.15); 
+            border-radius: 12px; overflow: hidden;
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .sidebar { 
+            background: var(--bg-sidebar); backdrop-filter: blur(10px);
+            color: var(--text-sidebar); padding: 50px 30px; display: flex; flex-direction: column; gap: 38px; 
+            position: relative; z-index: 1;
+        }
+        
+        .initials { 
+            width: 110px; height: 110px; 
+            background: linear-gradient(135deg, var(--secondary) 0%, #2563eb 100%); 
+            color: white; font-size: 44px; font-weight: 800; line-height: 110px; text-align:center;
+            border-radius: 50%; margin: 0 auto; letter-spacing: 2px; 
+            box-shadow: 0 0 25px rgba(14, 165, 233, 0.5); 
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: default;
+        }
+        .initials:hover {
+            transform: scale(1.1) rotate(6deg);
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.9);
+        }
+
+        .sidebar-title { color: var(--heading-sidebar); font-size: 16px; margin-top: 0; margin-bottom: 18px; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+        .contact-list, .lang-list { list-style: none; padding: 0; margin: 0; }
+        .contact-list li { margin-bottom: 18px; display: flex; align-items: center; gap: 14px; font-size: 13.5px; line-height: 1.4; transition: transform 0.3s ease; }
+        .contact-list li:hover { transform: translateX(8px); color: white; }
+        .contact-list a { color: var(--text-sidebar); text-decoration: none; }
+        .contact-list i { color: var(--secondary); width: 22px; text-align: center; font-size: 16px; transition: all 0.3s ease; }
+        .contact-list li:hover i { color: var(--secondary-glow); transform: scale(1.2); text-shadow: 0 0 10px var(--secondary-glow); }
+
+        .edu-item { margin-bottom: 24px; position: relative; padding-left: 15px; border-left: 2px solid transparent; transition: all 0.3s ease; }
+        .edu-item:hover { border-left-color: var(--secondary); padding-left: 18px; }
+        .edu-item h4 { font-size: 14.5px; font-weight: 600; color: white; margin: 0 0 5px 0; font-family: 'Poppins', sans-serif; }
+        .edu-item span { display: block; font-size: 13px; color: rgba(203,213,225,0.8); margin-bottom: 4px; }
+        .edu-item .edu-year { color: var(--secondary); font-weight: 700; font-size: 12px; }
+
+        .skills-list { display: flex; flex-wrap: wrap; gap: 10px; }
+        .skill-tag { 
+            background: rgba(255,255,255,0.06); color: #e2e8f0; 
+            padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; 
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        .skill-tag:hover {
+            background: linear-gradient(135deg, var(--secondary), #0284c7); border-color: transparent;
+            transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 15px rgba(14, 165, 233, 0.4); color: white;
+        }
+
+        .lang-list li { font-size: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .lang-level { color: var(--secondary); font-weight: 700; font-size: 12px; text-transform: uppercase; background: rgba(14,165,233,0.1); padding: 4px 10px; border-radius: 12px; }
+
+        .main { padding: 60px 50px; background: white; display: flex; flex-direction: column; position: relative; }
+        
+        .main-section { opacity: 0; animation: fadeInRight 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .main-section:nth-child(2) { animation-delay: 0.2s; }
+        .main-section:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes fadeInRight { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+
+        .main-header { margin-bottom: 40px; position: relative; }
+        .main-header h1 { font-family: 'Poppins', sans-serif; font-size: 48px; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px; line-height: 1.1; margin: 0; background: linear-gradient(90deg, #0f172a, #334155); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .main-header h2 { font-family: 'Poppins', sans-serif; font-size: 19px; color: var(--secondary); font-weight: 600; margin: 10px 0 0 0; letter-spacing: 0.5px; }
+
+        .section-title { font-family: 'Poppins', sans-serif; font-size: 22px; color: var(--primary); border-bottom: 2px solid var(--accent-light); padding-bottom: 10px; margin: 0 0 25px 0; display: flex; align-items: center; gap: 12px; position: relative; font-weight: 700; }
+        .section-title i { color: var(--secondary); font-size: 24px; transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .section-title:hover i { transform: scale(1.3) rotate(15deg); }
+        .section-title::after { content: ''; position: absolute; left: 0; bottom: -2px; width: 40px; height: 3px; background: var(--secondary); border-radius: 4px; transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .section-title:hover::after { width: 140px; }
+
+        .summary-text { font-size: 15px; line-height: 1.8; color: var(--text-main); margin: 0 0 40px 0; padding: 20px 25px; background: #f8fafc; border-left: 4px solid var(--secondary); border-radius: 0 10px 10px 0; transition: all 0.4s ease; font-weight: 400; }
+        .summary-text:hover { background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.06); transform: translateX(8px); border-left-width: 6px; }
+
+        .experience-section { display: flex; flex-direction: column; gap: 30px; position: relative; margin-top: 10px; }
+        .experience-section::before { content: ''; position: absolute; left: 9px; top: 8px; bottom: 0; width: 3px; background: linear-gradient(to bottom, var(--secondary) 0%, var(--accent-light) 30%, var(--accent-light) 100%); border-radius: 2px; }
+        
+        .job-item { position: relative; padding-left: 40px; transition: transform 0.3s ease; }
+        .job-item::before { content: ''; position: absolute; left: 0; top: 6px; width: 16px; height: 16px; border-radius: 50%; background: white; border: 4px solid var(--secondary); box-shadow: 0 0 0 5px white; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 2; }
+        .job-item:hover { transform: translateX(8px); }
+        .job-item:hover::before { background: var(--secondary); border-color: #0284c7; box-shadow: 0 0 15px var(--secondary-glow); transform: scale(1.3); }
+
+        .job-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .job-header h4 { font-family: 'Poppins', sans-serif; font-size: 19px; color: var(--primary); font-weight: 700; margin: 0; transition: color 0.3s ease; }
+        .job-item:hover h4 { color: var(--secondary); }
+        .job-date { font-size: 12.5px; font-weight: 700; color: var(--secondary); background: #f0f9ff; padding: 6px 16px; border-radius: 30px; border: 1px solid rgba(14, 165, 233, 0.2); transition: all 0.3s ease; }
+        .job-item:hover .job-date { background: var(--secondary); color: white; box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3); }
+        
+        .job-company { font-size: 15px; font-weight: 600; color: #64748b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .job-company i { font-size: 14px; color: #94a3b8; transition: color 0.3s ease; }
+        .job-item:hover .job-company i { color: var(--secondary); }
+
+        .job-tasks { padding-left: 20px; margin: 0; }
+        .job-tasks li { font-size: 14.5px; line-height: 1.65; color: #475569; margin-bottom: 8px; transition: color 0.3s ease; transform-origin: left center; }
+        .job-tasks li:hover { color: #0f172a; font-weight: 500; transform: scale(1.01); }
+        .job-tasks li::marker { color: #cbd5e1; font-size: 18px; transition: color 0.3s ease; }
+        .job-tasks li:hover::marker { color: var(--secondary); }
+
+        /* MOBILE RESPONSIVE TIER */
+        @media (max-width: 850px) {
+            body { padding: 0; }
+            .a4-page { 
+                width: 100%; min-height: auto; 
+                display: flex; flex-direction: column; 
+                border-radius: 0; box-shadow: none; animation: none;
+            }
+            .sidebar { padding: 40px 25px; border-right: none; gap: 30px; }
+            .main { padding: 40px 25px; }
+            .main-header h1 { font-size: 38px; line-height: 1.2; }
+            .main-header h2 { font-size: 16px; }
+            .job-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .job-date { align-self: flex-start; margin-bottom: 5px; }
+            .summary-text { padding: 15px 18px; font-size: 14px; }
+        }
+
+        @media print { 
+            body { background: white !important; padding: 0; margin: 0; } 
+            .a4-page { box-shadow: none !important; width: 210mm; height: 297mm; margin: 0; border-radius: 0; display: grid !important; grid-template-columns: 280px 1fr !important; animation: none !important; transform: none !important; } 
+            .initials, .skill-tag, .job-item, .summary-text, .section-title::after, .contact-list li, .contact-list i, .job-item::before, .job-date, h4 { transition: none !important; transform: none !important; box-shadow: none !important; color: inherit; background-color: inherit; }
+            .sidebar { border-right: 1px solid #cbd5e1; background: #0f172a !important; color: white !important; padding: 30px; flex-direction: column !important; }
+            .job-date { background: transparent !important; color: #64748b !important; border: none; padding: 0; }
+            .experience-section::before { background: #e2e8f0; }
+            .main { padding: 60px 40px !important; }
+            @page { size: A4; margin: 0; } 
+        }
+    </style>
+</head>
+<body>
+    <div class="a4-page">
+        <div class="sidebar">
+            <div class="logo-area"><div class="initials">RC</div></div>
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Contact</h3>
+                <ul class="contact-list">
+                    <li><i class="fa-solid fa-phone"></i> +961 76 005 412</li>
+                    <li><i class="fa-solid fa-envelope"></i> rita.cordahi@outlook.com</li>
+                    <li><i class="fa-solid fa-location-dot"></i> Keserwan, Lebanon</li>
+                    <li><i class="fa-brands fa-linkedin"></i> linkedin.com/in/rita-cordahi</li>
+                </ul>
+            </div>
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Education</h3>
+                <div class="edu-item"><h4>Bachelor in Human Resources</h4><span>Lebanese Canadian University</span><span class="edu-year">2016</span></div>
+                <div class="edu-item"><h4>Diploma in Health & Safety</h4><span>eLearning College, UK</span><span class="edu-year">2025</span></div>
+                <div class="edu-item"><h4>BT-3 Hospitality Management</h4><span>Institut MGR Cortbawi, SSCC</span><span class="edu-year">2011</span></div>
+            </div>
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Core Skills</h3>
+                <div class="skills-list">
+                    <span class="skill-tag">HR Operations</span><span class="skill-tag">Recruitment Lifecycle</span><span class="skill-tag">Employee Onboarding</span><span class="skill-tag">Payroll Support</span><span class="skill-tag">Customer Support</span><span class="skill-tag">Technical Dashboards</span><span class="skill-tag">SLA Enforcement</span><span class="skill-tag">MS Office 365</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Languages</h3>
+                <ul class="lang-list">
+                    <li><span>Arabic</span> <span class="lang-level">Native</span></li>
+                    <li><span>English</span> <span class="lang-level">Professional</span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="main">
+            <div class="main-header">
+                <h1>Rita Cordahi</h1>
+                <h2>HR & Customer Operations Specialist</h2>
+            </div>
+            <div class="main-section">
+                <h3 class="section-title"><i class="fa-solid fa-user-circle"></i> Executive Summary</h3>
+                <p class="summary-text">Architect of high-efficiency administrative and customer operations workflows. Proven expertise in overhauling full-cycle recruitment logistics, mitigating client billing conflicts, and translating operational data into seamless customer service delivery. Leveraging strict SLA compliance to resolve high-volume inquiries and optimize departmental data accuracy. Positioned to drive strategic operational excellence and rigorous procedural accountability.</p>
+            </div>
+            <div class="main-section">
+                <h3 class="section-title"><i class="fa-solid fa-briefcase"></i> Professional Experience</h3>
+                <div class="experience-section">
+                    <div class="job-item">
+                        <div class="job-header"><h4>Customer Service Representative</h4><span class="job-date">Feb 2023 - Mar 2025</span></div>
+                        <div class="job-company"><i class="fa-solid fa-building"></i> Small Internet Company, Keserwan</div>
+                        <ul class="job-tasks">
+                            <li>Optimized client retention workflows, resolving 50+ daily technical and billing inquiries with a high first-contact resolution rate, by leveraging customized CRM diagnostics.</li>
+                            <li>Recovered at-risk corporate revenue and reduced overdue account aging, by architecting strict proactive billing follow-up systems and executing assertive client communications.</li>
+                            <li>Streamlined technical escalation pathways, decreasing senior engineering ticket volume by 20%, by standardizing first-line network diagnostics.</li>
+                        </ul>
+                    </div>
+                    <div class="job-item">
+                        <div class="job-header"><h4>Freelance Recruiter</h4><span class="job-date">Feb 2023 - Jan 2024</span></div>
+                        <div class="job-company"><i class="fa-solid fa-globe"></i> Self-Employed, Lebanon</div>
+                        <ul class="job-tasks">
+                            <li>Accelerated SME talent acquisition, achieving successful placement for 10+ niche roles, by engineering aggressive search pipelines via LinkedIn and Daleel Madani.</li>
+                            <li>Maximized hiring manager efficiency across diverse departments, by providing critically vetted candidate shortlists and executing zero-friction interview logistics.</li>
+                        </ul>
+                    </div>
+                    <div class="job-item">
+                        <div class="job-header"><h4>HR Officer</h4><span class="job-date">May 2022 - Sep 2022</span></div>
+                        <div class="job-company"><i class="fa-solid fa-building"></i> Boubess Group, Beirut</div>
+                        <ul class="job-tasks">
+                            <li>Secured strict organizational compliance, maintaining 100% accuracy across high-volume employee records, by standardizing data ingestion protocols.</li>
+                            <li>Streamlined regional payroll execution, eliminating cross-departmental shift discrepancies, by automating attendance tracking workflows and formatting master operational databases.</li>
+                        </ul>
+                    </div>
+                    <div class="job-item">
+                        <div class="job-header"><h4>HR Intern</h4><span class="job-date">Feb 2019 - Apr 2019</span></div>
+                        <div class="job-company"><i class="fa-solid fa-building"></i> KidzMondo A Children's World, Beirut</div>
+                        <ul class="job-tasks">
+                            <li>Overhauled seasonal application triaging, advancing only the top 15% of candidates, by deploying stringent filtering criteria and executing structured behavioral interviews.</li>
+                            <li>Accelerated enterprise onboarding velocity, by standardizing new-hire contract templates and ensuring zero-error compliance with local labor statutes.</li>
+                        </ul>
+                    </div>
+                    <div class="job-item">
+                        <div class="job-header"><h4>HR Intern</h4><span class="job-date">Feb 2018 - Mar 2018</span></div>
+                        <div class="job-company"><i class="fa-solid fa-building"></i> InterContinental Mzaar Resort, Kfardebian</div>
+                        <ul class="job-tasks">
+                            <li>Validated high-volume payroll mechanics, ensuring strict financial compensation accuracy, by conducting intense audits of multi-departmental time-management logs against manual hours worked.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body></html>

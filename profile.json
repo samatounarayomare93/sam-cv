@@ -1,0 +1,46 @@
+{
+  "candidate": {
+    "name": "Sam Salameh",
+    "title": "Senior Network Engineer",
+    "email": "sam.dev1@hotmail.com",
+    "phone": "+961 70 841 1009",
+    "linkedin": "linkedin.com/in/sam-salameh",
+    "location": "Beirut, Lebanon",
+    "avatar_initials": "SS"
+  },
+  "education": [
+    {
+      "degree": "B3 - Information Technology",
+      "institution": "Dekwene Technical School",
+      "year": "2016"
+    }
+  ],
+  "skills": [
+    "Network Design",
+    "Cisco IOS",
+    "MikroTik RouterOS",
+    "Ubiquiti UniFi",
+    "Fortinet",
+    "Fiber Optic",
+    "Firewalls & VPN",
+    "Traffic Analysis"
+  ],
+  "experience": [
+    {
+      "role": "Freelance Network Engineer",
+      "company": "Freelance",
+      "period": "2023 - Present"
+    },
+    {
+      "role": "Network Management Consultant",
+      "company": "Freelance",
+      "period": "2021 - 2023"
+    },
+    {
+      "role": "Networking Technician",
+      "company": "Professional Network",
+      "period": "2010 - 2023"
+    }
+  ],
+  "summary": "Accomplished Network Engineer with 15+ years of progressive experience designing, implementing, configuring, and troubleshooting enterprise-grade networking infrastructure."
+}

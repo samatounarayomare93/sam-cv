@@ -1,0 +1,64 @@
+name: Pre-Launch Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-launch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Syntax smoke test
+        run: |
+          python -m py_compile core/main_bot.py core/orchestrator.py core/ai_agent.py core/db_client.py core/follow_up_engine.py core/lead_schema.py core/lead_processor.py core/scrape_service.py core/smtp_engine.py core/cv_tailor.py core/run_reporter.py core/scheduler.py
+
+      - name: Unit test gate
+        env:
+          TEST_MODE: 'True'
+        run: |
+          python -m unittest discover -p "test_*.py"
+
+      - name: Preflight summary
+        env:
+          TEST_MODE: 'True'
+          SUPABASE_URL: ''
+          SUPABASE_KEY: ''
+          GEMINI_API_KEY: ''
+          TELEGRAM_BOT_TOKEN: ''
+          TELEGRAM_CHAT_ID: ''
+        run: |
+          python - <<'PY'
+          from core.orchestrator import AlphaOrchestrator
+          print(AlphaOrchestrator.validate_preflight())
+          PY
+
+      - name: Test email connection
+        env:
+          TEST_MODE: 'True'
+          TEST_RECEIVER_EMAIL: 'sam.dev1@hotmail.com'
+          BREVO_SMTP_PASSWORD: ''
+          GMAIL_SMTP_USER: ''
+          GMAIL_APP_PASSWORD: ''
+          USE_BREVO_HTTP_FALLBACK: 'True'
+        run: |
+          if [ -z "$BREVO_SMTP_PASSWORD" ] && [ -z "$GMAIL_APP_PASSWORD" ]; then
+            echo "Skipping email connection test: no SMTP secrets configured"
+            exit 0
+          fi
+          python - <<'PY'
+          from core.smtp_engine import send_test_email, test_email_connection
+          print(test_email_connection())
+          print(send_test_email())
+          PY

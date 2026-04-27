@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chronos Matrix HUD | Sovereign Swarm</title>
+    
+    <!-- 🌌 Matrix Digital Rain Identity -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+        :root {
+            /* 🌌 Midnight Matrix Palette */
+            --matrix-green: #00ffaa;
+            --matrix-green-dim: #008855;
+            --matrix-glow: rgba(0, 255, 170, 0.3);
+            --bg-obsidian: #000000;
+            --panel-glass: rgba(15, 15, 20, 0.85);
+            --border-glass: rgba(0, 255, 170, 0.25);
+            --critical: #ff2d55;
+            --text-secondary: #8899aa;
+            --accent: #5577ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-obsidian);
+            color: var(--matrix-green);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-x: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: radial-gradient(circle at center, #001100 0%, #000 100%);
+        }
+
+        /* 📺 CRT Scanlines & Flicker */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.1) 50%
+            ), linear-gradient(
+                90deg, 
+                rgba(255, 0, 0, 0.02), 
+                rgba(0, 255, 0, 0.01), 
+                rgba(0, 0, 255, 0.02)
+            );
+            background-size: 100% 3px, 3px 100%;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        #matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            opacity: 0.08;
+            filter: blur(1px);
+        }
+
+        .hud-container {
+            flex: 1;
+            padding: 16px;
+            max-width: 500px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-bottom: 40px;
+            z-index: 10;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            position: relative;
+            border: 1px solid var(--border-glass);
+            background: var(--panel-glass);
+            border-radius: 4px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-family: 'Orbitron';
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 0 0 10px var(--matrix-green);
+        }
+
+        .header span {
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: var(--matrix-green-dim);
+            font-weight: bold;
+        }
+
+        /* 📊 Tactical Metrics */
+        .grid-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: var(--panel-glass);
+            border: 1px solid var(--border-glass);
+            border-bottom: 2px solid var(--matrix-green-dim);
+            padding: 16px;
+            border-radius: 4px;
+            text-align: left;
+            position: relative;
+            transition: 0.3s;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            border-color: var(--matrix-green);
+            background: rgba(0, 255, 170, 0.05);
+        }
+
+        .stat-card i {
+            position: absolute;
+            right: 12px;
+            top: 12px;
+            opacity: 0.3;
+            width: 16px;
+            height: 16px;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron';
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .full-width {
+            grid-column: span 2;
+        }
+
+        /* 📡 Command Deck */
+        .section-title {
+            font-size: 10px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--matrix-green);
+            margin-bottom: 8px;
+            padding-left: 4px;
+            border-left: 3px solid var(--matrix-green);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .command-strip {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            background: var(--panel-glass);
+            border: 1px solid var(--border-glass);
+            color: #ffffff;
+            padding: 14px;
+            font-family: 'Orbitron';
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: 4px;
+        }
+
+        .btn i {
+            width: 14px;
+            height: 14px;
+        }
+
+        .btn:hover {
+            background: var(--matrix-green);
+            color: #000;
+            box-shadow: 0 0 15px var(--matrix-glow);
+        }
+
+        .btn-pulse {
+            grid-column: span 2;
+            background: rgba(0, 255, 170, 0.05);
+            border: 1px solid var(--matrix-green);
+            animation: borderPulse 2s infinite;
+        }
+
+        @keyframes borderPulse {
+            0% { border-color: var(--matrix-green-dim); }
+            50% { border-color: var(--matrix-green); }
+            100% { border-color: var(--matrix-green-dim); }
+        }
+
+        /* 📡 VIP Radar */
+        .radar-box {
+            background: var(--panel-glass);
+            border: 1px solid var(--border-glass);
+            padding: 16px;
+            border-radius: 4px;
+            flex: 1;
+            min-height: 120px;
+        }
+
+        .vip-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .vip-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #fff;
+            padding: 4px 8px;
+            border-left: 2px solid var(--accent);
+            background: rgba(85, 119, 255, 0.05);
+        }
+
+        /* 🚀 Overlays */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: 0.8s ease;
+        }
+
+        .loading-glitch {
+            font-family: 'Orbitron';
+            font-size: 16px;
+            letter-spacing: 8px;
+            animation: textGlitch 0.2s infinite;
+        }
+
+        @keyframes textGlitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 1px); color: var(--critical); }
+            40% { transform: translate(2px, -1px); color: var(--accent); }
+            100% { transform: translate(0); }
+        }
+
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 400px;
+            z-index: 20000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: rgba(0, 20, 10, 0.95);
+            border: 1px solid var(--matrix-green);
+            color: #fff;
+            padding: 10px 16px;
+            font-size: 11px;
+            text-transform: uppercase;
+            border-radius: 2px;
+            animation: slideIn 0.3s forwards;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="loading-glitch">NEURAL SYNC</div>
+        <div style="font-size: 10px; opacity: 0.5; margin-top: 15px;">ESTABLISHING QUANTUM LINK...</div>
+    </div>
+
+    <canvas id="matrix-bg"></canvas>
+    <div id="toast-container"></div>
+
+    <div class="hud-container">
+        <header class="header">
+            <h1 id="user-name">SOVEREIGN</h1>
+            <span>PROJECT CHRONOS HUD V2.5</span>
+        </header>
+
+        <section class="grid-stats">
+            <div class="stat-card">
+                <i data-lucide="scan"></i>
+                <span class="stat-value" id="val-scanned">---</span>
+                <span class="stat-label">RECON GRID</span>
+            </div>
+            <div class="stat-card">
+                <i data-lucide="zap"></i>
+                <span class="stat-value" id="val-strikes">---</span>
+                <span class="stat-label">TACTICAL STRIKES</span>
+            </div>
+            <div class="stat-card full-width">
+                <i data-lucide="cpu"></i>
+                <span class="stat-value" id="val-cpu">0%</span>
+                <span class="stat-label">NEURAL CPU LOAD</span>
+            </div>
+            <div class="stat-card full-width">
+                <i data-lucide="clock"></i>
+                <span class="stat-value" id="val-uptime">00:00:00</span>
+                <span class="stat-label">MISSION ELAPSED TIME</span>
+            </div>
+        </section>
+
+        <div class="section-title"><i data-lucide="radar"></i> VIP SIGNAL RADAR</div>
+        <div class="radar-box">
+            <div class="vip-list" id="vip-list">
+                <div style="text-align:center; opacity:0.3; font-size: 11px; margin-top: 20px;">SCANNING FOR SIGNALS...</div>
+            </div>
+        </div>
+
+        <div class="section-title"><i data-lucide="command"></i> COMMAND DECK</div>
+        <div class="command-strip">
+            <button class="btn" onclick="sendAction('launch_ghost')">
+                <i data-lucide="user-plus"></i> Ghost Hub
+            </button>
+            <button class="btn" onclick="sendAction('launch_oracle')">
+                <i data-lucide="eye"></i> Market Intel
+            </button>
+            <button class="btn btn-pulse" onclick="sendAction('execute_pulse')">
+                <i data-lucide="activity"></i> Execute Tactical Pulse
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+        lucide.createIcons();
+
+        // 🧬 Matrix Background Engine
+        const canvas = document.getElementById('matrix-bg');
+        const ctx = canvas.getContext('2d');
+        let drops = [];
+        
+        function initMatrix() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const columns = canvas.width / 20;
+            drops = Array(Math.floor(columns)).fill(1);
+        }
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00ffaa';
+            ctx.font = '15px monospace';
+            for (let i = 0; i < drops.length; i++) {
+                const text = String.fromCharCode(0x30A0 + Math.random() * 96);
+                ctx.fillText(text, i * 20, drops[i] * 20);
+                if (drops[i] * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        window.addEventListener('resize', initMatrix);
+        initMatrix();
+        setInterval(drawMatrix, 50);
+
+        // 📡 Telemetry Engine
+        let firstLoad = true;
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                
+                document.getElementById('val-scanned').textContent = data.scanned || 0;
+                document.getElementById('val-strikes').textContent = data.strikes || 0;
+                document.getElementById('val-cpu').textContent = (data.cpu || 0) + '%';
+                document.getElementById('val-uptime').textContent = data.uptime || "00:00:00";
+                
+                const vipList = document.getElementById('vip-list');
+                if (data.vips && data.vips.length > 0) {
+                    vipList.innerHTML = data.vips.map(v => `
+                        <div class="vip-item">
+                            <span>${v.company}</span>
+                            <span>${v.hits} HITS</span>
+                        </div>
+                    `).join('');
+                }
+
+                if (firstLoad) {
+                    const loader = document.getElementById('loading-overlay');
+                    if (loader) {
+                        loader.style.opacity = '0';
+                        setTimeout(() => loader.remove(), 800);
+                    }
+                    firstLoad = false;
+                }
+            } catch (err) {
+                console.error("Telemetry failure", err);
+            }
+        }
+
+        // ⚡ COMMAND EXECUTION
+        function showToast(msg, icon = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i data-lucide="${icon}"></i> <span>${msg}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function sendAction(action) {
+            showToast("TRANSMITTING SIGNAL...", "send");
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+            fetch('/api/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action })
+            })
+            .then(res => res.json())
+            .then(data => {
+                showToast("SIGNAL CONFIRMED", "check-circle");
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            })
+            .catch(err => {
+                // Fallback to Telegram native
+                try {
+                    tg.sendData(JSON.stringify({ action: action }));
+                    showToast("BACKUP LINK ESTABLISHED", "wifi");
+                } catch(e) {
+                    showToast("SIGNAL LOST", "x-circle");
+                }
+            });
+        }
+
+        // 🛡️ AUTO-REVEAL FAILSAFE (3s)
+        setTimeout(() => {
+            const loader = document.getElementById('loading-overlay');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 800);
+            }
+        }, 3500);
+
+        setInterval(fetchStats, 5000);
+        fetchStats();
+    </script>
+</body>
+</html>

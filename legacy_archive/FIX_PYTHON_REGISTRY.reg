@@ -1,0 +1,30 @@
+Windows Registry Editor Version 5.00
+
+; FIX CORRUPTED PYTHON REGISTRY
+; This corrects Python's installation path which was pointing to the project folder
+; Run this file as Administrator (right-click -> Merge)
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Python\PythonCore\3.11\InstallPath]
+@="C:\\Program Files\\Python311\\"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Python\PythonCore\3.11]
+@=""
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Python\PythonCore\3.11\Help]
+@="C:\\Program Files\\Python311\\Doc\\"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Python\PythonCore\3.11\Help\Main Python Documentation]
+@="C:\\Program Files\\Python311\\Doc\\"
+
+; HKCU (current user) entries
+[HKEY_CURRENT_USER\SOFTWARE\Python\PythonCore\3.11\InstallPath]
+@="C:\\Program Files\\Python311\\"
+
+[HKEY_CURRENT_USER\SOFTWARE\Python\PythonCore\3.11]
+@=""
+
+[HKEY_CURRENT_USER\SOFTWARE\Python\PythonCore\3.11\Help]
+@="C:\\Program Files\\Python311\\Doc\\"
+
+[HKEY_CURRENT_USER\SOFTWARE\Python\PythonCore\3.11\Help\Main Python Documentation]
+@="C:\\Program Files\\Python311\\Doc\\"

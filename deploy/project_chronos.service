@@ -1,0 +1,18 @@
+[Unit]
+Description=Project Chronos: Sovereign Master Orchestrator
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/Rita_Job_Automator_Local
+# Using the .venv python directly for absolute stability
+ExecStart=/root/Rita_Job_Automator_Local/.venv/bin/python run.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/root/Rita_Job_Automator_Local/logs/systemd.log
+StandardError=append:/root/Rita_Job_Automator_Local/logs/systemd_error.log
+Environment=NODE_NAME=CLOUD-MASTER-1
+
+[Install]
+WantedBy=multi-user.target

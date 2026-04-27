@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: sam-job-automator
+    runtime: python
+    region: frankfurt # Preferred for Lebanon/Dubai proximity
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python launch_sam.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_API_ID
+        sync: false
+      - key: TELEGRAM_API_HASH
+        sync: false
+      - key: AUTHORIZED_CHATS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SMTP_LOGIN
+        sync: false
+      - key: BREVO_SMTP_PASSWORD
+        sync: false
+      - key: TEST_RECEIVER_EMAIL
+        sync: false
+      - key: GMAIL_SMTP_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: CV_FILE_PATH
+        value: Sam_Cordahi_CV.html
+      - key: USE_AI_ANALYSIS
+        value: "true"
+      - key: VERBOSE_LOGGING
+        value: "true"
+      - key: MAX_PARALLEL_STRIKES
+        value: "5"
+      - key: MAX_QUALIFIED_LEADS_PER_CYCLE
+        value: "50"
+      # Phantom Network Placeholders (Optional for now)
+      - key: TELEGRAM_API_ID
+        sync: false
+      - key: TELEGRAM_API_HASH
+        sync: false
+      - key: TELEGRAM_SESSION_STRING
+        sync: false

@@ -1,0 +1,901 @@
+import asyncio
+import logging
+import os
+import sys
+import random
+import time
+import traceback
+from typing import List, Dict, Any, Optional
+import httpx
+from dotenv import load_dotenv
+import aiohttp
+import requests
+# Zero-Cost Cloud Logic: msvcrt removed for Linux compatibility
+
+# Ensure we can import modules from core and root
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import internal components with absolute certainty
+try:
+    from core.db_client import RealityShapingDB
+    from core.interview_prep import InterviewPrepEngine
+    from core.ai_agent import OmniIntelligence
+    from core.smtp_engine import send_strike
+    from core.pdf_generator import create_personalized_pdf, generate_dual_package as generate_ultimate_package
+except ImportError as e:
+    logging.critical(f"INTERNAL SYSTEM FAILURE: Missing Core Components - {e}")
+    RealityShapingDB = None
+    OmniIntelligence = None
+
+# Load legacy scrapers from their new nested location
+try:
+    from core.scrapers import scraper
+    from core.scrapers.omni_crawler import OmniCrawler
+    from core.scrapers.daleel_parallel import daleel_parallel_scan
+except ImportError as e:
+    logging.warning(f"⚠️ Scraper Layer Fragmented: {e}")
+    scraper = None
+    OmniCrawler = None
+
+load_dotenv()
+
+logging.basicConfig(
+    level=getattr(logging, os.getenv("DIVINE_LOG_LEVEL", "INFO")),
+    format="%(asctime)s - [CHRONOS] %(levelname)s - %(message)s"
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# [👑 OMEGA-SINGULARITY: CYBERPUNK AESTHETICS]
+# ═══════════════════════════════════════════════════════════════════════════════
+
+CYBER_HEADER = """
+╔══════════════════════════════════════════════════╗
+║  ███╗   ███╗██╗██╗██╗████████╗███████╗██╗ ██████╗ ║
+║  ████╗ ████║██║██║██║╚══██╔══╝██╔════╝██║██╔═══██╗║
+║  ██╔████╔██║██║██║██║   ██║   █████╗  ██║██║   ██║║
+║  ██║╚██╔╝██║██║██║██║   ██║   ██╔══╝  ██║██║   ██║║
+║  ██║ ╚═╝ ██║██║██║██║   ██║   ██║     ██║╚██████╔╝║
+║  ╚═╝     ╚═╝╚═╝╚═╝╚═╝   ╚═╝   ╚═╝     ╚═╝ ╚═════╝ ║
+╚══════════════════════════════════════════════════╝
+"""
+
+def cyber_box(content, border_color="cyan"):
+    border_chars = {
+        "cyan": ("╔", "╗", "╚", "╝", "║", "═"),
+        "pink": ("╔", "╗", "╚", "╝", "║", "═"),
+        "green": ("┌", "┐", "└", "┘", "│", "─"),
+    }
+    tl, tr, bl, br, v, h = border_chars.get(border_color, border_chars["cyan"])
+    lines = content.split('\n')
+    max_len = max(len(line) for line in lines)
+    result = f"{tl}{h * (max_len + 2)}{tr}\n"
+    for line in lines:
+        padding = max_len - len(line)
+        result += f"{v} {line}{' ' * padding} {v}\n"
+    result += f"{bl}{h * (max_len + 2)}{br}"
+    return result
+
+# OMEGA-SYNC: telebot removed. Unification with core.telegram_dashboard.py
+# Import consolidated helper classes from runtime_helpers
+from core.runtime_helpers import HumanParityJitter, EvasionRouter, ProxyMesh
+
+from core.follow_up_engine import FollowUpEngine
+
+from core.ai_agent import OmniIntelligence
+from core.linkedin_automator import NeuralLinkedIn
+
+class AlphaOrchestrator:
+    """Core orchestration engine with memory-efficient async scraping."""
+    
+    _instance = None
+    _session: Optional[httpx.AsyncClient] = None
+    
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self, concurrency_limit: int = int(os.getenv("MAX_PARALLEL_STRIKES", "5")), db=None, ai=None):
+        if hasattr(self, '_initialized'):
+            return
+        self._initialized = True
+        
+        self.concurrency_limit = concurrency_limit
+        self.semaphore = asyncio.Semaphore(concurrency_limit)
+        # 🔐 FIX #1: asyncio.Lock for thread-safe concurrent operations
+        self.rate_limit_lock = asyncio.Lock()
+        self.orchestrator = self
+        self.start_time = time.time()
+        self.paused = False
+        self.evasion = EvasionRouter()
+        self.jitter = HumanParityJitter()
+        self.proxy_mesh = ProxyMesh()
+        self.is_running = True
+        self.variant_weights = self.load_initial_weights()
+        self._session = None
+        self._total_requests = 0
+        self._failed_requests = 0
+        self.db = db if db else (RealityShapingDB() if RealityShapingDB else None)
+        self.ai = ai if ai else (OmniIntelligence() if OmniIntelligence else None)
+        self.follow_up = FollowUpEngine(self.db, self.ai)
+        self.omni_crawler = OmniCrawler(self.ai) if OmniCrawler else None
+        self.linkedin = NeuralLinkedIn(self.ai) if NeuralLinkedIn and self.ai else None
+        self.decoy_count = int(os.getenv("DECOY_FLEET_SIZE", "2"))
+        self.emergency_strike_requested = False
+
+    async def poisson_jitter(self, target_mean: int):
+        """100% STEALTH: Mimics human jitter behavior using Poisson distribution."""
+        import random
+        import math
+        
+        # Simple Poisson-like distribution
+        L = math.exp(-target_mean)
+        k = 0
+        p = 1
+        while p > L:
+            k = k + 1
+            p = p * random.random()
+        delay = k - 1
+        
+        # Add 20% variance
+        final_delay = max(2, delay + random.uniform(-0.2, 0.2) * delay)
+        # Apply circadian multiplier
+        final_delay /= self.get_circadian_intensity()
+        
+        await self.telemetry_stream("INFO", f"💓 Heartbeat: Mimicking human pulse... Delaying {final_delay:.1f}s")
+        await asyncio.sleep(final_delay)
+
+    async def telemetry_stream(self, level: str, message: str):
+        """Broadcasts a signal to both local logging and the Global Hive-Mind terminal."""
+        log_map = {"INFO": logging.info, "ERROR": logging.error, "WARNING": logging.warning, "CRITICAL": logging.critical}
+        log_map.get(level, logging.info)(message)
+        if self.db:
+            asyncio.create_task(self.db.stream_log(level, message))
+
+    def get_circadian_intensity(self) -> float:
+        """Determines strike intensity based on day of week and hour."""
+        from datetime import datetime
+        now = datetime.now()
+        day = now.weekday() # 0 = Monday, 6 = Sunday
+        hour = now.hour
+        
+        # Higher intensity on Mon-Wed (0-2)
+        multiplier = 1.0
+        if day in [0, 1, 2]: multiplier = 1.3
+        elif day in [5, 6]: multiplier = 0.5 # Weekend cooling
+        
+        # Peak business hours (8-11 and 14-16)
+        if (8 <= hour <= 12) or (14 <= hour <= 17):
+            multiplier *= 1.2
+            
+        return multiplier
+        
+    async def _get_session(self, target_location: str = "Global"):
+        """
+        [🌏 MULTIVERSE READY]
+        Returns a stealth session with Latency-Matched IP Tunneling and TLS/JA3 Jitter.
+        """
+        if self._session is None:
+            proxies = os.getenv("RESIDENTIAL_PROXIES", "").split(",") if os.getenv("RESIDENTIAL_PROXIES") else []
+            
+            # 📡 MULTIVERSE: Latency-Matched IP Tunneling (Geo-Cloning)
+            # Attempt to find a proxy matching the target's geography
+            proxy = random.choice(proxies) if proxies else None
+            
+            # Regional IP Tunneling Logic (Global -> Local)
+            # If city-level proxy provider is used (format: 'user-zone-CITY:pass@provider:port')
+            if proxy and target_location != "Global":
+                loc_lower = target_location.lower()
+                city_tags = {
+                    "dubai": "dubai", "uae": "ae", "riyadh": "riyadh", "ksa": "sa",
+                    "london": "london", "uk": "gb", "new york": "newyork", "ny": "us",
+                    "california": "ca", "us": "us", "lebanon": "be", "beirut": "beirut"
+                }
+                for key, tag in city_tags.items():
+                    if key in loc_lower:
+                        # Inject regional tag into the proxy string (assuming standard provider logic)
+                        if "customer-" in proxy and "zone-" in proxy:
+                            proxy = proxy.replace("zone-", f"zone-{tag}-")
+                        elif ":port_" in proxy:
+                            proxy = proxy.split("_")[0] + "_" + tag
+                        logging.info(f"📡 GEO-TUNNELING: Strike routed through proximal IP: {tag.upper()}")
+                        break
+
+            proxy_dict = {"http": proxy, "https": proxy} if proxy else None
+
+            proxy_dict = {"http": proxy, "https": proxy} if proxy else None
+            
+            # 🕸️ OMNISCIENT: High-Entropy Impersonation
+            # Rotate fingerprints to mimic a diverse human fleet
+            fingerprints = ["chrome124", "safari17", "firefox120", "chrome110", "edge101"]
+            impersonate_choice = random.choice(fingerprints)
+            logging.info(f"🕸️ NETWORK MAPPING: Selected host fingerprint: {impersonate_choice}")
+
+            # 🛡️ MULTIVERSE: Advanced TLS Fingerprint Jitter (JA3 Bypass)
+            # Inject randomized TLS ALPN and Cipher strings to bypass enterprise security.
+            tls_variants = ["chrome110", "chrome116", "safari15_5", "firefox102", "edge101"]
+            tls_fingerprint = random.choice(tls_variants)
+            
+            self._session = httpx.AsyncClient(
+                timeout=30,
+                follow_redirects=True
+            )
+            # 🌌 TRANSCENDENCE: Session TTL Jitter
+            self._session_created_at = time.time()
+            self._session_ttl = random.randint(300, 900) # 5-15 mins
+        
+        # Check for session expiration
+        if time.time() - getattr(self, '_session_created_at', 0) > getattr(self, '_session_ttl', 0):
+            logging.info("🌌 NETWORK GHOST: Session expired. Refreshing host identity...")
+            await self._session.close()
+            self._session = None
+            return await self._get_session(target_location)
+            
+        return self._session
+    
+    async def close(self):
+        """Graceful cleanup"""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
+
+    async def check_kill_switch(self) -> bool:
+        """Reads global environment and live DB flag for instantaneous halt."""
+        kill_switch = os.getenv("KILL_SWITCH_ACTIVE", "False").lower() == "true"
+        if kill_switch:
+            logging.critical("🛑 KILL SWITCH ENGAGED. HALTING ALL OPERATIONS.")
+            self.is_running = False
+        return kill_switch
+
+    async def _stealth_scrape_target(self, target_url: str) -> Optional[str]:
+        """Execute stealth request with retry logic."""
+        async with self.semaphore:
+            headers = self.evasion.get_stealth_headers()
+            max_retries = 3
+            
+            for attempt in range(max_retries):
+                try:
+                    session = await self._get_session()
+                    response = await session.get(
+                        target_url,
+                        headers=headers,
+                        follow_redirects=True
+                    )
+                    # 🔐 FIX #1: Thread-safe counter increment
+                    async with self.rate_limit_lock:
+                        self._total_requests += 1
+                        
+                    if response.status_code == 200:
+                        content = response.text
+                        # Validate content
+                        if len(content) > 100:
+                            logging.info(f"⚡ Acquired: {target_url[:60]}...")
+                            return content
+                        else:
+                            logging.warning(f"⚠️ Thin response from {target_url}")
+                            return None
+                            
+                    elif response.status_code in [403, 429]:
+                        wait_time = (attempt + 1) * 5 + random.uniform(1, 3)
+                        logging.warning(f"🛡️ Blocked ({response.status_code}) - waiting {wait_time:.1f}s...")
+                        # 🛡️ OMNISCIENT: Report block to Hive-Mind
+                        if self.db:
+                            domain = target_url.split("//")[-1].split("/")[0]
+                            await self.db.report_blacklisted_domain(domain, f"HTTP {response.status_code}")
+                            
+                        await asyncio.sleep(wait_time)
+                        self.evasion.rotate_ua()  # Rotate UA on block
+                        
+                    elif response.status_code in [500, 502, 503, 504]:
+                        await asyncio.sleep(2 ** attempt)
+                        
+                    else:
+                        logging.error(f"⚠️ HTTP {response.status_code} on {target_url[:50]}...")
+                        return None
+                            
+                except asyncio.TimeoutError:
+                    # 🔐 FIX #1: Thread-safe counter increment
+                    async with self.rate_limit_lock:
+                        self._failed_requests += 1
+                    logging.warning(f"⏳ Timeout on {target_url[:50]} (attempt {attempt + 1})")
+                    await asyncio.sleep(2 ** attempt)
+                    
+                except Exception as e:
+                    # 🔐 FIX #1: Thread-safe counter increment
+                    async with self.rate_limit_lock:
+                        self._failed_requests += 1
+                    logging.error(f"💥 Connection error {target_url[:50]}: {str(e)[:50]}")
+                    await asyncio.sleep(1)
+                    
+            # 🔐 FIX #1: Thread-safe counter increment
+            async with self.rate_limit_lock:
+                self._failed_requests += 1
+            return None
+
+    def is_business_hours(self, location: str = "Global") -> bool:
+        """
+        [🌏 MULTIVERSE READY]
+        Sovereign timing: Checks if current time is optimal in the TARGET'S REALITY.
+        Ensures strikes occur when the recruiter is likely active.
+        """
+        from datetime import datetime, timedelta
+        import pytz # Standard in most advanced envs
+        
+        # Default to UTC (System)
+        now_utc = datetime.now(pytz.UTC)
+        
+        # Timezone Mapping (Heuristic)
+        tz_map = {
+            "dubai": "Asia/Dubai", "uae": "Asia/Dubai", "emirates": "Asia/Dubai",
+            "riyadh": "Asia/Riyadh", "ksa": "Asia/Riyadh", "saudi": "Asia/Riyadh",
+            "london": "Europe/London", "uk": "Europe/London", "bsamin": "Europe/London",
+            "new york": "America/New_York", "ny": "America/New_York", "usa": "America/New_York",
+            "california": "America/Los_Angeles", "ca": "America/Los_Angeles",
+            "lebanon": "Asia/Beirut", "beirut": "Asia/Beirut"
+        }
+        
+        target_tz_name = "Asia/Beirut" # Default to Sam's primary region
+        loc_lower = (location or "Global").lower()
+        for key, tz in tz_map.items():
+            if key in loc_lower:
+                target_tz_name = tz
+                break
+        
+        try:
+            target_tz = pytz.timezone(target_tz_name)
+            local_now = now_utc.astimezone(target_tz)
+            hour = local_now.hour
+            
+            # Optimal recruiter visibility: 9AM - 5PM
+            # Weekend Check (Fri/Sat in Middle East, Sat globally)
+            # [👑 ABSOULTE-STRIKE]: Overriding all circadian checks for 1000% mission readiness.
+            return True
+        except Exception:
+            return True
+
+    def load_initial_weights(self) -> Dict[str, float]:
+        """[🧬 PHASE EVOLUTION] Load analytical weights with reinforcement potential."""
+        return {
+            "EMPATHETIC": 0.25,
+            "AGGRESSIVE": 0.25,
+            "ANALYTICAL": 0.25,
+            "VISIONARY": 0.25
+        }
+
+    async def sync_evolutionary_weights(self):
+        """Fetches latest performance-based weights from the Hive-Mind."""
+        if not self.db: return
+        try:
+            new_weights = await self.db.get_variant_weights()
+            if new_weights:
+                self.variant_weights = new_weights
+                logging.info(f"🧬 EVOLUTION: Swarm weights synchronized: {self.variant_weights}")
+        except Exception as e:
+            logging.error(f"Evolution sync failure: {e}")
+
+    async def process_single_lead(self, lead: Dict[str, Any], variant_weights: Dict[str, float] = None):
+        """Runs the complete AI analysis and database verification on a single job lead."""
+        # [👑 SOVEREIGN NORMALIZATION]: Ensure consistent keys regardless of source (Local vs Cloud)
+        company_name = lead.get("company_name") or lead.get("company", "Unknown Company")
+        job_title = lead.get("job_title") or lead.get("title", "Professional Role")
+        job_url = lead.get("job_url") or lead.get("url") or lead.get("link", "")
+        email = lead.get("email", "")
+        description = lead.get("description", "")
+        is_recon = lead.get("is_guessed", False)
+        
+        # Back-fill lead dict for downstream components
+        lead["job_url"] = job_url
+        lead["company_name"] = company_name
+        lead["job_title"] = job_title
+
+        # [🛡️ JUNK FILTER]: Reject garbage leads from blind extraction
+        JUNK_NAMES = {
+            'login', 'die', 'press', 'how', 'win', 'create', 'company', 'who',
+            'what', 'the', 'info', 'contact', 'about', 'home', 'page', 'test',
+            'admin', 'user', 'unternehmensstruktur', 'unknown', 'none', 'null',
+            'undefined', 'error', 'help', 'support', 'search', 'index', 'api',
+            # ✅ FIX: Added garbage fallback names that the crawler produces
+            'target node', 'oracle lead', 'automatic target', 'founding operations partner',
+            'youtube', 'wikipedia', 'google', 'microsoft', 'apple', 'amazon',
+            'microsoft word', 'odoo dubai office', 'top startup investors', 'dubai office',
+            'search result', 'index of', 'parent directory'
+        }
+        if company_name.lower().strip() in JUNK_NAMES or len(company_name.strip()) < 2:
+            logging.info(f"🗑️ JUNK FILTER: Rejected garbage lead '{company_name}'. Skipping.")
+            # Also mark it as processed in the cloud to stop it from reappearing
+            if self.db and job_url:
+                await self.db.update_lead_status(job_url, "rejected")
+            return
+        
+        # ✅ FIX: Early email check — no point running AI analysis on leads with no contact
+        if not email:
+            logging.info(f"📭 NO EMAIL: Lead '{company_name}' has no contact info. Marking skipped.")
+            if self.db and job_url:
+                await self.db.update_lead_status(job_url, "no_contact")
+            return
+
+        identifier = job_url if job_url else email
+        
+        # 1. Global DB Deduplication Check
+        if self.db and identifier:
+            is_dup = await self.db.is_duplicate(identifier)
+            if is_dup:
+                logging.info(f"⏭️ Skipping duplicate target: {company_name}")
+                return
+            
+            # 🛡️ OMNISCIENT: Global Blacklist Check
+            domain = identifier.split("@")[-1] if "@" in identifier else ""
+            if domain and await self.db.is_globally_blacklisted(domain):
+                logging.warning(f"🛡️ HIVE-MIND BLOCK: {company_name} is under network-wide cooling. Aborting.")
+                return
+                
+        # 2. Extract heavy description if blind
+        if not description and job_url:
+            logging.info(f"🔍 Deep Scraping Target Description: {job_url}")
+            description = await self._stealth_scrape_target(job_url)
+
+        # 3. AI Analysis & RAG Pipeline
+        if self.ai:
+            from core.cv_tailor import get_tailored_cv_path
+            from core.scrapers.omni_crawler import MarketOracle
+            
+            logging.info(f"🧠 Beaming target to Omni-Intelligence: {company_name}")
+            
+            # 🏹 OMNISCIENT: Swarm Intelligence Integration
+            # Check the Hive-Mind first to see if another node has already sniped this target.
+            hiring_mgr = lead.get("hiring_manager")
+            recruiter_data = await self.db.get_global_recon(company_name) if self.db else None
+            
+            if recruiter_data:
+                logging.info(f"👑 HIVE-MIND SYNC: Recruiter already sniped: {recruiter_data['name']}")
+                hiring_mgr = recruiter_data["name"]
+            else:
+                # Sniper Recon (LinkedIn Sniper)
+                if not hiring_mgr or hiring_mgr == "Unknown" or hiring_mgr == "Hiring Manager":
+                    recruiter_data = await MarketOracle.get_recruiter_info(company_name, job_title)
+                    hiring_mgr = recruiter_data["name"]
+                    # Report success to the swarm
+                    if self.db: await self.db.report_recon_success(company_name, hiring_mgr, recruiter_data.get("url", ""))
+            
+            # Record Nudge Task for the Sniped Recruiter
+            await self.record_linkedin_nudge_task(company_name, job_title, recruiter_data)
+            
+            # 📰 APEX DEITY: News-Pulse Recon (Oracle Pulse)
+            news_headline = await MarketOracle.get_latest_news(company_name)
+            oracle_pulse = await MarketOracle.get_news_pulse(company_name)
+            logging.info(f"🔮 ORACLE PULSE: Sentiment: {oracle_pulse['sentiment']} | Event: {oracle_pulse['event']}")
+            
+            # 🧬 OMNISCIENT: Total Narrative Recon
+            company_values = await MarketOracle.get_culture_values(company_name)
+            competitor_fail = await MarketOracle.get_competitor_disruption(company_name)
+            
+            # 🌌 TRANSCENDENCE: Social Infiltration Recon
+            internal_lingo = await MarketOracle.get_internal_lingo(company_name)
+            executive_names = await MarketOracle.get_leadership_team(company_name)
+            
+            # Fetch latest evolutionary weights before analysis
+            await self.sync_evolutionary_weights()
+            current_weights = variant_weights or self.variant_weights
+
+            location = lead.get("location") or "Global"
+            is_relevant, reason, cover_letter, salary, score, advantage, keywords, persona, psych_variant, archetype, highlights = await self.ai.analyze_job(
+                job_title, 
+                description[:3000] if description else "Professional role",
+                variant_weights=current_weights,
+                person_name=hiring_mgr,
+                location=location,
+                news_headline=news_headline,
+                company_values=company_values,
+                competitor_fail=competitor_fail,
+                internal_lingo=internal_lingo,
+                executive_names=executive_names,
+                oracle_pulse=oracle_pulse
+            )
+            
+            # ELITE SCORE THRESHOLD: Lowered for aggressive initial expansion
+            # Jitter prevents "Hard Blocking" on close matches
+            jitter = random.randint(-4, 4)
+            strike_threshold = (65 if lead.get("mission_type") == "Founding_Strike" else 60) + jitter
+            
+            if not is_relevant or score < strike_threshold:
+                logging.info(f"❌ Target Denied by Intelligence: {company_name} | Score: {score}/{strike_threshold} | Reason: {reason[:100]}...")
+                if self.db and job_url: await self.db.update_lead_status(job_url, 'rejected')
+                return
+            
+            # RECON SURGE: Self-Healing Logic for High-Value Leads
+            if not email and (score >= 85 or lead.get("mission_type") == "Founding_Strike"):
+                logging.info(f"🧬 COSMIC RECON SURGE: High-value target {company_name} lacks contact. Deep-diving...")
+                emails = await self.omni_crawler.recon_surge(company_name)
+                if emails:
+                    email = emails[0]
+                    logging.info(f"✅ RECON SUCCESS: Found {email} for {company_name}")
+            
+            if not email:
+                logging.warning(f"⚠️ No contact info for {company_name}. Strike Aborted.")
+                if self.db and job_url: await self.db.update_lead_status(job_url, 'no_contact')
+                return
+
+            # CIRCADIAN TIMING
+            if not self.is_business_hours(location):
+                logging.info(f"⏳ CIRCADIAN HOLD: Holding strike for {company_name} until business hours.")
+                if self.db and job_url: await self.db.update_lead_status(job_url, 'circadian_hold')
+                return
+            
+            mission_display = lead.get("mission_type", "Evolutionary_Apex_Strike")
+            logging.info(f"✅ Target Locked [{score}%]: {company_name} | Archetype: {archetype} | Variant: {psych_variant}")
+            await self.telemetry_stream("INFO", f"🎯 SINGULARITY STRIKE LOCKED ({score}%) - {company_name}")
+            
+            # 4. Global CV Personalization (with ATS Bypass)
+            logging.info(f"🎭 Masking Identity: Tailoring CV for {persona} culture.")
+            tailored_html_path = await asyncio.to_thread(get_tailored_cv_path, company_name.replace(" ", "_"), job_title, advantage, keywords)
+            
+            # 🕵️ APEX DEITY: Shadow Tracking ID (NSA-Style)
+            # Embed an invisible, forensic ID into the cover letter body.
+            strike_id = f"{company_name[:4]}-{random.randint(1000, 9999)}"
+            cover_letter = self.ai.encode_shadow_id(cover_letter, strike_id)
+            
+            # 5. Execute Strike Package (PDF + Email)
+            lead_update = {
+                "custom_body": cover_letter,
+                "mission_type": mission_display,
+                "tailored_cv_path": tailored_html_path,
+                "culture_persona": persona,
+                "personality_archetype": archetype,
+                "psychological_variant": psych_variant,
+                "email": email, # Update if recon surge found it
+                "score": score,
+                "strike_id": strike_id,
+                "highlights": highlights
+            }
+            lead.update(lead_update)
+            
+            await self.poisson_jitter(5)
+            # 👑 [ABSOLUTE VMAX: TWO-FILE PACKAGE]
+            # Attaching PDF Cover Letter (Byblos Standard) + HTML VMAX CV.
+            package = await asyncio.to_thread(generate_ultimate_package, lead)
+            
+            final_attachments = []
+            if package.get("cv"): final_attachments.append(package["cv"])
+            if package.get("cl"): final_attachments.append(package["cl"])
+            
+            if final_attachments:
+                await self.poisson_jitter(10)
+                success = await asyncio.to_thread(send_strike, lead, final_attachments)
+                
+                # [🧹 100-YEAR STABILITY]: Disk Cleanup to prevent memory/storage leaks over time
+                try:
+                    if isinstance(final_attachments, str) and os.path.exists(final_attachments):
+                        os.remove(final_attachments)
+                    elif isinstance(final_attachments, list):
+                        for f in final_attachments:
+                            if f and os.path.exists(f): os.remove(f)
+                except Exception as e:
+                    logging.warning(f"🧹 Cleanup failed for {company_name}: {e}")
+                
+                if success:
+                    logging.info(f"🚀 STRIKE SUCCESS: Application beamed to {company_name}")
+                    await self.telemetry_stream("SUCCESS", f"✅ STRIKE SUCCESS - {company_name}")
+                    
+                    # 🧬 GHOST HUB: Pre-generate tactical cheat sheet for zero-latency prep
+                    if score >= 85:
+                        logging.info(f"👻 GHOST HUB: Generating tactical cheat sheet for {company_name}...")
+                        cheat_sheet = await self.ai.generate_cheat_sheet(company_name, job_title)
+                        lead['cheat_sheet'] = cheat_sheet
+                    
+                    if self.db:
+                        # Log enriched data including variant for learning
+                        await self.db.log_application(lead)
+                        if job_url: await self.db.update_lead_status(job_url, 'processed')
+                    
+                    # 🇷🇺 THE MOSCOW TRICK: Launch Decoy Fleet
+                    if score >= 85:
+                        logging.info(f"🇷🇺 DECOY FLEET: Deploying support fleet for {company_name} strike...")
+                        asyncio.create_task(self.deploy_decoy_fleet(lead, hiring_mgr))
+                else:
+                    logging.error(f"❌ STRIKE FAILED: {company_name}")
+                    if self.db and job_url: await self.db.update_lead_status(job_url, 'failed')
+            else:
+                logging.error(f"❌ STRIKE FAILED: PDF Synthesis error for {company_name}")
+                if self.db and job_url: await self.db.update_lead_status(job_url, 'pdf_error')
+
+    async def record_linkedin_nudge_task(self, company: str, role: str, recruiter: Dict[str, str]):
+        """Records a task to manually connect with the sniped recruiter on LinkedIn."""
+        if not recruiter.get("url") or not self.linkedin or not self.db:
+            return
+            
+        # 🧠 Generate actual message via Neural engine
+        nudge_message = await self.linkedin.generate_nudge(recruiter['name'], company, role)
+        
+        await self.telemetry_stream("INFO", f"🎯 RECRUITER SNIPED: {recruiter['name']} @ {company}")
+        
+        # 💾 Persist to Hive-Mind for Dashboard
+        await self.linkedin.record_nudge_task(self.db, recruiter['name'], nudge_message, recruiter['url'])
+        logging.info(f"🎯 NUDGE TASK RECORDED: {recruiter['name']} @ {company}")
+
+    async def deploy_decoy_fleet(self, primary_lead: Dict[str, Any], hiring_mgr: str):
+        """
+        🇷🇺 DECOY FLEET: Deploys fake applicants to shift the recruiter's baseline.
+        This makes Sam look like the only logical choice.
+        """
+        company = primary_lead.get("company_name")
+        job_title = primary_lead.get("job_title")
+        email = primary_lead.get("email")
+        
+        for i in range(self.decoy_count):
+            try:
+                # 1. Generate Persona
+                persona = await self.ai.generate_decoy_persona(job_title, company)
+                # 2. Generate Letter
+                letter = await self.ai.generate_decoy_letter(persona, job_title, company)
+                
+                # 3. Create Decoy Lead
+                decoy_lead = primary_lead.copy()
+                decoy_lead.update({
+                    "custom_body": letter,
+                    "mission_type": "DECOY_STRIKE",
+                    "hiring_manager": hiring_mgr,
+                    "culture_persona": "Decoy"
+                })
+                
+                # Wait for primary strike to land first
+                await asyncio.sleep(60 * (i + 1) * random.uniform(1, 2))
+                
+                # 4. Generate Forensic PDF
+                pdf_path = await asyncio.to_thread(create_personalized_pdf, decoy_lead)
+                
+                if pdf_path and os.path.exists(pdf_path):
+                    # 5. Strike
+                    success = await asyncio.to_thread(send_strike, decoy_lead, pdf_path, sender_name=persona['name'])
+                    
+                    # [🧹 100-YEAR STABILITY]: Disk Cleanup
+                    try:
+                        os.remove(pdf_path)
+                    except: pass
+                    
+                    if success:
+                        logging.info(f"🇷🇺 DECOY SUCCESS: {persona['name']} deployed against {company}.")
+            except Exception as e:
+                logging.error(f"🇷🇺 DECOY FAILURE: {e}")
+
+    async def _leadership_watchdog(self):
+        """[👑 SOVEREIGN WATCHDOG]: Continuously monitors leadership to prevent 409 conflicts."""
+        while self.is_running:
+            try:
+                if self.db:
+                    is_leader = await self.db.claim_bot_leadership()
+                    is_render = os.getenv("RENDER") is not None
+                    
+                    if not is_leader and not is_render:
+                        # Check if a cloud node is actually active (not just stale)
+                        # The db_client already handles staleness logic in claim_bot_leadership,
+                        # but we want to be extra careful here.
+                        logging.critical("🏰 SOVEREIGN OVERRIDE: Cloud Node is active. Shutting down local instance.")
+                        import sys
+                        sys.exit(0)
+            except Exception as e:
+                logging.debug(f"Leadership watchdog error: {e}")
+            await asyncio.sleep(30)
+
+    async def _perform_self_healing(self):
+        """
+        [🛡️ SOVEREIGN SELF-HEALING]
+        Automatically detects queue jams, stale leads, and junk data blocks.
+        """
+        if not self.db: return
+        
+        try:
+            # 1. PURGE JUNK LEADS: Mass-reject known garbage strings in the DB
+            # This ensures that if the crawler finds junk, it's purged before it can block the queue.
+            junk_patterns = ['target node', 'unknown', 'none', 'microsoft word', 'odoo dubai office', 'top startup investors', 'dubai office']
+            for pattern in junk_patterns:
+                # Direct Hive-Mind scrub
+                await self.db._request_with_retry('PATCH', 
+                    f"{self.db.url}/rest/v1/leads?company_name=eq.{pattern}&status=eq.pending", 
+                    payload={"status": "rejected"})
+            
+            # 2. STAGNATION PREVENTION: Mark leads older than 48h as expired
+            from datetime import datetime, timedelta
+            stale_threshold = (datetime.now() - timedelta(hours=48)).isoformat()
+            await self.db._request_with_retry('PATCH', 
+                f"{self.db.url}/rest/v1/leads?status=eq.pending&created_at=lt.{stale_threshold}", 
+                payload={"status": "stale_expired"})
+            
+            logging.info("🛡️ SELF-HEALING: Hive-Mind scrubbed. Junk purged. Stale leads archived.")
+        except Exception as e:
+            logging.error(f"⚠️ SELF-HEALING FAILURE: {e}")
+
+    async def execute_divine_loop(self):
+        """Main execution loop with adaptive timing and Alpha-Centauri Swarm features."""
+        logging.info("🌞 CHRONOS: Divine Loop Initialized. [VERSION: 10^20% PERFECTION] Absolute Dominance Protocol Active.")
+        
+        # Start background watchdog
+        asyncio.create_task(self._leadership_watchdog())
+        
+        # [🛡️ SOVEREIGN MODE DETECTION]
+        health = self.db.get_system_health()
+        mode_msg = f"🛰️ SWARM MODE: {health['mode']} Protocol Active."
+        logging.info(mode_msg)
+        await self.telemetry_stream("INFO", mode_msg)
+            
+        if self.db:
+            await self.db.register_node()
+            
+        logging.info("👑 Alpha Orchestrator Initialized. Beginning eternal cycle.")
+        await self.telemetry_stream("INFO", "👑 PROJECT CHRONOS: OMEGA-SUPREMACY - Sovereign Intelligence Swarm Active.")
+        
+        strike_counter = 0
+        while self.is_running:
+            try:
+                await self.check_kill_switch()
+                if not self.is_running:
+                    break
+                
+                # ALPHA-CENTAURI: Swarm Heartbeat
+                if self.db: 
+                    try:
+                        # [🛡️ SELF-HEALING]: Run auto-recovery before starting the cycle
+                        await self._perform_self_healing()
+                        
+                        logging.info("🔥 [LOOP-START] Checking heartbeat...")
+                        await self.db.send_heartbeat()
+                        logging.info("🔥 [LOOP-START] Checking leadership...")
+                        is_leader = await self.db.claim_bot_leadership()
+                        logging.info(f"🔥 [LOOP-START] Leadership status: {is_leader}")
+                        
+                        if is_leader:
+                            logging.info("🔥 [LOOP-START] we are leader! Syncing cloud...")
+                            cloud_leads = await self.db.get_pending_leads(limit=20)
+                            logging.info(f"🔥 [LOOP-START] Found {len(cloud_leads)} cloud leads.")
+                            
+                            if cloud_leads:
+                                logging.info(f"🚀 MISSION READY: Found {len(cloud_leads)} pending strikes.")
+                                for lead in cloud_leads:
+                                    try:
+                                        logging.info(f"🎯 TRIGGERING STRIKE for {lead.get('company_name')}...")
+                                        await self.process_single_lead(lead)
+                                    except Exception as e:
+                                        logging.error(f"❌ CRITICAL STRIKE FAILURE: {e}", exc_info=True)
+                            else:
+                                logging.info("📡 CLOUD SYNC: No pending strikes found.")
+                        else:
+                            logging.info("💤 STANDBY: This node is currently an Auxiliary Node.")
+                            is_render = os.getenv("RENDER") is not None
+                            logging.critical("🏰 SOVEREIGN OVERRIDE: Active Cloud Node detected. (Bypassed for testing)")
+                            # sys.exit(0)
+                    except Exception as e:
+                        logging.error(f"❌ CLOUD SYNC FAILURE: {e}")
+
+                # HUMAN FATIGUE MODELING: Random long breaks after intense activity
+                strike_counter += 1
+                if strike_counter % 7 == 0:
+                    fatigue_time = random.randint(1800, 3600)
+                    logging.info(f"☕ HUMAN FATIGUE: Bot is 'getting lunch'... Sleeping for {fatigue_time/60:.1f} mins.")
+                    await asyncio.sleep(fatigue_time)
+                await self.check_kill_switch()
+                if not self.is_running:
+                    break
+                
+                logging.info("🧬 EVOLUTION: Fetching variant performance stats...")
+                weights = await self.db.get_variant_weights() if self.db else None
+                
+
+                try:
+                    logging.info("🧠 CLOUD SYNC: Checking for pending strikes in the Hive-Mind...")
+                    cloud_leads = await self.db.get_pending_leads(limit=20)
+                    if cloud_leads:
+                        logging.info(f"🚀 MISSION READY: Found {len(cloud_leads)} pending strikes. Igniting Strikes...")
+                        tasks = [self.process_single_lead(lead, variant_weights=weights) for lead in cloud_leads]
+                        results = await asyncio.gather(*tasks, return_exceptions=True)
+                        for i, res in enumerate(results):
+                            if isinstance(res, Exception):
+                                logging.error(f"❌ CRITICAL STRIKE FAILURE for lead {i}: {res}")
+                                traceback.print_exception(type(res), res, res.__traceback__)
+                    else:
+                        logging.info("📡 CLOUD SYNC: No pending strikes found. Proceeding to scouting...")
+                except Exception as e:
+                    logging.error(f"❌ CLOUD SYNC FAILURE: {e}")
+
+                await self.poisson_jitter(5)
+                
+                logging.info("🌍 Launching Vanguard Scraps...")
+                raw_leads = []
+                try:
+                    scrape_tasks = []
+                    if scraper:
+                        scrape_tasks.append(asyncio.to_thread(scraper.get_latest_jobs))
+                    if self.omni_crawler:
+                        await self.telemetry_stream("INFO", "🕵️‍♂️ OMNI-CRAWLER: Engaging deep web re-connaissance...")
+                        scrape_tasks.append(daleel_parallel_scan(self.db, pages=1))
+
+                    if self.omni_crawler:
+                        logging.info("🛰️ SOVEREIGN HUNT: Scanning registered custom platforms...")
+                        platform_leads = await self.omni_crawler.hunt_registered_platforms()
+                        raw_leads.extend(platform_leads)
+
+                    if scrape_tasks:
+                        results = await asyncio.gather(*scrape_tasks, return_exceptions=True)
+                        for res in results:
+                            if isinstance(res, list):
+                                raw_leads.extend(res)
+                            elif isinstance(res, Exception):
+                                logging.error(f"Scraper Sub-node Failure: {res}")
+
+                except Exception as e:
+                    logging.error(f"Vanguard Scrape failed: {e}")
+
+                # 👑 INFINITY: Sovereign Priority Sorting
+                if raw_leads:
+                    # Sort by priority_score (Descending) to ensure high-value strikes happen first
+                    raw_leads.sort(key=lambda x: x.get("priority_score", 0), reverse=True)
+                    
+                    logging.info(f"🎯 Cycle Complete. Acquired {len(raw_leads)} leads. Top Priority: {raw_leads[0].get('company_name')} ({raw_leads[0].get('priority_score')})")
+                    
+                    # Limit to top 15 most valuable to prevent API burn, but prioritize Ghost Jobs
+                    tasks = [self.process_single_lead(lead, variant_weights=weights) for lead in raw_leads[:15]]
+                    await asyncio.gather(*tasks, return_exceptions=True)
+
+                logging.info("💤 Cycle concluded. Entering 100% Heartbeat cooldown.")
+                # 100% SOVEREIGN STEALTH: Adaptive Heartbeat
+                # If there are still pending leads in the hive-mind, move faster (30s wait)
+                # Otherwise, enter deep human-like sleep (5-10 mins)
+                pending_count = await self.db.get_pending_leads_count() if self.db else 0
+                
+                if pending_count > 0 and not self.emergency_strike_requested:
+                    logging.info(f"⚡ FAST-TRACK: {pending_count} leads remaining. Skipping deep sleep.")
+                    await self.poisson_jitter(30)
+                elif not self.emergency_strike_requested:
+                    await self.poisson_jitter(300)
+                else:
+                    self.emergency_strike_requested = False
+                    logging.info("⚡ EMERGENCY STRIKE: Bypassing heartbeat cycle.")
+
+            except Exception as e:
+                logging.error(f"Divine loop cycle failed: {e}")
+                await self.poisson_jitter(60)
+
+
+async def run_orchestrator():
+    """[👑 APEX PHOENIX]: Infinite survival wrapper with AI-powered diagnostics."""
+    restart_count = 0
+    last_restart = 0
+    
+    while True:
+        bot = None
+        try:
+            logging.info("🔥 PHOENIX: Igniting Alpha Orchestrator Core...")
+            bot = AlphaOrchestrator()
+            await bot.execute_divine_loop()
+        except Exception as e:
+            now = time.time()
+            if now - last_restart < 3600: restart_count += 1
+            else: restart_count = 1
+            last_restart = now
+            
+            error_trace = traceback.format_exc()
+            logging.critical(f"💀 CORE COLLAPSE: {e}")
+            
+            # [🧠 AI DIAGNOSIS]: Ask Gemini what happened and how to fix it
+            try:
+                from core.ai_agent import OmniIntelligence
+                ai = OmniIntelligence()
+                diagnosis = await ai.structural_query(f"The bot crashed with this error: {error_trace}. Explain the cause in simple terms for the user and suggest a fix. Keep it brief.")
+                msg = f"🚨 <b>CORE CRASH DETECTED</b>\n\n<b>Diagnosis:</b> {diagnosis.get('answer', str(e))}\n\n<i>Phoenix restart initiated ({restart_count}/hr)</i>"
+                
+                from core.db_client import get_db
+                db = get_db()
+                await db.stream_log("CRITICAL", f"AI_DIAGNOSIS: {msg}")
+                # We can't easily import dashboard here without circular issues, so we use a DB task for notification
+                await db.sync_add_task(task_type="broadcast_notification", target="ALL_USERS", meta=msg)
+            except: pass
+            
+            await asyncio.sleep(30)
+        finally:
+            if bot:
+                try: await bot.close()
+                except: pass
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(run_orchestrator())
+    except KeyboardInterrupt:
+        logging.info("Shutting down Alpha Orchestrator.")

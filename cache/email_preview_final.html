@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RITA Email Preview - Exactly How Companies Will See It</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1a1a2e;
+        }
+        .preview-container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        .preview-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+        }
+        .preview-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        .preview-header p {
+            margin: 5px 0;
+            opacity: 0.9;
+        }
+        .email-frame {
+            background: white;
+            border-radius: 0 0 10px 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        /* EXACT EMAIL DESIGN - Same as rita_email_system.py */
+        .email-container {
+            max-width: 650px;
+            margin: 0 auto;
+            background-color: #111827;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            padding: 45px 30px;
+            text-align: center;
+        }
+        .initials {
+            display: inline-block;
+            width: 65px;
+            height: 65px;
+            background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+            border-radius: 50%;
+            line-height: 65px;
+            color: #ffffff;
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 18px;
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.5);
+        }
+        .subtitle {
+            font-size: 12px;
+            letter-spacing: 4px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .name {
+            font-size: 32px;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: 1px;
+            margin: 0;
+        }
+        .title {
+            font-size: 13px;
+            color: #06b6d4;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+        .gradient-bar {
+            height: 5px;
+            background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
+        }
+        .content {
+            padding: 40px 35px;
+            background-color: #ffffff;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #1e293b;
+        }
+        .message {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #475569;
+            margin-bottom: 20px;
+        }
+        .highlight {
+            color: #06b6d4;
+            font-weight: 700;
+        }
+        .company-name {
+            color: #06b6d4;
+            font-weight: 700;
+        }
+        .section {
+            margin: 25px 0;
+        }
+        .section-box {
+            padding: 22px;
+            background-color: #1e293b;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #06b6d4;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+        .section-content {
+            font-size: 14px;
+            color: #94a3b8;
+            line-height: 1.7;
+            margin-top: 8px;
+        }
+        .highlight-green {
+            color: #4ade80;
+            font-weight: 600;
+        }
+        .quote-box {
+            padding: 22px 28px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .quote-text {
+            margin: 0;
+            font-style: italic;
+            color: #1e293b;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        .available-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 25px;
+            color: #10b981;
+            font-size: 13px;
+            font-weight: 600;
+            margin: 20px 0 25px 0;
+        }
+        .footer {
+            background-color: #0f172a;
+            padding: 35px 30px;
+            text-align: center;
+            border-top: 1px solid #1e293b;
+        }
+        .cta-button {
+            display: inline-block;
+            padding: 14px 35px;
+            background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 1.5px;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+            margin-bottom: 28px;
+        }
+        .contact-info {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #1e293b;
+        }
+        .contact-link {
+            color: #94a3b8;
+            font-size: 14px;
+            text-decoration: none;
+            margin: 0 12px;
+        }
+        .attachment-note {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 20px 0;
+            color: #10b981;
+            font-size: 13px;
+        }
+        
+        /* Attachments section */
+        .attachments {
+            background: #f0f9ff;
+            border: 2px dashed #06b6d4;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 35px;
+            text-align: center;
+        }
+        .attachments h3 {
+            margin: 0 0 15px 0;
+            color: #06b6d4;
+        }
+        .attachment-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .attachment-icon {
+            font-size: 32px;
+        }
+        .attachment-info {
+            text-align: left;
+        }
+        .attachment-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .attachment-desc {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <div class="preview-header">
+            <h1>RITA CORDHAI - EMAIL PREVIEW</h1>
+            <p>This is exactly how your email will look to companies</p>
+            <p><strong>Subject:</strong> HR & Operations Manager | Rita Cordahi - HR & Operations | Available Immediately</p>
+        </div>
+        
+        <div class="email-frame">
+            <div class="email-container">
+                <!-- HEADER -->
+                <div class="header">
+                    <div class="initials">RC</div>
+                    <div class="subtitle">EXECUTIVE CANDIDACY</div>
+                    <h1 class="name">RITA CORDAHI</h1>
+                    <div class="title">HR & Customer Operations Specialist</div>
+                </div>
+                
+                <!-- GRADIENT BAR -->
+                <div class="gradient-bar"></div>
+                
+                <!-- CONTENT -->
+                <div class="content">
+                    <p class="greeting">Dear <strong>Hiring Team at <span class="company-name">[COMPANY NAME]</span></strong>,</p>
+                    
+                    <p class="message">
+                        I am formally reaching out to express my high-level interest in the <span class="highlight">[JOB TITLE]</span> position at <span class="company-name">[COMPANY NAME]</span>. With a robust track record in HR administration and customer operations, I specialize in architecting workflows that prioritize precision, compliance, and exceptional service delivery.
+                    </p>
+                    
+                    <p class="message">
+                        My methodology is built specifically for organizations that focus heavily on <strong>automation, KPIs, and scaling corporate culture</strong>. Here are the precise competencies I bring to the table:
+                    </p>
+                    
+                    <!-- SKILLS SECTION -->
+                    <div class="section">
+                        <div class="section-box" style="border-left: 5px solid #06b6d4;">
+                            <div class="section-title">01. Operations Lifecycle</div>
+                            <div class="section-content">
+                                Proven expertise in managing high-volume recruitment logistics, employee records, and payroll synchronization with <span class="highlight-green">100% data integrity</span>.
+                            </div>
+                        </div>
+                        
+                        <div class="section-box" style="border-left: 5px solid #3b82f6;">
+                            <div class="section-title">02. Service & Retention</div>
+                            <div class="section-content">
+                                A track record of resolving <strong>50+ daily complex technical and billing inquiries</strong> while maintaining strict SLA compliance.
+                            </div>
+                        </div>
+                        
+                        <div class="section-box" style="border-left: 5px solid #8b5cf6;">
+                            <div class="section-title">03. Workflow Optimization</div>
+                            <div class="section-content">
+                                Experience in standardizing onboarding templates and operational diagnostics to significantly <strong>reduce departmental overhead by 25%</strong>.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- QUOTE BOX -->
+                    <div class="quote-box">
+                        <p class="quote-text">
+                            "I am looking to bring rigorous accountability, structured scaling, and high-conversion problem-solving to the <strong class="highlight">[COMPANY NAME]</strong> team."
+                        </p>
+                    </div>
+                    
+                    <!-- AVAILABLE BADGE -->
+                    <div style="text-align: center;">
+                        <span class="available-badge">✓ Available Immediately for Relocation</span>
+                    </div>
+                    
+                    <!-- ATTACHMENTS SECTION -->
+                    <div class="attachments">
+                        <h3>📎 ATTACHMENTS INCLUDED</h3>
+                        
+                        <div class="attachment-item">
+                            <div class="attachment-icon">📄</div>
+                            <div class="attachment-info">
+                                <div class="attachment-name">[Company Name]_Cover_Letter_Rita_Cordahi.html</div>
+                                <div class="attachment-desc">Personalized cover letter with company name</div>
+                            </div>
+                        </div>
+                        
+                        <div class="attachment-item">
+                            <div class="attachment-icon">📋</div>
+                            <div class="attachment-info">
+                                <div class="attachment-name">Rita_Cordahi_CV.html</div>
+                                <div class="attachment-desc">Professional CV with full work history</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="message" style="margin-bottom: 0;">
+                        I am available for immediate discussion and can start at your earliest convenience. Thank you for considering my application.
+                    </p>
+                </div>
+                
+                <!-- FOOTER -->
+                <div class="footer">
+                    <a href="https://www.linkedin.com/in/rita-cordahi/" class="cta-button">VIEW LINKEDIN PROFILE</a>
+                    
+                    <div class="contact-info">
+                        <div style="margin-bottom: 10px;">
+                            <a href="mailto:rita.cordahi@outlook.com" class="contact-link">rita.cordahi@outlook.com</a>
+                            <span style="color: #334155; margin: 0 5px;">|</span>
+                            <a href="tel:+96176005412" class="contact-link">+961 76 005 412</a>
+                        </div>
+                        <div style="font-size: 11px; color: #475569; letter-spacing: 1px; text-transform: uppercase;">
+                            HR & Customer Operations Specialist
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; padding: 20px; color: #94a3b8;">
+            <p><strong>Companies in database:</strong> Emirates, Etihad, Qatar Airways, Saudi Aramco, Banks, Telecom companies, and 80+ more</p>
+            <p>Run <code>START_EMAIL_CAMPAIGN.bat</code> to send this email to all companies!</p>
+        </div>
+    </div>
+</body>
+</html>

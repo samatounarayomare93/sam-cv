@@ -1,0 +1,75 @@
+name: Release Package
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run release validation
+        env:
+          TEST_MODE: "true"
+          TEST_RECEIVER_EMAIL: "test@example.com"
+        run: |
+          python -m unittest discover -p "test_*.py"
+
+      - name: Build release archive
+        run: |
+          python - <<'PY'
+          import os
+          import zipfile
+
+          release_name = os.environ.get("GITHUB_REF_NAME", "release")
+          archive_name = f"rita-job-automator-{release_name}.zip"
+          include_paths = [
+              "run.py",
+              "requirements.txt",
+              "README.md",
+              "core",
+              "tests",
+              ".github/workflows",
+              "docs",
+          ]
+
+          with zipfile.ZipFile(archive_name, "w", zipfile.ZIP_DEFLATED) as archive:
+              for path in include_paths:
+                  if os.path.isdir(path):
+                      for root, _, files in os.walk(path):
+                          for filename in files:
+                              full_path = os.path.join(root, filename)
+                              archive.write(full_path, full_path)
+                  elif os.path.exists(path):
+                      archive.write(path, path)
+
+          print(archive_name)
+          PY
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-archive
+          path: rita-job-automator-*.zip
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: rita-job-automator-*.zip

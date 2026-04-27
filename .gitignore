@@ -1,0 +1,89 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Local environment / dependencies
+pydeps/
+venv/
+.venv/
+/Lib/
+/Include/
+/Scripts/
+.python311/
+
+# Local runtime locks and logs
+.main_bot.lock
+*.lock
+*.log
+system_pulse.txt
+
+# Local runtime state files
+company_database.json
+discovered_companies.json
+health_check.json
+metrics.json
+tracker.json
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+
+# Portable / embedded Python artifacts
+portable_python/
+python.exe
+pythonw.exe
+python3.dll
+python311.dll
+python311.zip
+python311._pth
+python.cat
+sqlite3.dll
+libcrypto-3.dll
+libffi-8.dll
+libssl-3.dll
+vcruntime140.dll
+vcruntime140_1.dll
+python_embedded.zip
+python_portable.zip
+
+# Generated PDF cache (contains personal data)
+core/pdf_cache/
+core/temp_cvs/
+temp_mirror/
+
+# SQLite databases
+*.db
+
+# Scratch / verification scripts (dev-only)
+scratch/
+verify_*.py
+truth_test_*.py
+
+# Explicitly track scripts/ and src/lib/ (Windows case-insensitive workaround)
+!scripts/
+!rita-command-center/src/lib/
+
+# Node.js / Next.js
+node_modules/
+.next/
+rita-command-center/node_modules/
+rita-command-center/.next/
+rita-command-center/package-lock.json
+
+# Gmail API Secrets
+credentials.json
+token.json
+
+# Python runtime
+.sovereign_runtime/

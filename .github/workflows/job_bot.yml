@@ -1,0 +1,80 @@
+name: 24/7 Scout & Strike Autopilot
+
+on:
+  schedule:
+    # Optimized Scout & Strike: Every 2 hours to stay within Free Tier + GitHub Actions limits
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+    inputs:
+      bot_mode:
+        description: 'Launch Mode'
+        required: true
+        default: 'hybrid'
+        type: choice
+        options: [scout, strike, hybrid]
+      platform:
+        description: 'Scrape Platform'
+        required: true
+        default: 'hybrid'
+        type: choice
+        options: [hybrid, linkedin, omni, bayt, monster, daleel]
+
+jobs:
+  scout-and-strike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12 # ⚡ Optimized timeout (leaves 48 min buffer for GitHub limits)
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+    
+    steps:
+      - name: 🛰️ Checkout Repository (Fast)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🐍 Set up Python 3.11 (Cached)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: '**/requirements.txt'
+
+      - name: 📦 Install Dependencies (Cached)
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt --prefer-binary --no-cache-dir
+
+      - name: 🔧 Verify Configuration
+        run: |
+          python - <<'PY'
+          import config
+          checks = {
+              'BREVO_API_KEY_OR_SMTP': bool(config.BREVO_API_KEY or config.BREVO_SMTP_PASSWORD),
+              'TELEGRAM_READY': bool(config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID),
+              'TEST_MODE': bool(config.TEST_MODE),
+          }
+          print('✅ Config loaded successfully')
+          print(checks)
+          PY
+
+      - name: 🤖 Execute Project Chronos Engine (FAST MODE)
+        env:
+          BOT_MODE: ${{ github.event.inputs.bot_mode || 'hybrid' }}
+          SCRAPE_PLATFORM: ${{ github.event.inputs.platform || 'hybrid' }}
+          GITHUB_ACTIONS: 'true'
+          
+          # Email Delivery
+          BREVO_SMTP_PASSWORD: ${{ secrets.BREVO_SMTP_PASSWORD }}
+          GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          
+          # Telegram Notifications
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          
+          # AI Backends (Optional)
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CV_FILE_PATH: "Rita_Cordahi_CV.html"
+        run: python core/main_bot.py

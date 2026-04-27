@@ -1,0 +1,359 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 2rem 4rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Nav */
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  margin-bottom: 4rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.rc {
+  background: var(--gradient-main);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -1px;
+}
+
+.title {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.navLinks {
+  display: flex;
+  gap: 1rem;
+}
+
+/* Hero */
+.hero {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.hero h1 {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  text-shadow: 0 0 40px rgba(0, 212, 255, 0.4);
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  margin-bottom: 4rem;
+}
+
+.card {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cardHeader h3 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.pulseIndicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--accent-green);
+  box-shadow: 0 0 12px var(--accent-green);
+  animation: pulse-glow 2s infinite;
+}
+
+/* 💎 Sovereign Mission Deck (Mini App Only) */
+.missionDeck {
+  margin-bottom: 4rem;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.deckHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.deckHeader h2 {
+  font-family: 'Outfit', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 1.2rem;
+}
+
+.tooltipArea {
+  min-width: 400px;
+  max-width: 600px;
+  padding: 1rem 1.5rem;
+  background: rgba(0, 212, 255, 0.05);
+  border-left: 4px solid var(--accent-cyan);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.7;
+}
+
+.tooltipArea.active {
+  opacity: 1;
+  background: rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+  color: var(--accent-cyan);
+  transform: translateX(10px);
+}
+
+.buttonGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.buttonGrid button {
+  padding: 1.5rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.buttonGrid button:hover {
+  background: var(--gradient-main);
+  color: white;
+  border-color: var(--accent-cyan);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 212, 255, 0.3);
+}
+
+.pulseIndicator.blue { background-color: var(--accent-blue); box-shadow: 0 0 12px var(--accent-blue); }
+.pulseIndicator.purple { background-color: var(--accent-purple); box-shadow: 0 0 12px var(--accent-purple); }
+.pulseIndicator.pink { background-color: var(--accent-pink); box-shadow: 0 0 12px var(--accent-pink); }
+
+.statGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.statValue {
+  font-size: 3rem;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.statLabel {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Terminal */
+.terminal {
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.terminalHeader {
+  background: rgba(0,0,0,0.4);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.macControls {
+  display: flex;
+  gap: 8px;
+}
+
+.macControls span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.macControls span:nth-child(1) { background: #ff5f56; }
+.macControls span:nth-child(2) { background: #ffbd2e; }
+.macControls span:nth-child(3) { background: #27c93f; }
+
+.terminalTitle {
+  margin-left: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.terminalBody {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.terminalBody p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.tTime { color: #888; }
+.tInfo { color: var(--accent-blue); font-weight: bold; }
+.tWarn { color: #ffbd2e; font-weight: bold; }
+.tSuccess { color: var(--accent-green); font-weight: bold; }
+
+/* Radar Section [ZENITH] */
+.radarSection {
+  display: flex;
+  align-items: center;
+  gap: 4rem;
+  padding: 3rem;
+  margin-bottom: 4rem;
+  overflow: hidden;
+}
+
+.radarContainer {
+  position: relative;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: rgba(0, 20, 30, 0.4);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.5s ease;
+}
+
+.activePulse {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 50px rgba(0, 212, 255, 0.3);
+  transform: scale(1.02);
+}
+
+.radarSweep {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(0, 212, 255, 0.3) 0deg, transparent 90deg);
+  animation: radar-rotate 4s linear infinite;
+}
+
+.radarGrid {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 50%;
+  background-image: 
+    radial-gradient(circle, transparent 33%, rgba(0, 212, 255, 0.05) 34%, rgba(0, 212, 255, 0.05) 35%, transparent 36%),
+    radial-gradient(circle, transparent 66%, rgba(0, 212, 255, 0.05) 67%, rgba(0, 212, 255, 0.05) 68%, transparent 69%);
+}
+
+.radarPoint {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--accent-green);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent-green);
+  opacity: 0;
+  animation: radar-ping 4s infinite;
+}
+
+.p1 { top: 20%; left: 30%; animation-delay: 0.5s; }
+.p2 { top: 60%; left: 70%; animation-delay: 1.5s; }
+.p3 { top: 40%; left: 80%; animation-delay: 2.8s; }
+
+.radarCore {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.radarLabel {
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: var(--accent-blue);
+  font-weight: bold;
+}
+
+.radarStats {
+  flex: 1;
+}
+
+.radarStats h2 { font-size: 2rem; margin-bottom: 0.5rem; }
+.radarMeta {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+@keyframes radar-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes radar-ping {
+  0% { opacity: 0; transform: scale(0.5); }
+  20% { opacity: 1; transform: scale(1.2); }
+  40% { opacity: 0; transform: scale(1); }
+  100% { opacity: 0; }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .radarSection {
+    flex-direction: column;
+    padding: 2rem;
+    text-align: center;
+  }
+}
