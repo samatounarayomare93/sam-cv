@@ -87,3 +87,9 @@ token.json
 
 # Python runtime
 .sovereign_runtime/
+
+
+sam-command-center/node_modules/
+sam-command-center/.next/
+pdf_cache/
+.sovereign_runtime/
