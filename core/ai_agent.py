@@ -114,7 +114,7 @@ class OmniIntelligence:
                 logging.error(f"Failed to load profile.json: {e}")
 
         # 2. Fallback to Sam's HTML CV (Legacy Mode)
-        cv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Sam_Cordahi_CV.html")
+        cv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Sam_Salameh_CV.html")
         if os.path.exists(cv_path):
             try:
                 with open(cv_path, 'r', encoding='utf-8') as f:

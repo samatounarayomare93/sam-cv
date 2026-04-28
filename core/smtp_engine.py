@@ -342,10 +342,6 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
     
     # Only skip manual signatures for Gmail to allow authentic Google signing
     if not is_gmail:
-        msg['Message-ID'] = f"<{datetime.now().strftime('%Y%m%d%H%M%S')}.{os.getpid()}@samcordahi.com>"
-        msg['X-Priority'] = '1 (Highest)'
-        msg['Importance'] = 'High'
-        msg['Priority'] = 'Urgent'
         msg['X-Mailer'] = 'Microsoft Outlook 16.0'
         msg['Auto-Submitted'] = 'no'
     

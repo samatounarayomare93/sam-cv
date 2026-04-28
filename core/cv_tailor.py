@@ -63,7 +63,7 @@ class CVTailor:
 
 def get_tailored_cv_path(job_id: str, job_title: str, advantage: str, keywords: list = None) -> str:
     """Helper to generate and save a tailored CV for a specific strike."""
-    base_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Sam_Cordahi_CV.html")
+    base_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Sam_Salameh_CV.html")
     tailor = CVTailor(base_path)
     content = tailor.tailor_cv(job_title, advantage, keywords)
     

@@ -78,7 +78,7 @@ def load_profile():
             "title": "HR & Customer Operations Specialist",
             "email": "sam.dev1@outlook.com",
             "phone": "+961 76 005 412",
-            "linkedin": "linkedin.com/in/sam-cordahi",
+            "linkedin": "linkedin.com/in/sam-salameh",
             "location": "Keserwan, Lebanon",
             "avatar_initials": "RC"
         },
@@ -344,13 +344,13 @@ def generate_triple_package(lead):
     cv_pdf_path = generate_cv_pdf(company, job_title, lead)
     
     # 2. HTML CV (Legacy Absolute Version)
-    cv_html_path = os.path.join(os.getcwd(), "Sam_Cordahi_CV.html")
+    cv_html_path = os.path.join(os.getcwd(), "Sam_Salameh_CV.html")
     if not os.path.exists(cv_html_path):
         cv_html_path = None # Fallback if missing
         
     # 3. HTML Cover Letter (Personalized)
     cl_content = create_cover_letter_html(company, job_title)
-    cl_filename = f"Sam_Cordahi_Cover_Letter_-_{company.replace(' ', '_')}.html"
+    cl_filename = f"Sam_Salameh_Cover_Letter_-_{company.replace(' ', '_')}.html"
     cl_path = os.path.join(os.path.dirname(cv_pdf_path), cl_filename)
     with open(cl_path, "w", encoding="utf-8") as f:
         f.write(cl_content)
@@ -420,7 +420,7 @@ def generate_cover_letter_pdf(company, job_title, lead=None):
     pdf.cell(0, 7, p.get("name", "Candidate"), new_x="LMARGIN", new_y="NEXT")
     
     # Save Path
-    filename = f"Sam_Cordahi_Cover_Letter_-_{company.replace(' ', '_')}.pdf"
+    filename = f"Sam_Salameh_Cover_Letter_-_{company.replace(' ', '_')}.pdf"
     cache_dir = os.path.join(os.getcwd(), "core", "pdf_cache")
     if not os.path.exists(cache_dir): os.makedirs(cache_dir)
     save_path = os.path.join(cache_dir, filename)
@@ -436,7 +436,7 @@ def generate_ultimate_package(lead):
     cl_pdf_path = generate_cover_letter_pdf(company, job_title, lead)
     
     # 2. HTML CV (The VMAX Version)
-    cv_html_path = os.path.join(os.getcwd(), "Sam_Cordahi_CV.html")
+    cv_html_path = os.path.join(os.getcwd(), "Sam_Salameh_CV.html")
     if not os.path.exists(cv_html_path):
         cv_html_path = None
         
@@ -658,7 +658,7 @@ def generate_dynamic_cover_letter(company_name, job_title, custom_body, persona=
     # [👑 VIP NAMING] Exact aesthetic match for CEO request
     safe_company_name = company_name.replace(" ", "_")
     safe_company_name = _sanitize_filename(safe_company_name) # Remove illegal characters
-    filename = f"Sam_Cordahi_Cover_Letter_-_{safe_company_name}.pdf"
+    filename = f"Sam_Salameh_Cover_Letter_-_{safe_company_name}.pdf"
     
     pdf_path = os.path.join(PDF_DIR, filename)
     
