@@ -276,8 +276,11 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
     
-    # [👑 DMARC FIX] Use the Brevo-verified Gmail sender instead of outlook.com
-    sender_email = (getattr(config, 'SENDER_EMAIL', '') or getattr(config, 'GMAIL_SMTP_USER', '') or '').strip() or 'sam.dev1@hotmail.com'
+    # [👑 DMARC FIX] Use the Brevo-authenticated login for 'From' to pass SPF/DKIM, 
+    # but use the user's email for 'Reply-To' so recruiters reply to the right place.
+    real_user_email = (getattr(config, 'SENDER_EMAIL', '') or getattr(config, 'GMAIL_SMTP_USER', '') or '').strip() or 'sam.dev1@hotmail.com'
+    brevo_verified_sender = (getattr(config, 'BREVO_SMTP_LOGIN', '')).strip() or real_user_email
+    sender_email = brevo_verified_sender
     
     if not subject:
         strike_id = random.randint(1000, 9999)
@@ -302,7 +305,7 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
         "to": [{"email": to_email}],
         "subject": subject,
         "htmlContent": html_content,
-        "replyTo": {"email": "sam.dev1@outlook.com", "name": sender_name}
+        "replyTo": {"email": real_user_email, "name": sender_name}
     }
     # Brevo API uses "attachment" (singular), NOT "attachments"
     if attachment_list:
