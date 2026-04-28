@@ -124,7 +124,7 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
         }
         
         # 👑 [VIP EXACT ATTACHMENTS]: Use static HTML CV + dynamic Cover Letter
-        cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Cordahi_CV.html'))
+        cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
         cl_path = generate_dynamic_cover_letter(company_name, job_title, dummy_lead.get('custom_body', ''), strike_id=8551)
         attachment_paths = [cv_path, cl_path]
         
@@ -150,7 +150,7 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
         attachments = attachment_paths or []
         
     # [👑 VIP EXACT ATTACHMENTS]: Always ensure the master HTML CV is included in real strikes
-    cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Cordahi_CV.html'))
+    cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
     if cv_path not in attachments and os.path.exists(cv_path):
         attachments.insert(0, cv_path)
         
@@ -238,7 +238,8 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
-        msg['From'] = f"{sender_name} <samcordahi2@gmail.com>"
+        sender_email_from = (getattr(config, 'SENDER_EMAIL', '') or getattr(config, 'GMAIL_SMTP_USER', '') or '').strip() or 'sam.dev1@hotmail.com'
+        msg['From'] = f"{sender_name} <{sender_email_from}>"
         msg['To'] = to_email
         
         html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
@@ -276,7 +277,7 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     if not api_key: return False
     
     # [👑 DMARC FIX] Use the Brevo-verified Gmail sender instead of outlook.com
-    sender_email = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip() or 'samcordahi2@gmail.com'
+    sender_email = (getattr(config, 'SENDER_EMAIL', '') or getattr(config, 'GMAIL_SMTP_USER', '') or '').strip() or 'sam.dev1@hotmail.com'
     
     if not subject:
         strike_id = random.randint(1000, 9999)
@@ -412,10 +413,10 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
     <tr>
       <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px 30px; text-align: center;">
         <div style="display: inline-block; width: 60px; height: 60px; background-color: #06b6d4; border-radius: 30px; line-height: 60px; color: #ffffff; font-size: 24px; font-weight: bold; margin-bottom: 15px;">
-           RC
+           SS
         </div>
-        <div style="font-size: 13px; letter-spacing: 4px; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px;">Executive Candidacy</div>
-        <div style="font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">SAM CORDAHI</div>
+        <div style="font-size: 13px; letter-spacing: 4px; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px;">Senior Network Engineer</div>
+        <div style="font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">SAM SALAMEH</div>
       </td>
     </tr>
     <tr><td height="4" style="background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);"></td></tr>
@@ -437,13 +438,13 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
     </tr>
     <tr>
       <td style="background-color: #0f172a; padding: 40px 30px; text-align: center; border-top: 1px solid #1e293b;">
-        <a href="https://www.linkedin.com/in/sam-cordahi/" style="display: inline-block; padding: 14px 32px; background-color: #06b6d4; color: #ffffff; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 14px; letter-spacing: 1.5px;">VIEW LINKEDIN PORTFOLIO</a>
+        <a href="https://www.linkedin.com/in/sam-salameh" style="display: inline-block; padding: 14px 32px; background-color: #06b6d4; color: #ffffff; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 14px; letter-spacing: 1.5px;">VIEW LINKEDIN PORTFOLIO</a>
         <div style="margin-top: 30px;">
-          <a href="mailto:sam.dev1@outlook.com" style="color: #94a3b8; font-size: 14px; text-decoration: none;">sam.dev1@outlook.com</a>
+          <a href="mailto:sam.dev1@hotmail.com" style="color: #94a3b8; font-size: 14px; text-decoration: none;">sam.dev1@hotmail.com</a>
           <span style="color: #334155; margin: 0 10px;">|</span>
-          <a href="tel:+96176005412" style="color: #94a3b8; font-size: 14px; text-decoration: none;">+961 76 005 412</a>
+          <a href="tel:+961708411009" style="color: #94a3b8; font-size: 14px; text-decoration: none;">+961 70 841 1009</a>
         </div>
-        <div style="font-size: 12px; color: #475569; margin-top: 20px;">HR & Customer Operations Specialist</div>
+        <div style="font-size: 12px; color: #475569; margin-top: 20px;">Senior Network Engineer</div>
       </td>
     </tr>
   </table>
