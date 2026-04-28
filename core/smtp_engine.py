@@ -123,8 +123,8 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
             'highlights': dynamic_highlights
         }
         
-        # 👑 [VIP EXACT ATTACHMENTS]: Use static HTML CV + dynamic Cover Letter
-        cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
+        # 👑 [VIP EXACT ATTACHMENTS]: Use static PDF CV + dynamic Cover Letter
+        cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.pdf'))
         cl_path = generate_dynamic_cover_letter(company_name, job_title, dummy_lead.get('custom_body', ''), strike_id=8551)
         attachment_paths = [cv_path, cl_path]
         
@@ -149,8 +149,8 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
     else:
         attachments = attachment_paths or []
         
-    # [👑 VIP EXACT ATTACHMENTS]: Always ensure the master HTML CV is included in real strikes
-    cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
+    # [👑 VIP EXACT ATTACHMENTS]: Always ensure the master PDF CV is included in real strikes
+    cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.pdf'))
     if cv_path not in attachments and os.path.exists(cv_path):
         attachments.insert(0, cv_path)
         
@@ -276,10 +276,14 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
     
-    # [👑 DMARC FIX] Reverting back to user email because Brevo silently drops emails 
-    # sent from their internal smtp-brevo.com domain.
-    real_user_email = (getattr(config, 'SENDER_EMAIL', '') or getattr(config, 'GMAIL_SMTP_USER', '') or '').strip() or 'sam.dev1@hotmail.com'
-    sender_email = real_user_email
+    # [👑 DMARC FIX V2]: Use Brevo's own SMTP login as sender for DMARC alignment.
+    # This prevents the "Unverified / via gw.d.sender-sib.com" warning in Hotmail.
+    # Replies will be redirected to the real email via Reply-To header.
+    brevo_smtp_login = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
+    real_user_email = (getattr(config, 'SENDER_EMAIL', '') or '').strip() or 'sam.dev1@hotmail.com'
+    # If we have a Brevo SMTP login (the verified sender), use it as FROM
+    # Otherwise fall back to the user's real email
+    sender_email = brevo_smtp_login if brevo_smtp_login else real_user_email
     
     if not subject:
         strike_id = random.randint(1000, 9999)
