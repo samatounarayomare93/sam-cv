@@ -276,11 +276,10 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
     
-    # [👑 DMARC FIX] Use the Brevo-authenticated login for 'From' to pass SPF/DKIM, 
-    # but use the user's email for 'Reply-To' so recruiters reply to the right place.
+    # [👑 DMARC FIX] Reverting back to user email because Brevo silently drops emails 
+    # sent from their internal smtp-brevo.com domain.
     real_user_email = (getattr(config, 'SENDER_EMAIL', '') or getattr(config, 'GMAIL_SMTP_USER', '') or '').strip() or 'sam.dev1@hotmail.com'
-    brevo_verified_sender = (getattr(config, 'BREVO_SMTP_LOGIN', '')).strip() or real_user_email
-    sender_email = brevo_verified_sender
+    sender_email = real_user_email
     
     if not subject:
         strike_id = random.randint(1000, 9999)
