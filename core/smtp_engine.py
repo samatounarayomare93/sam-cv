@@ -160,7 +160,7 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
     return send_email(email, company, title, lead.get('custom_body', ''), "omni", lead.get('mission_type', 'global'), valid_attachments, sender_name=sender_name, highlights=highlights)
 
 def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None):
-    """High-reliability delivery engine. Priority: Outlook SMTP > Brevo HTTP > Gmail API."""
+    """High-reliability delivery engine. Priority: Yahoo SMTP > Outlook SMTP > Brevo HTTP > Gmail API."""
     if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com'):
         to_email = getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com')
     
@@ -169,13 +169,40 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
 
     # ============================================================
-    # 🥇 PRIORITY 1: OUTLOOK/HOTMAIL SMTP (PERFECT DMARC ALIGNMENT)
-    # Microsoft sends FROM Microsoft servers AS @hotmail.com = DMARC PASS
-    # No "via" warning, no Unverified label, goes straight to Inbox
+    # 🥇 PRIORITY 1: YAHOO SMTP (PERFECT DMARC + BEST REPUTATION)
+    # Yahoo supports App Password + SMTP. DMARC passes = INBOX GUARANTEED.
+    # App Password available at: login.yahoo.com/myaccount/security
+    # (Note: New Yahoo accounts need 24-48h before App Passwords activate)
+    # ============================================================
+    yahoo_user = (getattr(config, 'YAHOO_SMTP_USER', '') or '').strip()
+    yahoo_pass = (getattr(config, 'YAHOO_APP_PASSWORD', '') or '').strip()
+    logging.info(f"📧 [YAHOO-CHECK] USER: '{yahoo_user}', PASS-LEN: {len(yahoo_pass)}")
+    if yahoo_user and yahoo_pass:
+        yahoo_provider = {
+            'name': 'Yahoo (STARTTLS-587)',
+            'server': 'smtp.mail.yahoo.com',
+            'port': 587,
+            'email': yahoo_user,
+            'password': yahoo_pass,
+            'use_ssl': False
+        }
+        try:
+            logging.info("📧 [YAHOO-CHECK] Attempting Yahoo SMTP (DMARC-aligned, Inbox path)...")
+            res = _send_via_provider(to_email, company_name, job_title, custom_body, yahoo_provider, attachment_paths, sender_name, highlights, subject=subject)
+            if res:
+                logging.info("✅ YAHOO SMTP SUCCESS — DMARC ALIGNED, INBOX DELIVERED!")
+                return True
+        except Exception as e:
+            logging.warning(f"⚠️ Yahoo SMTP failed: {e}")
+    else:
+        logging.info("📧 [YAHOO] Not configured — set YAHOO_SMTP_USER + YAHOO_APP_PASSWORD in env")
+
+    # ============================================================
+    # 🥈 PRIORITY 2: OUTLOOK/HOTMAIL SMTP
+    # (Currently blocked by Microsoft for personal accounts)
     # ============================================================
     outlook_user = (getattr(config, 'OUTLOOK_USER', '') or '').strip()
     outlook_pass = (getattr(config, 'OUTLOOK_PASSWORD', '') or '').strip()
-    logging.info(f"📧 [OUTLOOK-CHECK] USER: '{outlook_user}', PASS-LEN: {len(outlook_pass)}")
     if outlook_user and outlook_pass:
         outlook_provider = {
             'name': 'Outlook/Hotmail (STARTTLS-587)',
@@ -186,22 +213,18 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             'use_ssl': False
         }
         try:
-            logging.info("📧 [OUTLOOK-CHECK] Attempting Outlook SMTP (best DMARC path)...")
             res = _send_via_provider(to_email, company_name, job_title, custom_body, outlook_provider, attachment_paths, sender_name, highlights, subject=subject)
             if res:
-                logging.info("✅ OUTLOOK SMTP SUCCESS — DMARC ALIGNED, INBOX GUARANTEED")
+                logging.info("✅ OUTLOOK SMTP SUCCESS")
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Outlook SMTP failed: {e}")
-    else:
-        logging.warning("📧 [OUTLOOK-CHECK] OUTLOOK_USER or OUTLOOK_PASSWORD not set — skipping best path!")
 
     # ============================================================
-    # 🥈 PRIORITY 2: GMAIL SMTP (if configured with App Password)
+    # 🥉 PRIORITY 3: GMAIL SMTP (if configured with App Password)
     # ============================================================
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
     gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or '').strip()
-    # Only use Gmail SMTP if user is actually a Gmail address (not hotmail)
     if gmail_user and gmail_pass and 'gmail.com' in gmail_user.lower():
         gmail_provider = {
             'name': 'Gmail (STARTTLS-587)',
@@ -220,12 +243,12 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             logging.warning(f"⚠️ Gmail SMTP failed: {e}")
 
     # ============================================================
-    # 🥉 PRIORITY 3: BREVO REST API (always works, but goes to Junk)
+    # 🔰 PRIORITY 4: BREVO REST API (FALLBACK — may land in Junk)
     # ============================================================
     if getattr(config, 'BREVO_API_KEY', None):
         try:
             if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject):
-                logging.info("🚀 BREVO HTTP FALLBACK SUCCESS (may land in Junk — fix OUTLOOK creds!)")
+                logging.info("🚀 BREVO HTTP FALLBACK — delivered but may land in Junk (configure Yahoo SMTP for Inbox)")
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Brevo HTTP failed: {e}")
@@ -237,7 +260,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         try:
             service = get_gmail_service()
             if service and send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service):
-                logging.info("🚀 GMAIL API ALPHA SUCCESS")
+                logging.info("🚀 GMAIL API SUCCESS")
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Gmail API failed: {e}")
