@@ -54,6 +54,18 @@ GMAIL_SMTP_PORT = 587
 GMAIL_SMTP_USER = os.getenv("GMAIL_SMTP_USER", "")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
 
+# PRIMARY: Zoho Mail (DMARC-aligned, Inbox delivery)
+ZOHO_SMTP_SERVER = "smtp.zoho.com"
+ZOHO_SMTP_PORT = 587
+ZOHO_SMTP_USER = os.getenv("ZOHO_SMTP_USER", "")
+ZOHO_APP_PASSWORD = os.getenv("ZOHO_APP_PASSWORD", "")
+
+# BACKUP: Yahoo Mail (DMARC-aligned, needs 24-48h for new accounts)
+YAHOO_SMTP_SERVER = "smtp.mail.yahoo.com"
+YAHOO_SMTP_PORT = 587
+YAHOO_SMTP_USER = os.getenv("YAHOO_SMTP_USER", "")
+YAHOO_APP_PASSWORD = os.getenv("YAHOO_APP_PASSWORD", "")
+
 # Tertiary: Outlook/Hotmail
 OUTLOOK_SMTP_SERVER = "smtp-mail.outlook.com"
 OUTLOOK_SMTP_PORT = 587

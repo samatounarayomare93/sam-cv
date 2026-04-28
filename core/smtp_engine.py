@@ -169,14 +169,39 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
 
     # ============================================================
-    # 🥇 PRIORITY 1: YAHOO SMTP (PERFECT DMARC + BEST REPUTATION)
-    # Yahoo supports App Password + SMTP. DMARC passes = INBOX GUARANTEED.
-    # App Password available at: login.yahoo.com/myaccount/security
-    # (Note: New Yahoo accounts need 24-48h before App Passwords activate)
+    # 🥇 PRIORITY 1: ZOHO SMTP (PERFECT DMARC — WORKS IMMEDIATELY)
+    # Zoho controls zohomail.com → DMARC passes 100% → INBOX DELIVERY
+    # App Passwords work on NEW accounts immediately (unlike Yahoo 24-48h wait)
+    # Account: samsalameh.cv@zohomail.com | App Password from accounts.zoho.com
+    # ============================================================
+    zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
+    zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
+    logging.info(f"📧 [ZOHO-CHECK] USER: '{zoho_user}', PASS-LEN: {len(zoho_pass)}")
+    if zoho_user and zoho_pass:
+        zoho_provider = {
+            'name': 'Zoho Mail (STARTTLS-587)',
+            'server': 'smtp.zoho.com',
+            'port': 587,
+            'email': zoho_user,
+            'password': zoho_pass,
+            'use_ssl': False
+        }
+        try:
+            logging.info("📧 [ZOHO-CHECK] Attempting Zoho SMTP (DMARC-aligned, Inbox path)...")
+            res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider, attachment_paths, sender_name, highlights, subject=subject)
+            if res:
+                logging.info("✅ ZOHO SMTP SUCCESS — DMARC ALIGNED, INBOX DELIVERED!")
+                return True
+        except Exception as e:
+            logging.warning(f"⚠️ Zoho SMTP failed: {e}")
+    else:
+        logging.info("📧 [ZOHO] Not configured — set ZOHO_SMTP_USER + ZOHO_APP_PASSWORD in env")
+
+    # ============================================================
+    # 🥈 PRIORITY 2: YAHOO SMTP
     # ============================================================
     yahoo_user = (getattr(config, 'YAHOO_SMTP_USER', '') or '').strip()
     yahoo_pass = (getattr(config, 'YAHOO_APP_PASSWORD', '') or '').strip()
-    logging.info(f"📧 [YAHOO-CHECK] USER: '{yahoo_user}', PASS-LEN: {len(yahoo_pass)}")
     if yahoo_user and yahoo_pass:
         yahoo_provider = {
             'name': 'Yahoo (STARTTLS-587)',
@@ -187,15 +212,12 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             'use_ssl': False
         }
         try:
-            logging.info("📧 [YAHOO-CHECK] Attempting Yahoo SMTP (DMARC-aligned, Inbox path)...")
             res = _send_via_provider(to_email, company_name, job_title, custom_body, yahoo_provider, attachment_paths, sender_name, highlights, subject=subject)
             if res:
                 logging.info("✅ YAHOO SMTP SUCCESS — DMARC ALIGNED, INBOX DELIVERED!")
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Yahoo SMTP failed: {e}")
-    else:
-        logging.info("📧 [YAHOO] Not configured — set YAHOO_SMTP_USER + YAHOO_APP_PASSWORD in env")
 
     # ============================================================
     # 🥈 PRIORITY 2: OUTLOOK/HOTMAIL SMTP
