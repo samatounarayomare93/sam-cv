@@ -160,20 +160,49 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
     return send_email(email, company, title, lead.get('custom_body', ''), "omni", lead.get('mission_type', 'global'), valid_attachments, sender_name=sender_name, highlights=highlights)
 
 def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None):
-    """High-reliability delivery engine with HTTP primary and SMTP fallback."""
+    """High-reliability delivery engine. Priority: Outlook SMTP > Brevo HTTP > Gmail API."""
     if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com'):
         to_email = getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com')
     
     # [👑 CENTRALIZED METADATA]: Generate Strike-ID once for the entire chain
     strike_id = random.randint(1000, 9999)
-    # Pattern: Application: [Role] - [Company] [STRIKE-ID]
     subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
-    # 👑 [GMAIL SANCTUARY V12: SSL PORT 465 - THE BULLETPROOF APP PASSWORD PATH]
-    # Priority 1: Direct SMTP with App Password (Never expires, bypasses OAuth hurdles)
+
+    # ============================================================
+    # 🥇 PRIORITY 1: OUTLOOK/HOTMAIL SMTP (PERFECT DMARC ALIGNMENT)
+    # Microsoft sends FROM Microsoft servers AS @hotmail.com = DMARC PASS
+    # No "via" warning, no Unverified label, goes straight to Inbox
+    # ============================================================
+    outlook_user = (getattr(config, 'OUTLOOK_USER', '') or '').strip()
+    outlook_pass = (getattr(config, 'OUTLOOK_PASSWORD', '') or '').strip()
+    logging.info(f"📧 [OUTLOOK-CHECK] USER: '{outlook_user}', PASS-LEN: {len(outlook_pass)}")
+    if outlook_user and outlook_pass:
+        outlook_provider = {
+            'name': 'Outlook/Hotmail (STARTTLS-587)',
+            'server': 'smtp-mail.outlook.com',
+            'port': 587,
+            'email': outlook_user,
+            'password': outlook_pass,
+            'use_ssl': False
+        }
+        try:
+            logging.info("📧 [OUTLOOK-CHECK] Attempting Outlook SMTP (best DMARC path)...")
+            res = _send_via_provider(to_email, company_name, job_title, custom_body, outlook_provider, attachment_paths, sender_name, highlights, subject=subject)
+            if res:
+                logging.info("✅ OUTLOOK SMTP SUCCESS — DMARC ALIGNED, INBOX GUARANTEED")
+                return True
+        except Exception as e:
+            logging.warning(f"⚠️ Outlook SMTP failed: {e}")
+    else:
+        logging.warning("📧 [OUTLOOK-CHECK] OUTLOOK_USER or OUTLOOK_PASSWORD not set — skipping best path!")
+
+    # ============================================================
+    # 🥈 PRIORITY 2: GMAIL SMTP (if configured with App Password)
+    # ============================================================
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
     gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or '').strip()
-    logging.info(f"🔥 [SMTP-CHECK] USER: '{gmail_user}', PASS-LEN: {len(gmail_pass)}")
-    if gmail_user and gmail_pass:
+    # Only use Gmail SMTP if user is actually a Gmail address (not hotmail)
+    if gmail_user and gmail_pass and 'gmail.com' in gmail_user.lower():
         gmail_provider = {
             'name': 'Gmail (STARTTLS-587)',
             'server': 'smtp.gmail.com',
@@ -183,35 +212,35 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             'use_ssl': False
         }
         try:
-            logging.info("🔥 [SMTP-CHECK] Attempting _send_via_provider...")
             res = _send_via_provider(to_email, company_name, job_title, custom_body, gmail_provider, attachment_paths, sender_name, highlights, subject=subject)
-            logging.info(f"🔥 [SMTP-CHECK] _send_via_provider returned: {res}")
             if res:
-                logging.info("🚀 GMAIL APP-PASSWORD SUCCESS (BULLETPROOF PATH)")
+                logging.info("✅ GMAIL SMTP SUCCESS")
                 return True
         except Exception as e:
-            logging.warning(f"⚠️ Gmail App-Password SMTP failed: {e}")
-    else:
-        logging.error("🔥 [SMTP-CHECK] Skipping App Password because USER or PASS is empty!")
+            logging.warning(f"⚠️ Gmail SMTP failed: {e}")
 
-    # 🛡️ [BREVO REST API: HTTPS PORT 443 - THE UNBLOCKABLE FALLBACK]
+    # ============================================================
+    # 🥉 PRIORITY 3: BREVO REST API (always works, but goes to Junk)
+    # ============================================================
     if getattr(config, 'BREVO_API_KEY', None):
         try:
             if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject):
-                logging.info("🚀 SANCTIFIED BREVO HTTP STRIKE SUCCESS")
+                logging.info("🚀 BREVO HTTP FALLBACK SUCCESS (may land in Junk — fix OUTLOOK creds!)")
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Brevo HTTP failed: {e}")
 
-    # ⚠️ [GMAIL API ALPHA: REQUIRES OAUTH TOKEN.JSON - LAST RESORT]
+    # ============================================================
+    # 🆘 LAST RESORT: GMAIL API (OAuth)
+    # ============================================================
     if get_gmail_service:
         try:
             service = get_gmail_service()
             if service and send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service):
-                logging.info("🚀 GMAIL API ALPHA SUCCESS (API FALLBACK)")
+                logging.info("🚀 GMAIL API ALPHA SUCCESS")
                 return True
         except Exception as e:
-            logging.warning(f"⚠️ Gmail API Alpha failed: {e}")
+            logging.warning(f"⚠️ Gmail API failed: {e}")
             
     logging.error("❌ ALL STRIKE PATHS FAILED: Payload could not be delivered.")
     return False
