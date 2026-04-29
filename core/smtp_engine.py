@@ -36,6 +36,7 @@ def _get_smtp_connection(provider):
     with _POOL_LOCK:
         if key in _SMTP_POOL:
             conn, last_used = _SMTP_POOL[key]
+            # Verify if connection is still alive (roughly)
             if time.time() - last_used > 60:
                 try: conn.quit()
                 except: pass
@@ -45,7 +46,6 @@ def _get_smtp_connection(provider):
         try:
             smtp_timeout = int(getattr(config, 'SMTP_CONNECT_TIMEOUT_SECONDS', 10) or 10)
             if use_ssl:
-                # [👑 Gmail SSL] Port 465 direct SSL - bypasses ISP port 587 blocks
                 server = smtplib.SMTP_SSL(provider['server'], provider['port'], timeout=smtp_timeout)
             else:
                 server = smtplib.SMTP(provider['server'], provider['port'], timeout=smtp_timeout)
@@ -156,11 +156,10 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
         
     valid_attachments = [p for p in attachments if p and os.path.exists(p) and os.path.isfile(p)]
 
-    # [👑 FIXED] TEST_MODE no longer bypasses Gmail path - always use send_email
     return send_email(email, company, title, lead.get('custom_body', ''), "omni", lead.get('mission_type', 'global'), valid_attachments, sender_name=sender_name, highlights=highlights)
 
 def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None):
-    """High-reliability delivery engine. Priority: Yahoo SMTP > Outlook SMTP > Brevo HTTP > Gmail API."""
+    """High-reliability delivery engine. Priority: Zoho SMTP > Outlook SMTP > Brevo HTTP > Gmail API."""
     if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com'):
         to_email = getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com')
     
@@ -171,7 +170,6 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # ============================================================
     # 🚀 RENDER OPTIMIZATION: Prioritize Port 2525
     # Render blocks 587/465 but allows 2525.
-    # If on Render, try Brevo FIRST to avoid 20s timeout on Zoho/Yahoo.
     # ============================================================
     is_render = os.getenv("RENDER") is not None
     if is_render:
@@ -196,37 +194,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 logging.warning(f"⚠️ Render-Boost failed: {e}")
 
     # ============================================================
-    # 🥇 PRIORITY 1: ZOHO SMTP (PERFECT DMARC — WORKS IMMEDIATELY)
-    # Zoho controls zohomail.com → DMARC passes 100% → INBOX DELIVERY
-    # App Passwords work on NEW accounts immediately (unlike Yahoo 24-48h wait)
-    # Account: samsalameh.cv@zohomail.com | App Password from accounts.zoho.com
-    # ============================================================
-    zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
-    zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
-    if zoho_user and zoho_pass:
-        zoho_provider = {
-            'name': 'Zoho Mail (STARTTLS-587)',
-            'server': 'smtp.zoho.com',
-            'port': 587,
-            'email': zoho_user,
-            'password': zoho_pass,
-            'use_ssl': False
-        }
-        try:
-            logging.info("📧 [ZOHO-CHECK] Attempting Zoho SMTP (DMARC-aligned, Inbox path)...")
-            res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider, attachment_paths, sender_name, highlights, subject=subject)
-            if res:
-                logging.info("✅ ZOHO SMTP SUCCESS — DMARC ALIGNED, INBOX DELIVERED!")
-                return True
-        except Exception as e:
-            logging.warning(f"⚠️ Zoho SMTP failed: {e}")
-    else:
-        logging.info("📧 [ZOHO] Not configured — set ZOHO_SMTP_USER + ZOHO_APP_PASSWORD in env")
-
-    # ============================================================
-    # 🥈 PRIORITY 2: BREVO SMTP PORT 2525 (Render doesn't block 2525!)
-    # Render free blocks 587/465 but NOT port 2525 (non-standard)
-    # Using Brevo's own relay → better reputation than HTTP API
+    # 🥈 PRIORITY 2: BREVO SMTP PORT 2525
     # ============================================================
     brevo_smtp_user = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
     brevo_smtp_pass = (getattr(config, 'BREVO_SMTP_PASSWORD', '') or '').strip()
@@ -240,10 +208,10 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             'use_ssl': False
         }
         try:
-            logging.info("📧 [BREVO-SMTP] Attempting Brevo SMTP port 2525 (Render-bypass path)...")
+            logging.info("📧 [BREVO-SMTP] Attempting Brevo SMTP port 2525...")
             res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject)
             if res:
-                logging.info("✅ BREVO SMTP-2525 SUCCESS — port 2525 works from Render!")
+                logging.info("✅ BREVO SMTP-2525 SUCCESS")
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Brevo SMTP-2525 failed: {e}")
@@ -265,63 +233,16 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         try:
             res = _send_via_provider(to_email, company_name, job_title, custom_body, yahoo_provider, attachment_paths, sender_name, highlights, subject=subject)
             if res:
-                logging.info("✅ YAHOO SMTP SUCCESS — DMARC ALIGNED, INBOX DELIVERED!")
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Yahoo SMTP failed: {e}")
 
     # ============================================================
-    # 🥈 PRIORITY 2: OUTLOOK/HOTMAIL SMTP
-    # (Currently blocked by Microsoft for personal accounts)
-    # ============================================================
-    outlook_user = (getattr(config, 'OUTLOOK_USER', '') or '').strip()
-    outlook_pass = (getattr(config, 'OUTLOOK_PASSWORD', '') or '').strip()
-    if outlook_user and outlook_pass:
-        outlook_provider = {
-            'name': 'Outlook/Hotmail (STARTTLS-587)',
-            'server': 'smtp-mail.outlook.com',
-            'port': 587,
-            'email': outlook_user,
-            'password': outlook_pass,
-            'use_ssl': False
-        }
-        try:
-            res = _send_via_provider(to_email, company_name, job_title, custom_body, outlook_provider, attachment_paths, sender_name, highlights, subject=subject)
-            if res:
-                logging.info("✅ OUTLOOK SMTP SUCCESS")
-                return True
-        except Exception as e:
-            logging.warning(f"⚠️ Outlook SMTP failed: {e}")
-
-    # ============================================================
-    # 🥉 PRIORITY 3: GMAIL SMTP (if configured with App Password)
-    # ============================================================
-    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
-    gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or '').strip()
-    if gmail_user and gmail_pass and 'gmail.com' in gmail_user.lower():
-        gmail_provider = {
-            'name': 'Gmail (STARTTLS-587)',
-            'server': 'smtp.gmail.com',
-            'port': 587,
-            'email': gmail_user,
-            'password': gmail_pass,
-            'use_ssl': False
-        }
-        try:
-            res = _send_via_provider(to_email, company_name, job_title, custom_body, gmail_provider, attachment_paths, sender_name, highlights, subject=subject)
-            if res:
-                logging.info("✅ GMAIL SMTP SUCCESS")
-                return True
-        except Exception as e:
-            logging.warning(f"⚠️ Gmail SMTP failed: {e}")
-
-    # ============================================================
-    # 🔰 PRIORITY 4: BREVO REST API (FALLBACK — may land in Junk)
+    # 🔰 PRIORITY 4: BREVO REST API
     # ============================================================
     if getattr(config, 'BREVO_API_KEY', None):
         try:
             if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject):
-                logging.info("🚀 BREVO HTTP FALLBACK — delivered but may land in Junk (configure Yahoo SMTP for Inbox)")
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Brevo HTTP failed: {e}")
@@ -333,7 +254,6 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         try:
             service = get_gmail_service()
             if service and send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service):
-                logging.info("🚀 GMAIL API SUCCESS")
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Gmail API failed: {e}")
@@ -348,15 +268,10 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         return False
 
     try:
-        # Use provided service or get new one (safely)
         if not service:
             service = get_gmail_service()
-        
         if not service: return False
         
-        # Build the MIMEMultipart email first
-        # --- VIP FIX: Exact Naming Convention per CEO Request ---
-        # --- VIP FIX: Exact Naming Convention per CEO Request ---
         if not subject:
             strike_id = random.randint(1000, 9999)
             subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
@@ -382,14 +297,9 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
                         part.add_header('Content-Disposition', f'attachment; filename="{os.path.basename(path)}"')
                         msg.attach(part)
 
-        # Encode as base64url
         raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode('utf-8')
-        
-        # Send via Gmail API
         send_request = service.users().messages().send(userId='me', body={'raw': raw_message})
-        result = send_request.execute()
-        
-        logging.info(f"Gmail API Sent message ID: {result.get('id')}")
+        send_request.execute()
         return True
         
     except Exception as e:
@@ -397,17 +307,12 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         return False
 
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None):
-    """[REST API] Bypasses ISP SMTP blocks. Uses Brevo-verified sender for DMARC alignment."""
+    """[REST API] Bypasses ISP SMTP blocks."""
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
     
-    # [👑 DMARC FIX V2]: Use Brevo's own SMTP login as sender for DMARC alignment.
-    # This prevents the "Unverified / via gw.d.sender-sib.com" warning in Hotmail.
-    # Replies will be redirected to the real email via Reply-To header.
     brevo_smtp_login = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
     real_user_email = (getattr(config, 'SENDER_EMAIL', '') or '').strip() or 'sam.dev1@hotmail.com'
-    # If we have a Brevo SMTP login (the verified sender), use it as FROM
-    # Otherwise fall back to the user's real email
     sender_email = brevo_smtp_login if brevo_smtp_login else real_user_email
     
     if not subject:
@@ -416,7 +321,6 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
         
     html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
     
-    # Build attachments using the correct Brevo API key name: "attachment" (NOT "attachments")
     attachment_list = []
     if attachment_paths:
         for path in attachment_paths:
@@ -435,7 +339,6 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
         "htmlContent": html_content,
         "replyTo": {"email": real_user_email, "name": sender_name}
     }
-    # Brevo API uses "attachment" (singular), NOT "attachments"
     if attachment_list:
         payload["attachment"] = attachment_list
     
@@ -446,75 +349,77 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
             json=payload,
             timeout=20
         )
-        if response.status_code in (201, 200, 202):
-            logging.info(f"✨ Brevo HTTP Strike sent to {to_email} with {len(attachment_list)} attachments")
-            return True
-        logging.error(f"Brevo API Error ({response.status_code}): {response.text}")
-    except Exception as e:
-        logging.error(f"Brevo HTTP Request Failed: {e}")
-    return False
+        return response.status_code in (201, 200, 202)
+    except:
+        return False
 
 def _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=None):
-    # Determine Strike Type for Header Hardening
-    is_gmail = "gmail" in provider['server'].lower()
-    
-    if not subject:
-        strike_id = random.randint(1000, 9999)
-        subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
-        
-    msg = MIMEMultipart('mixed')
-    msg['Subject'] = subject
-    msg['From'] = f"{sender_name} <{provider['email']}>"
-    msg['To'] = to_email
-    
-    # [👑 ABSOLUTE RECONSTRUCTION] Critical structural headers
-    msg['MIME-Version'] = '1.0'
-    msg['Date'] = formatdate(localtime=True)
-    
-    # Only skip manual signatures for Gmail to allow authentic Google signing
-    if not is_gmail:
-        msg['X-Mailer'] = 'Microsoft Outlook 16.0'
-        msg['Auto-Submitted'] = 'no'
-    
-    # Multipart Alternative Part (Body)
-    alt_part = MIMEMultipart('alternative')
-    final_html = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
-    plain_text = re.sub(r'<[^>]+>', '', final_html)
-    alt_part.attach(MIMEText(plain_text, 'plain'))
-    alt_part.attach(MIMEText(final_html, 'html'))
-    msg.attach(alt_part)
-    
-    # [👑 ATTACHMENT RECONSTRUCTION] Using MIMEBase for 100% .eml parity
-    if attachment_paths:
-        for path in attachment_paths:
-            if os.path.exists(path):
-                with open(path, "rb") as f:
-                    part = MIMEBase('application', 'octet-stream')
-                    part.set_payload(f.read())
-                    encoders.encode_base64(part)
-                    part.add_header('Content-Disposition', f'attachment; filename="{os.path.basename(path)}"')
-                    msg.attach(part)
-
+    """[👑 SMTP IGNITION] Final structural delivery."""
     try:
-        server = _get_smtp_connection(provider)
-        if server:
+        if not subject:
+            strike_id = random.randint(1000, 9999)
+            subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
+            
+        msg = MIMEMultipart('mixed')
+        msg['Subject'] = subject
+        msg['From'] = f"{sender_name} <{provider['email']}>"
+        msg['To'] = to_email
+        msg['MIME-Version'] = '1.0'
+        msg['Date'] = formatdate(localtime=True)
+        
+        # Body
+        alt_part = MIMEMultipart('alternative')
+        final_html = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+        plain_text = re.sub(r'<[^>]+>', '', final_html)
+        alt_part.attach(MIMEText(plain_text, 'plain'))
+        alt_part.attach(MIMEText(final_html, 'html'))
+        msg.attach(alt_part)
+        
+        # Attachments
+        if attachment_paths:
+            for path in attachment_paths:
+                if os.path.exists(path):
+                    with open(path, "rb") as f:
+                        part = MIMEBase('application', 'octet-stream')
+                        part.set_payload(f.read())
+                        encoders.encode_base64(part)
+                        part.add_header('Content-Disposition', f'attachment; filename="{os.path.basename(path)}"')
+                        msg.attach(part)
+
+        # Connect & Send
+        timeout = int(getattr(config, 'SMTP_CONNECT_TIMEOUT_SECONDS', 10) or 10)
+        server = None
+        try:
+            if provider.get('use_ssl', False):
+                server = smtplib.SMTP_SSL(host=provider['server'], port=provider['port'], timeout=timeout)
+            else:
+                server = smtplib.SMTP(host=provider['server'], port=provider['port'], timeout=timeout)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+            
+            server.login(provider['email'], provider['password'])
             server.send_message(msg)
+            server.quit()
             return True
+        except Exception as e:
+            logging.error(f"❌ SMTP Provider Error ({provider['name']}): {e}")
+            if server:
+                try: server.close()
+                except: pass
+            return False
     except Exception as e:
-        logging.error(f"SMTP Provider Error: {e}")
-    return False
+        logging.error(f"❌ Structural Failure in _send_via_provider: {e}")
+        return False
 
 def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
-    """[👑 INBOX PURGE V10] Perfectly Formed HTML structure for max deliverability."""
+    """[👑 INBOX PURGE V10] Premium HTML Template."""
     highlights_html = ""
     colors = ["#06b6d4", "#3b82f6", "#8b5cf6"]
     for i, h in enumerate(highlights[:3]):
         color = colors[i % 3]
         title = h.get('title', 'Competency Block')
         desc = h.get('desc', '')
-        if "data integrity" in desc.lower():
-            desc = desc.replace("100% data integrity", f'<span style="color: #4ade80;">100% data integrity</span>')
-            
         highlights_html += f"""
           <tr>
             <td style="padding: 20px; background-color: #1e293b; border-radius: 12px; border-left: 4px solid {color};">
@@ -527,64 +432,26 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
 
     return f"""<!DOCTYPE html>
 <html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-  body {{ margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }}
-  table {{ border-collapse: collapse !important; }}
-</style>
-</head>
+<head><meta charset="utf-8"></head>
 <body style="background-color: #0b0f19; padding: 40px 20px; font-family: sans-serif;">
-  <table width="100%" align="center" cellpadding="0" cellspacing="0" style="max-width: 650px; margin: 0 auto; background-color: #111827; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-    <tr>
-      <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px 30px; text-align: center;">
-        <div style="display: inline-block; width: 60px; height: 60px; background-color: #06b6d4; border-radius: 30px; line-height: 60px; color: #ffffff; font-size: 24px; font-weight: bold; margin-bottom: 15px;">
-           SS
-        </div>
-        <div style="font-size: 13px; letter-spacing: 4px; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px;">Senior Network Engineer</div>
-        <div style="font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">SAM SALAMEH</div>
-      </td>
-    </tr>
-    <tr><td height="4" style="background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);"></td></tr>
-    <tr>
-      <td style="padding: 40px 35px;">
-        <p style="font-size: 17px; margin-top: 0; color: #f8fafc;">Dear <strong>{company_name}</strong> Hiring Team,</p>
-        <p style="font-size: 15px; line-height: 1.8; color: #cbd5e1;">I am formally reaching out to express my high-level interest in the <span style="color: #06b6d4; font-weight: 600;">{job_title}</span> position.</p>
-        <p style="font-size: 15px; line-height: 1.8; color: #cbd5e1;">My methodology is built specifically for organizations that focus heavily on <strong>automation, KPIs, and scaling corporate culture</strong>.</p>
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-          {highlights_html}
-        </table>
-        <div style="padding: 20px 25px; background-color: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 12px; margin-bottom: 30px; text-align: center;">
-          <p style="margin: 0; font-style: italic; color: #e2e8f0; font-size: 16px; line-height: 1.5;">
-            "I am looking to bring rigorous accountability and structured scaling to the <strong>{company_name}</strong> team."
-          </p>
-        </div>
-        <p style="font-size: 15px; line-height: 1.8; color: #cbd5e1; margin-bottom: 0;">I have attached <b>My CV</b> for your comprehensive review.</p>
-      </td>
-    </tr>
-    <tr>
-      <td style="background-color: #0f172a; padding: 40px 30px; text-align: center; border-top: 1px solid #1e293b;">
-        <a href="https://www.linkedin.com/in/sam-salameh" style="display: inline-block; padding: 14px 32px; background-color: #06b6d4; color: #ffffff; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 14px; letter-spacing: 1.5px;">VIEW LINKEDIN PORTFOLIO</a>
-        <div style="margin-top: 30px;">
-          <a href="mailto:sam.dev1@hotmail.com" style="color: #94a3b8; font-size: 14px; text-decoration: none;">sam.dev1@hotmail.com</a>
-          <span style="color: #334155; margin: 0 10px;">|</span>
-          <a href="tel:+961708411009" style="color: #94a3b8; font-size: 14px; text-decoration: none;">+961 70 841 1009</a>
-        </div>
-        <div style="font-size: 12px; color: #475569; margin-top: 20px;">Senior Network Engineer</div>
-      </td>
-    </tr>
+  <table width="100%" align="center" style="max-width: 650px; margin: 0 auto; background-color: #111827; border-radius: 16px; overflow: hidden;">
+    <tr><td style="padding: 40px 30px; text-align: center; background: #0f172a;">
+        <div style="font-size: 28px; font-weight: 800; color: #ffffff;">SAM SALAMEH</div>
+    </td></tr>
+    <tr><td height="4" style="background: #06b6d4;"></td></tr>
+    <tr><td style="padding: 40px 35px;">
+        <p style="color: #f8fafc;">Dear <strong>{company_name}</strong> Hiring Team,</p>
+        <p style="color: #cbd5e1;">Application for <span style="color: #06b6d4;">{job_title}</span>.</p>
+        <table width="100%">{highlights_html}</table>
+        <p style="color: #cbd5e1;">{body_text}</p>
+    </td></tr>
   </table>
 </body>
 </html>"""
 
-def send_follow_up_email(to_email, company_name, job_title):
-    body = f"I am following up on my application for the {job_title} position at {company_name}..."
-    return send_email(to_email, company_name, job_title, body, "follow-up", "global")
-
 def close_smtp_pool():
     global _SMTP_POOL
-    with _LOCK:
+    with _POOL_LOCK:
         for key, (conn, _) in _SMTP_POOL.items():
             try: conn.quit()
             except: pass
@@ -592,12 +459,4 @@ def close_smtp_pool():
 
 def test_email_connection():
     providers = _get_available_providers()
-    results = {'providers': [{'name': p['name'], 'configured': True} for p in providers], 'brevo_http': False, 'overall': False}
-    api_key = os.getenv("BREVO_API_KEY") or getattr(config, 'BREVO_API_KEY', None)
-    if api_key:
-        try:
-            resp = requests.get("https://api.brevo.com/v3/smtp/overview", headers={"api-key": api_key}, timeout=10)
-            results['brevo_http'] = resp.status_code in (200, 401)
-        except: pass
-    results['overall'] = len(results['providers']) > 0 or results['brevo_http']
-    return results
+    return {'providers': len(providers), 'overall': len(providers) > 0}

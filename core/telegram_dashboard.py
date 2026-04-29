@@ -1324,14 +1324,28 @@ class SovereignDashboard:
                             await self.app.shutdown()
                         except: pass
                         poller_running = False
-                        # Force restart via Render's watchdog by exiting - but allow some time for loops to stop
-                        await asyncio.sleep(2)
-                        import os
-                        os._exit(0)
+                        # [👑 STANDBY HARMONY]: Stay alive to serve the Web HUD, but stop polling.
+                        # This prevents the Render restart loop and "Jitter" on redeployment.
+                        logging.info("💤 STANDBY MODE: Bot is now idle. Process remains active for Web HUD.")
+                        continue # Continue the heartbeat loop to re-check leadership later
 
                 except asyncio.CancelledError:
                     raise  # Let it propagate to exit cleanly
                 except Exception as inner_err:
+                    # [👑 DIAGNOSTIC]: Catch Groq 401 explicitly to warn the user
+                    if "GROQ HTTP 401" in str(inner_err) or "invalid_api_key" in str(inner_err):
+                        logging.critical("🚨 CRITICAL: GROQ_API_KEY IS INVALID. AI-driven tasks will fail.")
+                        try:
+                            # Only warn once per session to avoid spamming
+                            if not getattr(self, '_groq_warned', False):
+                                await self.app.bot.send_message(
+                                    self.authorized_users[0], 
+                                    "🚨 <b>CRITICAL SYSTEM ALERT</b>\nYour <code>GROQ_API_KEY</code> is invalid or expired. CV tailoring and AI analysis are currently DISABLED. Please update your Render environment variables.",
+                                    parse_mode='HTML'
+                                )
+                                self._groq_warned = True
+                        except: pass
+                    
                     logging.error(f"⚠️ Inner loop error (non-fatal): {inner_err}")
                     await asyncio.sleep(10)
 

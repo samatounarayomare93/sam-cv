@@ -13,11 +13,10 @@ import time
 import urllib.parse
 import asyncio
 import warnings
-warnings.filterwarnings('ignore', category=RuntimeWarning, module='duckduckgo_search')
-warnings.filterwarnings('ignore', module='duckduckgo_search')
+warnings.filterwarnings('ignore', category=RuntimeWarning, module='ddgs')
 warnings.filterwarnings('ignore', message='.*duckduckgo_search.*')
 warnings.filterwarnings('ignore', message='.*has been renamed.*')
-logging.getLogger("duckduckgo_search").setLevel(logging.CRITICAL)
+logging.getLogger("ddgs").setLevel(logging.CRITICAL)
 from typing import Optional, Dict, Any
 
 from core.scrapers.stealth_config import USER_AGENTS
@@ -25,7 +24,7 @@ from core.scrapers.scraper import fetch_page, _get_deep_dive_count, _increment_d
 from core.db_manager import db_manager
 from core.ai_agent import OmniIntelligence
 from core.scrapers.healer_intelligence import get_patrol
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 from urllib.parse import urlparse
 
 
