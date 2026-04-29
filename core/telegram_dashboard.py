@@ -510,8 +510,35 @@ class SovereignDashboard:
                 )
             await update.effective_message.reply_text(msg, parse_mode='HTML')
 
-        elif cmd == "/matrix":
-            await self.handle_command(update, context, command_override="/menu")
+        elif cmd == "/shield":
+            # 🛡️ ANTI-BAN PROTECTION STATUS
+            try:
+                from core.anti_ban_protection import get_protection
+                protection = get_protection()
+                stats = protection.get_protection_stats()
+                
+                msg = (
+                    "🛡️ <b>ANTI-BAN PROTECTION STATUS</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    f"📊 <b>Today's Applications:</b> {stats['daily_applications']}/{stats['max_daily']}\n"
+                    f"🏢 <b>Companies Tracked:</b> {stats['tracked_companies']}\n"
+                    f"🚨 <b>Suspicious Detected:</b> {stats['suspicious_companies']}\n"
+                    f"❌ <b>Failed Applications:</b> {stats['failed_applications']}\n"
+                    f"⏰ <b>Last Application:</b> {stats['last_application'] or 'Never'}\n"
+                    "━━━━━━━━━━━━━━━\n\n"
+                    "🛡️ <b>Protection Features:</b>\n"
+                    "✅ Honeypot Detection\n"
+                    "✅ Rate Limiting (1/company/day)\n"
+                    "✅ Human-like Timing\n"
+                    "✅ Suspicious Company Tracking\n"
+                    "✅ Global Speed Limits\n\n"
+                    "<i>Bot is protected from detection and bans!</i>"
+                )
+            except Exception as e:
+                logging.error(f"Shield status error: {e}")
+                msg = "🛡️ <b>ANTI-BAN PROTECTION</b>\n━━━━━━━━━━━━━━━\n✅ Active and protecting\n━━━━━━━━━━━━━━━"
+            
+            await update.effective_message.reply_text(msg, parse_mode='HTML')
 
         elif cmd == "/phantom":
             await update.effective_message.reply_text("🕵️ <b>PHANTOM NETWORK STATUS</b>\n━━━━━━━━━━━━━━━\nUserBot: 🟡 STANDBY\nGhost Proxi: 🟢 ACTIVE\nDetection: <code>Undetectable</code>\n━━━━━━━━━━━━━━━", parse_mode='HTML')

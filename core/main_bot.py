@@ -395,6 +395,17 @@ class AlphaOrchestrator:
         lead["company_name"] = company_name
         lead["job_title"] = job_title
 
+        # 🛡️ ANTI-BAN PROTECTION: Check before processing
+        from core.anti_ban_protection import get_protection
+        protection = get_protection()
+        
+        can_apply, reason = await protection.can_apply(company_name, job_title, description, email)
+        if not can_apply:
+            logging.info(f"🛡️ PROTECTION: {reason} - Skipping {company_name}")
+            if self.db and job_url:
+                await self.db.update_lead_status(job_url, 'rate_limited')
+            return
+
         # [🛡️ JUNK FILTER]: Reject garbage leads from blind extraction
         JUNK_NAMES = {
             'login', 'die', 'press', 'how', 'win', 'create', 'company', 'who',
@@ -661,6 +672,11 @@ class AlphaOrchestrator:
                     logging.info(f"🚀 STRIKE SUCCESS: Application beamed to {company_name}")
                     await self.telemetry_stream("SUCCESS", f"✅ STRIKE SUCCESS - {company_name}")
                     
+                    # 🛡️ ANTI-BAN: Record successful application
+                    from core.anti_ban_protection import get_protection
+                    protection = get_protection()
+                    protection.record_application(company_name, success=True)
+                    
                     # 🧬 GHOST HUB: Pre-generate tactical cheat sheet for zero-latency prep
                     if score >= 85:
                         logging.info(f"👻 GHOST HUB: Generating tactical cheat sheet for {company_name}...")
@@ -678,6 +694,12 @@ class AlphaOrchestrator:
                         asyncio.create_task(self.deploy_decoy_fleet(lead, hiring_mgr))
                 else:
                     logging.error(f"❌ STRIKE FAILED: {company_name}")
+                    
+                    # 🛡️ ANTI-BAN: Record failed application
+                    from core.anti_ban_protection import get_protection
+                    protection = get_protection()
+                    protection.record_application(company_name, success=False)
+                    
                     if self.db and job_url: await self.db.update_lead_status(job_url, 'failed')
             else:
                 logging.error(f"❌ STRIKE FAILED: PDF Synthesis error for {company_name}")
