@@ -561,7 +561,10 @@ class SovereignDashboard:
                 f"💓 <b>Pulse:</b> ACTIVE 24/7\n"
                 f"━━━━━━━━━━━━━━━"
             )
-            await update.effective_message.reply_text(msg, parse_mode='HTML')
+            # [👑 UI PERSISTENCE]: Ensure the keyboard is attached even for status reports
+            reply_markup, inline_markup = self._get_sovereign_keyboards()
+            await update.effective_message.reply_text(msg, parse_mode='HTML', reply_markup=reply_markup)
+            await update.effective_message.reply_text("🎮 <b>DYNAMIC COMMAND CENTER:</b>", reply_markup=inline_markup, parse_mode='HTML')
             return
 
         elif cmd == "/ai_status" or cmd == "/retrain" or cmd == "/strength":
@@ -704,51 +707,8 @@ class SovereignDashboard:
             await update.effective_message.reply_text(guide_text, parse_mode='HTML')
 
         elif cmd == "/start" or cmd == "/menu":
-            reply_keyboard = [
-                # 🚀 CRITICAL MISSION CONTROL
-                [KeyboardButton("🚀 Run Now | تشغيل"), KeyboardButton("🖥️ Status | الحالة")],
-                [KeyboardButton("🧬 Tasks | المهام"), KeyboardButton("🛡️ Shield | الدرع")],
-                
-                # 📈 INTELLIGENCE & STATS
-                [KeyboardButton("📜 Pulse | النبض"), KeyboardButton("📈 Stats | الإحصائيات")],
-                [KeyboardButton("📋 Leads | الفرص"), KeyboardButton("🎓 Prep | التحضير")],
-                
-                # 🧪 EXPERIMENTAL & CAMPAIGNS
-                [KeyboardButton("🧪 Test Strike | تجربة")], # [👑 VIP] Dedicated row for higher visibility
-                [KeyboardButton("🚀 Campaign | حملة جديدة"), KeyboardButton("🏢 Companies | الشركات")],
-                [KeyboardButton("🔄 Follow-up | المتابعة")],
-                
-                # ⚙️ SYSTEM CONTROL
-                [KeyboardButton("⏸️ Pause | إيقاف مؤقت"), KeyboardButton("▶️ Resume | استئناف")],
-                [KeyboardButton("🛰️ Track | التتبع"), KeyboardButton("🛑 Omega Halt | التوقف التام")],
-                
-                # 🩹 RECOVERY
-                [KeyboardButton("🩹 Lazarus | الإحياء"), KeyboardButton("🩹 Repair | الإصلاح")],
-                [KeyboardButton("🧹 Hygiene | التنظيف"), KeyboardButton("📜 Logs | السجلات")],
-                [KeyboardButton("🔄 Reboot | إعادة تشغيل")]
-            ]
-            reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+            reply_markup, inline_markup = self._get_sovereign_keyboards()
 
-            twa_url = os.getenv("RENDER_EXTERNAL_URL", "")
-            # [💎 CLOUD-PERFECTION]: Robust fallback for the HUD Access Button
-            if not twa_url or not twa_url.startswith("https://"):
-                twa_url = "https://sam-job-automator.onrender.com"
-
-            inline_keyboard = []
-            if twa_url:
-                inline_keyboard.append([InlineKeyboardButton("🌐 MATRIX HUD | ماتريكس", web_app=WebAppInfo(url=twa_url))])
-            
-            # --- VIP ADDITION: Simulation Strike Access ---
-            inline_keyboard.append([
-                InlineKeyboardButton("🧪 TEST STRIKE | تجربة", callback_data="/test_strike"),
-                InlineKeyboardButton("💪 STRENGTH CHECK | قوة", callback_data="/synapse")
-            ])
-            inline_keyboard.append([
-                InlineKeyboardButton("📖 GUIDE | دليل", callback_data="/guide"),
-                InlineKeyboardButton("🖥️ STATUS | الحالة", callback_data="/status")
-            ])
-
-            inline_markup = InlineKeyboardMarkup(inline_keyboard)
 
             await update.effective_message.reply_text(
                 "👑 <b>PROJECT CHRONOS: SOVEREIGN V2</b>\n"
@@ -760,6 +720,44 @@ class SovereignDashboard:
                 reply_markup=reply_markup
             )
             await update.effective_message.reply_text("🎮 <b>DYNAMIC COMMAND CENTER:</b>", reply_markup=inline_markup, parse_mode='HTML')
+
+    def _get_sovereign_keyboards(self):
+        """[👑 APEX UI]: Generates the unified Sovereign Tileset and Command Center."""
+        from telegram import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+        
+        reply_keyboard = [
+            [KeyboardButton("🚀 Run Now | تشغيل"), KeyboardButton("🖥️ Status | الحالة")],
+            [KeyboardButton("🧬 Tasks | المهام"), KeyboardButton("🛡️ Shield | الدرع")],
+            [KeyboardButton("📜 Pulse | النبض"), KeyboardButton("📈 Stats | الإحصائيات")],
+            [KeyboardButton("📋 Leads | الفرص"), KeyboardButton("🎓 Prep | التحضير")],
+            [KeyboardButton("🧪 Test Strike | تجربة")], 
+            [KeyboardButton("🚀 Campaign | حملة جديدة"), KeyboardButton("🏢 Companies | الشركات")],
+            [KeyboardButton("🔄 Follow-up | المتابعة")],
+            [KeyboardButton("⏸️ Pause | إيقاف مؤقت"), KeyboardButton("▶️ Resume | استئناف")],
+            [KeyboardButton("🛰️ Track | التتبع"), KeyboardButton("🛑 Omega Halt | التوقف التام")],
+            [KeyboardButton("🩹 Lazarus | الإحياء"), KeyboardButton("🩹 Repair | الإصلاح")],
+            [KeyboardButton("🧹 Hygiene | التنظيف"), KeyboardButton("📜 Logs | السجلات")],
+            [KeyboardButton("🔄 Reboot | إعادة تشغيل")]
+        ]
+        reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+
+        twa_url = os.getenv("RENDER_EXTERNAL_URL", "")
+        if not twa_url or not twa_url.startswith("https://"):
+            twa_url = "https://sam-job-automator.onrender.com"
+
+        inline_keyboard = [
+            [InlineKeyboardButton("🌐 MATRIX HUD | ماتريكس", web_app=WebAppInfo(url=twa_url))],
+            [
+                InlineKeyboardButton("🧪 TEST STRIKE | تجربة", callback_data="/test_strike"),
+                InlineKeyboardButton("💪 STRENGTH CHECK | قوة", callback_data="/synapse")
+            ],
+            [
+                InlineKeyboardButton("📖 GUIDE | دليل", callback_data="/guide"),
+                InlineKeyboardButton("🖥️ STATUS | الحالة", callback_data="/status")
+            ]
+        ]
+        inline_markup = InlineKeyboardMarkup(inline_keyboard)
+        return reply_markup, inline_markup
 
     def normalize_text(self, text: str) -> str:
         if not text: return ""
@@ -900,7 +898,7 @@ class SovereignDashboard:
 
             try:
                 # [👑 DIAGNOSTIC]: Check for Render-specific SMTP blocks
-                if os.getenv("RENDER") and not (getattr(config, 'BREVO_SMTP_PASSWORD', '') or '').strip():
+                if os.getenv("RENDER") and not (os.getenv("BREVO_SMTP_PASSWORD", "")).strip():
                     await msg.edit_text("❌ <b>STRIKE FAILED: RENDER BLOCK</b>\nYou are on Render, but <code>BREVO_SMTP_PASSWORD</code> is not set. Render blocks standard SMTP (Port 587/465). Please add your Brevo key to bypass this.", parse_mode='HTML')
                     return
 
