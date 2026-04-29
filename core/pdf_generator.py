@@ -617,6 +617,7 @@ def generate_dynamic_cover_letter(company_name, job_title, custom_body, persona=
     pdf_path = os.path.join(PDF_DIR, filename)
     
     try:
+        pdf.output(pdf_path)
         return pdf_path
     except Exception as e:
         logging.error(f"❌ PDF Output Error: {e}")
