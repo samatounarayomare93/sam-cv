@@ -933,12 +933,21 @@ class SovereignDashboard:
                 return
             
             context.user_data['state'] = None
-            msg = await update.message.reply_text("🧬 <b>GENERATING DUAL-PACKAGE...</b>\n<i>Constructing CV & Cover Letter for test verification.</i>", parse_mode='HTML')
+            try:
+                msg = await update.message.reply_text("🧬 <b>GENERATING DUAL-PACKAGE...</b>\n<i>Constructing CV & Cover Letter for test verification.</i>", parse_mode='HTML')
+            except Exception as e:
+                logging.error(f"⚠️ [STRIKE-ERR] Initial reply failed: {e}")
+                return
             
             # [🛡️ RESPONSIVENESS]: Tiny sleep to ensure the message is dispatched to the user before heavy I/O
             await asyncio.sleep(0.1)
 
             try:
+                # [👑 DIAGNOSTIC]: Check for Render-specific SMTP blocks
+                if os.getenv("RENDER") and not (getattr(config, 'BREVO_SMTP_PASSWORD', '') or '').strip():
+                    await msg.edit_text("❌ <b>STRIKE FAILED: RENDER BLOCK</b>\nYou are on Render, but <code>BREVO_SMTP_PASSWORD</code> is not set. Render blocks standard SMTP (Port 587/465). Please add your Brevo key to bypass this.", parse_mode='HTML')
+                    return
+
                 # Run in thread to avoid blocking event loop during PDF generation
                 success = await asyncio.to_thread(smtp_engine.send_test_email, email)
                 if success:
@@ -1253,8 +1262,8 @@ class SovereignDashboard:
                     else:
                         self.is_leader = bool(claimed and verified)
 
-                    # [👑 FORCE START]: Bypassing leadership check for absolute recovery
-                    if True and not poller_running:
+                    # [👑 SOVEREIGN RECOVERY]: Only start poller if we ARE the verified leader
+                    if self.is_leader and not poller_running:
                         # [🔥 TOTAL IGNITION]: Start background loops if they haven't started yet
                         if not self._loops_started:
                             # SET FLAG FIRST to prevent infinite re-spawning on import errors
@@ -1308,7 +1317,15 @@ class SovereignDashboard:
                         poller_running = True
                         logging.info("🟢 SOVEREIGN LINK: Dashboard Poller Active (Leader Node).")
                     elif (not self.is_leader) and poller_running:
-                        logging.info("🛰️ STANDBY MODE: Leadership lost. Restarting process to cleanly release Telegram locks.")
+                        logging.info("🛰️ STANDBY MODE: Leadership lost. Releasing Telegram locks gracefully.")
+                        try:
+                            await self.app.updater.stop()
+                            await self.app.stop()
+                            await self.app.shutdown()
+                        except: pass
+                        poller_running = False
+                        # Force restart via Render's watchdog by exiting - but allow some time for loops to stop
+                        await asyncio.sleep(2)
                         import os
                         os._exit(0)
 

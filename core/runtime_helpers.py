@@ -7,6 +7,12 @@ import requests
 from typing import Dict
 
 import aiohttp
+try:
+    from core.scrapers.stealth_config import USER_AGENTS
+except ImportError:
+    USER_AGENTS = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+    ]
 
 
 class TelegramNotifier:
@@ -57,16 +63,8 @@ class HumanParityJitter:
 class EvasionRouter:
     """Manages Proxy Routing and Anti-Cloudflare headers with enhanced stealth."""
     
-    # Expanded user agent pool
-    USER_AGENTS = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    ]
+    # Use imported USER_AGENTS from stealth_config
+    USER_AGENTS = USER_AGENTS
     
     # Accept-Language variations
     LANGUAGES = [
@@ -82,12 +80,21 @@ class EvasionRouter:
 
         
     def get_stealth_headers(self) -> Dict[str, str]:
-        """Generate random stealth headers"""
-        return {
-            "User-Agent": self.USER_AGENTS[self._ua_index],
+        """Generate random stealth headers with modern Client-Hints."""
+        ua = self.USER_AGENTS[self._ua_index]
+        # Extract Chrome version for Client-Hints if applicable
+        chrome_ver = "121"
+        if "Chrome/" in ua:
+            chrome_ver = ua.split("Chrome/")[1].split(".")[0]
+            
+        headers = {
+            "User-Agent": ua,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "Accept-Language": random.choice(self.LANGUAGES),
             "Accept-Encoding": "gzip, deflate, br",
+            "Sec-Ch-Ua": f'"Not A(Brand";v="99", "Google Chrome";v="{chrome_ver}", "Chromium";v="{chrome_ver}"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
             "Sec-Fetch-Dest": "document",
             "Sec-Fetch-Mode": "navigate",
             "Sec-Fetch-Site": "none",
@@ -97,17 +104,40 @@ class EvasionRouter:
             "Cache-Control": "max-age=0",
             "DNT": "1",
         }
+        return headers
     
+    def get_impersonation_mode(self) -> str:
+        """Returns curl_cffi compatible impersonation string."""
+        ua = self.USER_AGENTS[self._ua_index].lower()
+        if "chrome" in ua: return "chrome"
+        if "safari" in ua: return "safari"
+        if "firefox" in ua: return "firefox"
+        return "chrome"
+
+    def rotate_identity(self):
+        """Rotate both UA and request proxy mesh to cycle."""
+        self.rotate_ua()
+        logging.info(f"🔄 IDENTITY ROTATED: UA switched to {self.USER_AGENTS[self._ua_index][:30]}...")
+
     def rotate_ua(self):
         """Rotate to next user agent"""
         self._ua_index = (self._ua_index + 1) % len(self.USER_AGENTS)
 
+# Shared Singletons
+evasion = EvasionRouter()
+proxy_mesh = ProxyMesh()
+
 
 class ProxyMesh:
-    """The Shadow Grid: Rotational Proxy logic for infinite scaling."""
+    """The Shadow Grid: Rotational Proxy logic with Residential tier support."""
     def __init__(self):
+        # [👑 RESIDENTIAL TIER]: Priority proxies from environment
+        res_proxies = os.getenv("RESIDENTIAL_PROXIES", "").split(",") if os.getenv("RESIDENTIAL_PROXIES") else []
+        self.residential = [p.strip() for p in res_proxies if p.strip()]
+        
         self.proxies = [None] 
         self._index = 0
+        self._res_index = 0
         self._last_refresh = 0
         self._refresh_interval = 1800 # 30 mins
         self._lock = asyncio.Lock()
@@ -133,6 +163,14 @@ class ProxyMesh:
                 logging.error(f"Shadow Grid Refresh Failed: {e}")
 
     async def get_next(self):
+        """[👑 PROXY-ROUTER]: Priority logic: Residential -> Shadow Grid -> Direct."""
+        # 1. Try Residential if available (High Reputation)
+        if self.residential:
+            p = self.residential[self._res_index]
+            self._res_index = (self._res_index + 1) % len(self.residential)
+            return p if "://" in p else f"http://{p}"
+
+        # 2. Fallback to Shadow Grid (Free rotation)
         await self._refresh_proxies()
         if not self.proxies: 
             return None

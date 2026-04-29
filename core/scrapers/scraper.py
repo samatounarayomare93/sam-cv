@@ -23,6 +23,12 @@ from urllib3.util.retry import Retry
 import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+try:
+    from curl_cffi.requests import AsyncSession
+    HAS_CURL_CFFI = True
+except ImportError:
+    HAS_CURL_CFFI = False
+
 TOTAL_DEEP_DIVES = 0
 SCRAPE_COOLDOWN = 0
 
@@ -43,36 +49,42 @@ def create_session():
     """God-Tier Stealth: Sync session with Chrome impersonation"""
     pass  # Reserved for future sync session factory
 
-from core.runtime_helpers import ProxyMesh, EvasionRouter
-
-_proxy_mesh = ProxyMesh()
-_evasion = EvasionRouter()
+from core.runtime_helpers import proxy_mesh as _proxy_mesh, evasion as _evasion
 
 import httpx
 
-_proxy_mesh = ProxyMesh()
-_evasion = EvasionRouter()
 _async_session: Optional[httpx.AsyncClient] = None
 
 async def _get_proxy():
-    """[👑 SOVEREIGN PROXY]: Select the best available proxy for this request."""
-    proxies = os.getenv("RESIDENTIAL_PROXIES", "").split(",") if os.getenv("RESIDENTIAL_PROXIES") else []
-    if proxies:
-        proxy = random.choice([p.strip() for p in proxies if p.strip()])
-        if proxy:
-            return proxy
-    # Fallback to the Shadow Grid (free proxies)
-    proxy = await _proxy_mesh.get_next()
-    return proxy
+    """[👑 SOVEREIGN PROXY]: Select the best available proxy from the shared mesh."""
+    return await _proxy_mesh.get_next()
 
-async def fetch_page_async(url, headers, timeout=15, retry_count=0):
-    # [👑 SOVEREIGN STEALTH]: Rotate headers and proxy for each request
+async def fetch_page_async(url, headers=None, timeout=15, retry_count=0):
+    """[👑 OMEGA FETCH]: Dual-Engine (curl_cffi + httpx) for absolute WAF penetration."""
+    headers = headers or {}
     stealth_headers = _evasion.get_stealth_headers()
     stealth_headers.update(headers)
     
-    # [🕸️ FIX: ACTUALLY INJECT PROXY INTO THE CLIENT]
     proxy = await _get_proxy()
     
+    # [👑 ENGINE 1: curl_cffi] - Best for Cloudflare/TLS Fingerprinting
+    if HAS_CURL_CFFI:
+        try:
+            impersonate = _evasion.get_impersonation_mode()
+            async with AsyncSession(impersonate=impersonate, proxies={"http": proxy, "https": proxy} if proxy else None) as s:
+                response = await s.get(url, headers=stealth_headers, timeout=timeout, follow_redirects=True)
+                if response.status_code == 403 or response.status_code == 429:
+                    logging.warning(f"⚠️ [CURL-CFFI] Blocked (HTTP {response.status_code}) on {url}")
+                    _evasion.rotate_ua()
+                    if retry_count < 2:
+                        await asyncio.sleep(random.uniform(2, 5))
+                        return await fetch_page_async(url, headers, timeout, retry_count + 1)
+                return response
+        except Exception as e:
+            logging.debug(f"curl_cffi engine failed for {url}: {e}. Falling back to httpx.")
+            # Continue to Engine 2
+
+    # [👑 ENGINE 2: httpx] - Secondary/Fallback Engine
     try:
         async with httpx.AsyncClient(
             timeout=timeout,
@@ -81,16 +93,16 @@ async def fetch_page_async(url, headers, timeout=15, retry_count=0):
         ) as client:
             response = await client.get(url, headers=stealth_headers)
             if response.status_code == 403 or response.status_code == 429:
-                logging.warning(f"⚠️ Page blocked (HTTP {response.status_code}) on {url}, rotating identity...")
+                logging.warning(f"⚠️ [HTTPX] Blocked (HTTP {response.status_code}) on {url}")
                 _evasion.rotate_ua()
                 await asyncio.sleep(random.uniform(2, 5))
-                if retry_count < 3:
+                if retry_count < 2:
                     return await fetch_page_async(url, headers, timeout, retry_count + 1)
             return response
     except Exception as e:
         logging.debug(f"Request failed for {url}: {e}")
         _evasion.rotate_ua()
-        if retry_count < 2:
+        if retry_count < 1:
              await asyncio.sleep(random.uniform(1, 3))
              return await fetch_page_async(url, headers, timeout, retry_count + 1)
         return None

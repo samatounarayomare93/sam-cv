@@ -11,12 +11,9 @@ async def fetch_daleel_page(page: int, db=None) -> List[Dict]:
         from core.scrapers.scraper import fetch_page_async
         from core.runtime_helpers import EvasionRouter
         
-        headers = {
-            'User-Agent': random.choice(EvasionRouter.USER_AGENTS),
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-GB,en;q=0.9,en-US;q=0.8',
-            'Referer': 'https://www.google.com/',
-        }
+        from core.runtime_helpers import evasion
+        headers = evasion.get_stealth_headers()
+        headers['Referer'] = 'https://www.google.com/'
         
         resp = await fetch_page_async(url, headers=headers, timeout=20)
         if not resp or resp.status_code != 200:
