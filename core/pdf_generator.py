@@ -776,7 +776,7 @@ def generate_cv_pdf(company_name, job_title, lead=None):
     if is_cloud:
         PDF_DIR = "/tmp/pdf_cache"
     else:
-        PDF_DIR = os.path.dirname(__file__), "pdf_cache")
+        PDF_DIR = os.path.join(os.path.dirname(__file__), "pdf_cache")
     
     if not os.path.exists(PDF_DIR): 
         os.makedirs(PDF_DIR, exist_ok=True)
