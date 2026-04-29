@@ -28,6 +28,24 @@ from core.scrapers.healer_intelligence import get_patrol
 from duckduckgo_search import DDGS
 from urllib.parse import urlparse
 
+
+def _safe_ddgs_search(query: str, max_results: int = 5, proxy: str = None, headers: dict = None, region: str = 'wt-wt', timeout: int = 20) -> list:
+    """[👑 FIX] Thread-safe DDGS search with warning suppression.
+    warnings.filterwarnings doesn't propagate to worker threads,
+    so we must suppress inside the function that runs in the thread."""
+    import warnings
+    warnings.filterwarnings('ignore')
+    try:
+        kwargs = {"timeout": timeout}
+        if proxy:
+            kwargs['proxy'] = proxy
+        if headers:
+            kwargs['headers'] = headers
+        with DDGS(**kwargs) as ddgs:
+            return list(ddgs.text(query, max_results=max_results, region=region))
+    except Exception:
+        return []
+
 class PatternRecon:
     """Russian-style Pattern Discovery: Deduces hidden HR emails from domain intelligence."""
     
@@ -148,10 +166,7 @@ class MarketOracle:
         [👑 APEX DEITY] Fetches the latest headline for hyping recon.
         """
         try:
-            from duckduckgo_search import DDGS
-            def _sync():
-                with DDGS() as ddgs: return list(ddgs.text(f"{company} news 2024", max_results=3))
-            results = await asyncio.to_thread(_sync)
+            results = await asyncio.to_thread(_safe_ddgs_search, f"{company} news 2024", 3)
             if results:
                 return f"{results[0]['title']}: {results[0]['body'][:100]}..."
         except:
@@ -167,10 +182,7 @@ class MarketOracle:
         """
         pulse = {"sentiment": "neutral", "event": "Stable Operations", "strategy": "Standard"}
         try:
-            from duckduckgo_search import DDGS
-            def _sync():
-                with DDGS() as ddgs: return list(ddgs.text(f'"{company}" (layoffs OR growth OR "new CEO" OR acquisition OR expansion)', max_results=5))
-            results = await asyncio.to_thread(_sync)
+            results = await asyncio.to_thread(_safe_ddgs_search, f'"{company}" (layoffs OR growth OR "new CEO" OR acquisition OR expansion)', 5)
             
             content = " ".join([r.get('body', '').lower() for r in results if r.get('body')])
             
@@ -190,10 +202,7 @@ class MarketOracle:
         🕵️ RECRUITER SNIPER: Extracts specific recruiter names and LinkedIn profiles.
         """
         try:
-            from duckduckgo_search import DDGS
-            def _sync():
-                with DDGS() as ddgs: return list(ddgs.text(f"{company} {job_title} recruiter linkedin", max_results=3))
-            results = await asyncio.to_thread(_sync)
+            results = await asyncio.to_thread(_safe_ddgs_search, f"{company} {job_title} recruiter linkedin", 3)
             if results:
                 best = results[0]
                 name_raw = best['title'].split("-")[0].split("|")[0].strip()
@@ -211,10 +220,7 @@ class MarketOracle:
         🧬 CULTURE HARVESTER: Extracts specific mission-critical keywords.
         """
         try:
-            from duckduckgo_search import DDGS
-            def _sync():
-                with DDGS() as ddgs: return list(ddgs.text(f"{company} mission values culture", max_results=3))
-            results = await asyncio.to_thread(_sync)
+            results = await asyncio.to_thread(_safe_ddgs_search, f"{company} mission values culture", 3)
             if results:
                 return f"Values Found: {' '.join([r.get('body', '')[:100] for r in results if r.get('body')])}"
         except:
@@ -227,15 +233,10 @@ class MarketOracle:
         🦈 PREDATOR RECON: Finds recent failures of direct rivals.
         """
         try:
-            from duckduckgo_search import DDGS
-            def _sync_comp():
-                with DDGS() as ddgs: return list(ddgs.text(f"{company} top competitors", max_results=2))
-            results = await asyncio.to_thread(_sync_comp)
+            results = await asyncio.to_thread(_safe_ddgs_search, f"{company} top competitors", 2)
             rival = "a top competitor"
             if results: rival = results[0]['title'].split()[0]
-            def _sync_fail(r=rival):
-                with DDGS() as ddgs: return list(ddgs.text(f"{r} layoff or failure or lawsuit 2024", max_results=1))
-            fail_res = await asyncio.to_thread(_sync_fail)
+            fail_res = await asyncio.to_thread(_safe_ddgs_search, f"{rival} layoff or failure or lawsuit 2024", 1)
             if fail_res:
                 return f"{rival} recently faced: {fail_res[0]['title']}"
         except:
@@ -248,10 +249,7 @@ class MarketOracle:
         🗣️ INTERNALL LINGO: Extracts company-specific behavioral jargon.
         """
         try:
-            from duckduckgo_search import DDGS
-            def _sync():
-                with DDGS() as ddgs: return list(ddgs.text(f"site:glassdoor.com \"{company}\" interview questions culture", max_results=3))
-            results = await asyncio.to_thread(_sync)
+            results = await asyncio.to_thread(_safe_ddgs_search, f"site:glassdoor.com \"{company}\" interview questions culture", 3)
             if results:
                 return f"Lingo Tags: {' '.join([r.get('body', '')[:50] for r in results if r.get('body')])}"
         except:
@@ -264,10 +262,7 @@ class MarketOracle:
         👔 LEADERSHIP RECON: Finds executive team names.
         """
         try:
-            from duckduckgo_search import DDGS
-            def _sync():
-                with DDGS() as ddgs: return list(ddgs.text(f"{company} leadership team executive officers", max_results=3))
-            results = await asyncio.to_thread(_sync)
+            results = await asyncio.to_thread(_safe_ddgs_search, f"{company} leadership team executive officers", 3)
             if results:
                 return f"Leadership: {' '.join([r.get('title', '')[:100] for r in results if r.get('title')])}"
         except:
@@ -294,14 +289,11 @@ class PlatformDiscovery:
     async def run_discovery_cycle():
         """Searches for new recruitment platforms and logs them for review."""
         logging.info("🌐 OMNICRAWLER: Initiating Platform Discovery Protocol...")
-        from duckduckgo_search import DDGS
         discovered = []
         try:
             for query in PlatformDiscovery.DISCOVERY_QUERIES:
                 logging.info(f"🔎 Scanning for new platforms: {query[:40]}...")
-                def _sync(q=query):
-                    with DDGS() as ddgs: return list(ddgs.text(q, max_results=20))
-                results = await asyncio.to_thread(_sync)
+                results = await asyncio.to_thread(_safe_ddgs_search, query, 20)
                 for res in results:
                     url = res.get('href')
                     if url:
@@ -427,7 +419,6 @@ class OmniCrawler:
         logging.info("🕵️ MULTIVERSE: Hunting for pre-hiring expansion signals...")
         leads = []
         try:
-            from duckduckgo_search import DDGS
             queries = [
                 'site:crunchbase.com "raised funding" 2024',
                 'site:globenewswire.com "new headquarters" 2024',
@@ -436,9 +427,7 @@ class OmniCrawler:
                 '"new office opening" "London" 2024'
             ]
             for query in queries:
-                def _sync(q=query):
-                    with DDGS() as ddgs: return list(ddgs.text(q, max_results=5))
-                results = await asyncio.to_thread(_sync)
+                results = await asyncio.to_thread(_safe_ddgs_search, query, 5)
                 for r in results:
                     company_match = re.search(r'([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)', r['title'])
                     if company_match:
@@ -547,8 +536,9 @@ class OmniCrawler:
                         proxies_to_try = [primary_proxy] + failover_proxies
                         for proxy in proxies_to_try:
                             try:
-                                with DDGS(headers={"User-Agent": user_agent}, proxy=proxy, timeout=20) as ddgs:
-                                    return [r for r in ddgs.text(search_query, region='wt-wt', max_results=15)]
+                                res = _safe_ddgs_search(search_query, max_results=15, proxy=proxy, headers={"User-Agent": user_agent}, region='wt-wt', timeout=20)
+                                if res:
+                                    return res
                             except Exception as e:
                                 logging.warning(f"Proxy Failure ({proxy}): {e}. Rotating to failover...")
                                 continue
@@ -774,10 +764,7 @@ class OmniCrawler:
             
             for q in queries:
                 try:
-                    from duckduckgo_search import DDGS
-                    def _sync(qu=q):
-                        with DDGS() as ddgs: return list(ddgs.text(qu, max_results=10))
-                    results = await asyncio.to_thread(_sync)
+                    results = await asyncio.to_thread(_safe_ddgs_search, q, 10)
                     for r in results:
                         # ✅ FIX: STOP using "Automatic Target". Extract from URL.
                         company_name = "Unknown"
@@ -810,14 +797,10 @@ class OmniCrawler:
         ]
         
         found_emails = []
-        from duckduckgo_search import DDGS
         
         for query in targets:
             try:
-                def sync_recon():
-                    with DDGS(proxy=os.getenv("PROXY_URL")) as ddgs:
-                        return [r for r in ddgs.text(query, max_results=5)]
-                results = await asyncio.to_thread(sync_recon)
+                results = await asyncio.to_thread(_safe_ddgs_search, query, 5, proxy=os.getenv("PROXY_URL"))
                 for res in results:
                     email = self._extract_snippet_emails(res['title'], res['body'])
                     if email: found_emails.append(email)
@@ -829,10 +812,7 @@ class OmniCrawler:
         # Fallback to PatternRecon if search fails
         if not found_emails:
             try:
-                def sync_domain_search():
-                    with DDGS(proxy=os.getenv("PROXY_URL")) as ddgs:
-                        return [r for r in ddgs.text(f'"{company_name}" official website', max_results=1)]
-                results = await asyncio.to_thread(sync_domain_search)
+                results = await asyncio.to_thread(_safe_ddgs_search, f'"{company_name}" official website', 1, proxy=os.getenv("PROXY_URL"))
                 if results:
                     domain_url = results[0].get('link') or results[0].get('href')
                     found_emails = PatternRecon.guess_hr_emails(domain_url)
@@ -847,10 +827,7 @@ class OmniCrawler:
         """
         query = f"VP Operations or HR Director {company} name"
         try:
-            from duckduckgo_search import DDGS
-            def _sync():
-                with DDGS() as ddgs: return list(ddgs.text(query, max_results=3))
-            results = await asyncio.to_thread(_sync)
+            results = await asyncio.to_thread(_safe_ddgs_search, query, 3)
             if results:
                 text = " ".join([r['body'] for r in results])
                 match = re.search(r"([A-Z][a-z]+ [A-Z][a-z]+)", text)

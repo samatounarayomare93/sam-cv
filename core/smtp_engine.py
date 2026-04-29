@@ -169,6 +169,33 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
 
     # ============================================================
+    # 🚀 RENDER OPTIMIZATION: Prioritize Port 2525
+    # Render blocks 587/465 but allows 2525.
+    # If on Render, try Brevo FIRST to avoid 20s timeout on Zoho/Yahoo.
+    # ============================================================
+    is_render = os.getenv("RENDER") is not None
+    if is_render:
+        brevo_smtp_user = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
+        brevo_smtp_pass = (getattr(config, 'BREVO_SMTP_PASSWORD', '') or '').strip()
+        if brevo_smtp_user and brevo_smtp_pass:
+            brevo_smtp_provider = {
+                'name': 'Brevo SMTP (2525)',
+                'server': 'smtp-relay.brevo.com',
+                'port': 2525,
+                'email': brevo_smtp_user,
+                'password': brevo_smtp_pass,
+                'use_ssl': False
+            }
+            try:
+                logging.info("📧 [RENDER-BOOST] Prioritizing Brevo Port 2525...")
+                res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject)
+                if res:
+                    logging.info("✅ RENDER-BOOST SUCCESS — Port 2525 bypassed Render block!")
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ Render-Boost failed: {e}")
+
+    # ============================================================
     # 🥇 PRIORITY 1: ZOHO SMTP (PERFECT DMARC — WORKS IMMEDIATELY)
     # Zoho controls zohomail.com → DMARC passes 100% → INBOX DELIVERY
     # App Passwords work on NEW accounts immediately (unlike Yahoo 24-48h wait)
@@ -176,7 +203,6 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # ============================================================
     zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
     zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
-    logging.info(f"📧 [ZOHO-CHECK] USER: '{zoho_user}', PASS-LEN: {len(zoho_pass)}")
     if zoho_user and zoho_pass:
         zoho_provider = {
             'name': 'Zoho Mail (STARTTLS-587)',

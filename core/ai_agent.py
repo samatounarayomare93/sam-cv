@@ -54,21 +54,27 @@ class OmniIntelligence:
             logging.info("GROQ FALLBACK: Available and armed.")
     
     async def _get_session(self) -> httpx.AsyncClient:
-        """MAXIMUM POWER: Proxy-wrapped session for internal AI calls to bypass regional blocks."""
+        """[👑 FIX] Direct session for AI API calls. Groq/Gemini are globally accessible from Render.
+        Free proxies were CAUSING the 400 errors by mangling the request.
+        Only use proxy when running locally (e.g. Lebanon where Groq may be blocked)."""
         if self._session is None or self._session.is_closed:
-            from core.runtime_helpers import ProxyMesh
-            pm = ProxyMesh()
-            proxy = await pm.get_next()
-            # [👑 AI-HARDENING]: If we get None (direct connection), rotate until we get a real node
-            # Groq is blocked in Lebanon, so direct connection = 403.
-            max_nodes = pm.active_nodes
-            attempts = 0
-            while proxy is None and attempts < max_nodes:
-                proxy = await pm.get_next()
-                attempts += 1
+            is_render = os.getenv("RENDER") is not None
+            proxy = None
             
-            if proxy:
-                logging.info(f"🌐 AI-PROXY: Tunneling Intelligence through {proxy.split('@')[-1] if '@' in proxy else 'secure-node'}")
+            if not is_render:
+                # Only use proxy when running locally (not on Render)
+                from core.runtime_helpers import ProxyMesh
+                pm = ProxyMesh()
+                proxy = await pm.get_next()
+                max_nodes = pm.active_nodes
+                attempts = 0
+                while proxy is None and attempts < max_nodes:
+                    proxy = await pm.get_next()
+                    attempts += 1
+                if proxy:
+                    logging.info(f"🌐 AI-PROXY: Tunneling through {proxy.split('@')[-1] if '@' in proxy else 'secure-node'}")
+            else:
+                logging.info("🌐 AI-DIRECT: Render detected — using direct connection to AI APIs (no proxy)")
             
             self._session = httpx.AsyncClient(
                 timeout=30,
@@ -626,7 +632,14 @@ class OmniIntelligence:
                 logging.warning(f"⏳ GROQ TIMEOUT - Attempt {attempt + 1}")
                 await asyncio.sleep(1)
             except Exception as e:
-                logging.error(f"❌ GROQ FAILURE: {response.status_code if 'response' in dir() else 'N/A'} — {str(e)[:200]}")
+                resp_code = locals().get('response', None)
+                resp_code = resp_code.status_code if resp_code and hasattr(resp_code, 'status_code') else 'N/A'
+                logging.error(f"❌ GROQ FAILURE: {resp_code} — {str(e)[:200]}")
+                # Reset session on failure so next attempt uses a fresh connection
+                if self._session:
+                    try: await self._session.aclose()
+                    except: pass
+                    self._session = None
                 break
         
         return self._apex_static_fallback(job_title, news_headline)
