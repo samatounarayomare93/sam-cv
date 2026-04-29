@@ -120,13 +120,13 @@ class SovereignDashboard:
             except Exception as e:
                 logging.error(f"⚠️ Doc Broadcast failed for User {uid}: {e}")
 
-    async def _post_init(self, application):
-        """Sets the Menu button commands for the Telegram UI."""
-        # [🧠 SAFE-START]: Ensure DB bootstrap happens WITHIN the event loop
-        await self.db.bootstrap()
+        # [👑 UI HARMONY]: Ensure buttons appear even in Standby
+        await self._sync_ui_standalone(application)
+        pass
 
+    async def _sync_ui_standalone(self, application):
+        """Standalone UI sync that can be called without start_polling."""
         commands = [
-            # --- 🚀 CORE CONTROL (1-10) ---
             BotCommand("menu", "📱 القائمة الرئيسية (Main Menu)"),
             BotCommand("status", "🖥️ تقرير السحاب (Cloud Status)"),
             BotCommand("ignite", "🔥 إشعال النظام (Total Ignition)"),
@@ -137,8 +137,6 @@ class SovereignDashboard:
             BotCommand("pause", "⏸️ إيقاف مؤقت (Pause Engine)"),
             BotCommand("unpause", "▶️ إلغاء الإيقاف (Unpause)"),
             BotCommand("reboot", "🔄 إعادة تشغيل (Full Reboot)"),
-            
-            # --- 📊 INTELLIGENCE (11-20) ---
             BotCommand("stats", "📊 إحصائيات المهمة (Mission Stats)"),
             BotCommand("audit", "👁️ مراجعة الأهداف (Visual Audit)"),
             BotCommand("track", "🛰️ تتبع الرادار (Live Tracking)"),
@@ -150,67 +148,25 @@ class SovereignDashboard:
             BotCommand("tasks", "🧬 قائمة المهام (Mission Tasks)"),
             BotCommand("shield", "🛡️ درع الحماية (Security Shield)"),
             BotCommand("hud", "📟 الشاشة الحية (Live HUD)"),
-
-            # --- ⚔️ OPERATIONS (21-30) ---
             BotCommand("launch_infinite", "♾️ الغزو اللانهائي (Infinite Swarm)"),
             BotCommand("launch_single", "🚀 هجوم مفرد (Single Strike)"),
             BotCommand("run_now", "⚡ تنفيذ فوري (Run Now)"),
-            BotCommand("hunter", "🛸 الصياد المخفي (Hidden Hunter)"),
             BotCommand("test_strike", "🧪 هجوم تجريبي (Test Strike)"),
-            BotCommand("simulate", "🧪 محاكاة هجوم (Simulate Strike)"),
-            BotCommand("campaign", "📈 تحليل الحملة (Campaign Info)"),
-            BotCommand("followup", "🔄 المتابعة التلقائية (Follow-up)"),
-            BotCommand("prep", "🎓 تحضير الأهداف (Target Prep)"),
-            BotCommand("phantom", "🕵️ شبكة الشبح (Phantom Net)"),
-
-            # --- 🧠 BRAIN & AI (31-40) ---
             BotCommand("ai_status", "🧠 حالة الذكاء (AI Brain Status)"),
-            BotCommand("evolution", "🧬 مصفوفة التطور (AI Evolution)"),
-            BotCommand("retrain", "🗣️ تحسين الأداء (Retrain AI)"),
-            BotCommand("mock_interview", "🎙️ تدريب مقابلات (Mock Prep)"),
-            BotCommand("ghost", "👻 المدرب الشبح (Ghost Mentor)"),
-            BotCommand("vision", "👁️ رؤية البيانات (Data Vision)"),
             BotCommand("settings", "⚙️ الإعدادات (System Settings)"),
-            BotCommand("ai_config", "🛠️ ضبط المحرك (AI Config)"),
-            BotCommand("synapse", "🔌 حالة الروابط (Synapse Health)"),
-            BotCommand("matrix", "🌐 دخول الماتريكس (Matrix HUD)"),
-
-            # --- 🩹 RECOVERY & INFRA (41-50) ---
-            BotCommand("repair", "🩹 إصلاح النظام (System Repair)"),
-            BotCommand("lazarus", "🩹 بروتوكول الإحياء (Lazarus Plan)"),
-            BotCommand("apply_patch", "🩹 تطبيق إصلاح (Apply Patch)"),
-            BotCommand("queue", "📧 طابور الإرسال (Mail Queue)"),
-            BotCommand("hygiene", "🧹 تنظيف الذاكرة (Memory Hygiene)"),
-            BotCommand("backup", "💾 نسخة احتياطية (Cloud Backup)"),
-            BotCommand("auto_backup", "🤖 النسخ التلقائي (Auto Backup)"),
-            BotCommand("supabase", "🩺 قاعدة البيانات (DB Pulse)"),
-            BotCommand("link_userbot", "📱 ربط تليجرام (Phantom Link)"),
             BotCommand("logs", "📜 سجل النظام (System Logs)"),
             BotCommand("guide", "📖 الدليل الشامل (Operation Manual)")
         ]
-        from telegram import BotCommandScopeChat, MenuButtonCommands
-        chat_id = self.authorized_users[0] if self.authorized_users else None
-        
         try:
-            # Set commands globally
             await application.bot.set_my_commands(commands)
-            
             if self.chat_id:
-                # Also set for specific chat to ensure it overrides any cache
+                from telegram import BotCommandScopeChat, MenuButtonCommands
                 scope = BotCommandScopeChat(chat_id=self.chat_id)
                 await application.bot.set_my_commands(commands, scope=scope)
-                
-                # Force the Menu button to show commands
-                await application.bot.set_chat_menu_button(
-                    chat_id=self.chat_id,
-                    menu_button=MenuButtonCommands()
-                )
-                logging.info(f"✅ UI: Dashboard commands synchronized for Chat ID {self.chat_id}.")
+                await application.bot.set_chat_menu_button(chat_id=self.chat_id, menu_button=MenuButtonCommands())
+                logging.info(f"✅ UI: Dashboard buttons forced active for Chat {self.chat_id}")
         except Exception as e:
-            logging.error(f"⚠️ UI SYNC FAILED: {e}")
-
-        # Leadership loops are now handled in run_headless to ensure they start only when leadership is confirmed.
-        pass
+            logging.error(f"⚠️ UI FORCE SYNC FAILED: {e}")
 
     async def authenticate(self, update: Update) -> bool:
         # [🛡️ AUTH-AUDIT]: Check both user ID and chat ID for authorization
@@ -1219,8 +1175,10 @@ class SovereignDashboard:
         except Exception as e:
             logging.warning(f"Pre-clear failed (non-fatal): {e}")
 
-        # Build the Application ONCE - no outer retry loop
-        self.app = ApplicationBuilder().token(self.token).post_init(self._post_init).build()
+        # Build the Application ONCE
+        self.app = ApplicationBuilder().token(self.token).build()
+        await self.app.initialize() # Essential for Standby UI sync
+        await self._sync_ui_standalone(self.app)
         self.app.add_handler(CommandHandler("start", self.handle_command))
         self.app.add_handler(MessageHandler(filters.COMMAND, self.handle_command))
         self.app.add_handler(CallbackQueryHandler(self.handle_callback))
@@ -1241,7 +1199,7 @@ class SovereignDashboard:
             # Single infinite loop - ALL recovery happens here, no outer retry
             while True:
                 try:
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(2) # Faster heartbeat for rapid takeover
                     # Removed backoff logic
 
                     claimed = await self.db.claim_bot_leadership()
