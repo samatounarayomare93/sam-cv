@@ -314,8 +314,9 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
-        sender_email_from = (getattr(config, 'SENDER_EMAIL', '') or getattr(config, 'GMAIL_SMTP_USER', '') or '').strip() or 'sam.dev1@hotmail.com'
-        msg['From'] = f"{sender_name} <{sender_email_from}>"
+        # [👑 OMEGA CLOUD FIX]: Do NOT spoof the From address. If we spoof Hotmail on the Gmail API, 
+        # it either hard-fails or Outlook blackholes it. We MUST send it natively as the Gmail account.
+        msg['From'] = f"{sender_name} <me>"
         msg['To'] = to_email
         if reply_to:
             msg['Reply-To'] = f"{sender_name} <{reply_to}>"
