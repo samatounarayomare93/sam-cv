@@ -107,9 +107,10 @@ class AlphaOrchestrator:
         self.orchestrator = self
         self.start_time = time.time()
         self.paused = False
-        self.evasion = EvasionRouter()
+        from core.runtime_helpers import get_evasion, get_proxy_mesh
+        self.evasion = get_evasion()
         self.jitter = HumanParityJitter()
-        self.proxy_mesh = ProxyMesh()
+        self.proxy_mesh = get_proxy_mesh()
         self.is_running = True
         self.variant_weights = self.load_initial_weights()
         self._session = None

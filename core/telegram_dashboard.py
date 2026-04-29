@@ -82,8 +82,8 @@ class SovereignDashboard:
         self._leader_verify_degraded = False
         self._loops_started = False # Flag to ensure background tasks start only once
         
-        from core.runtime_helpers import ProxyMesh
-        self.proxy_mesh = ProxyMesh()
+        from core.runtime_helpers import get_proxy_mesh
+        self.proxy_mesh = get_proxy_mesh()
         
         # Telemetry Stream
 

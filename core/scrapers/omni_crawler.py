@@ -322,8 +322,8 @@ class OmniCrawler:
         from core.db_client import get_db
         self.db = get_db()
         self.patrol = get_patrol(self.ai_agent, self.db)
-        from core.runtime_helpers import ProxyMesh
-        self.proxy_mesh = ProxyMesh()
+        from core.runtime_helpers import get_proxy_mesh
+        self.proxy_mesh = get_proxy_mesh()
 
     def _extract_snippet_emails(self, title: str, snippet: str) -> Optional[str]:
         """Check snippet for emails before visiting URL"""

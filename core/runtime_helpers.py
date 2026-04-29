@@ -187,7 +187,20 @@ class ProxyMesh:
         """Telemetry for HUD reporting."""
         return len(self.proxies) if self.proxies else 0
 
-# Shared Singletons - MUST be at end to avoid NameError
-evasion = EvasionRouter()
-proxy_mesh = ProxyMesh()
+
+# [👑 LAZY-SINGLETONS]: Ensures no NameError during circular imports
+_evasion = None
+_proxy_mesh = None
+
+def get_evasion():
+    global _evasion
+    if _evasion is None:
+        _evasion = EvasionRouter()
+    return _evasion
+
+def get_proxy_mesh():
+    global _proxy_mesh
+    if _proxy_mesh is None:
+        _proxy_mesh = ProxyMesh()
+    return _proxy_mesh
 

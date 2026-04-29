@@ -9,10 +9,8 @@ async def fetch_daleel_page(page: int, db=None) -> List[Dict]:
     url = f"https://daleel-madani.org/jobs?page={page}"
     try:
         from core.scrapers.scraper import fetch_page_async
-        from core.runtime_helpers import EvasionRouter
-        
-        from core.runtime_helpers import evasion
-        headers = evasion.get_stealth_headers()
+        from core.runtime_helpers import get_evasion
+        headers = get_evasion().get_stealth_headers()
         headers['Referer'] = 'https://www.google.com/'
         
         resp = await fetch_page_async(url, headers=headers, timeout=20)
