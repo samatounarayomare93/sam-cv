@@ -158,8 +158,13 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
 
     return send_email(email, company, title, lead.get('custom_body', ''), "omni", lead.get('mission_type', 'global'), valid_attachments, sender_name=sender_name, highlights=highlights)
 
-def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None):
+def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None, reply_to=None):
     """High-reliability delivery engine. Priority: Zoho SMTP > Outlook SMTP > Brevo HTTP > Gmail API."""
+    
+    # [👑 VIP RECOVERY]: Robust fallback for reply-to
+    if not reply_to:
+        reply_to = os.getenv("REPLY_TO_EMAIL", "sam.dev1@outlook.com")
+
     if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com'):
         to_email = getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com')
     
@@ -186,7 +191,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             }
             try:
                 logging.info("📧 [RENDER-BOOST] Prioritizing Brevo Port 2525...")
-                res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject)
+                res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
                 if res:
                     logging.info("✅ RENDER-BOOST SUCCESS — Port 2525 bypassed Render block!")
                     return True
@@ -209,7 +214,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         }
         try:
             logging.info("📧 [BREVO-SMTP] Attempting Brevo SMTP port 2525...")
-            res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject)
+            res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
             if res:
                 logging.info("✅ BREVO SMTP-2525 SUCCESS")
                 return True
@@ -231,7 +236,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             'use_ssl': False
         }
         try:
-            res = _send_via_provider(to_email, company_name, job_title, custom_body, yahoo_provider, attachment_paths, sender_name, highlights, subject=subject)
+            res = _send_via_provider(to_email, company_name, job_title, custom_body, yahoo_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
             if res:
                 return True
         except Exception as e:
@@ -242,7 +247,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # ============================================================
     if getattr(config, 'BREVO_API_KEY', None):
         try:
-            if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject):
+            if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Brevo HTTP failed: {e}")
@@ -253,7 +258,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     if get_gmail_service:
         try:
             service = get_gmail_service()
-            if service and send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service):
+            if service and send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Gmail API failed: {e}")
@@ -261,7 +266,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     logging.error("❌ ALL STRIKE PATHS FAILED: Payload could not be delivered.")
     return False
 
-def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, service=None):
+def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, service=None, reply_to=None):
     """[GMAIL API] Bypasses all ISP SMTP blocks by using official Google HTTP API."""
     if not get_gmail_service and not service:
         logging.error("Gmail API libraries not found.")
@@ -281,6 +286,8 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         sender_email_from = (getattr(config, 'SENDER_EMAIL', '') or getattr(config, 'GMAIL_SMTP_USER', '') or '').strip() or 'sam.dev1@hotmail.com'
         msg['From'] = f"{sender_name} <{sender_email_from}>"
         msg['To'] = to_email
+        if reply_to:
+            msg['Reply-To'] = f"{sender_name} <{reply_to}>"
         
         html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
         alt = MIMEMultipart('alternative')
@@ -306,7 +313,7 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         logging.error(f"FATAL GMAIL API ERROR: {e}")
         return False
 
-def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None):
+def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
     """[REST API] Bypasses ISP SMTP blocks."""
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
@@ -337,7 +344,7 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
         "to": [{"email": to_email}],
         "subject": subject,
         "htmlContent": html_content,
-        "replyTo": {"email": real_user_email, "name": sender_name}
+        "replyTo": {"email": reply_to if reply_to else real_user_email, "name": sender_name}
     }
     if attachment_list:
         payload["attachment"] = attachment_list
@@ -353,7 +360,7 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     except:
         return False
 
-def _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=None):
+def _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=None, reply_to=None):
     """[👑 SMTP IGNITION] Final structural delivery."""
     try:
         if not subject:
@@ -367,6 +374,8 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
         real_sender = (getattr(config, 'SENDER_EMAIL', '') or provider['email']).strip()
         msg['From'] = f"{sender_name} <{real_sender}>"
         msg['To'] = to_email
+        if reply_to:
+            msg['Reply-To'] = f"{sender_name} <{reply_to}>"
         msg['MIME-Version'] = '1.0'
         msg['Date'] = formatdate(localtime=True)
         
@@ -416,13 +425,17 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
         return False
 
 def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
-    """[👑 INBOX PURGE V10] Premium HTML Template."""
+    """[👑 INBOX PURGE V11] Ultra-Premium Transactional HTML Template."""
     highlights_html = ""
     colors = ["#06b6d4", "#3b82f6", "#8b5cf6"]
     for i, h in enumerate(highlights[:3]):
         color = colors[i % 3]
         title = h.get('title', 'Competency Block')
         desc = h.get('desc', '')
+        
+        # [💎 ENHANCED]: Rich text highlighting inside the cards
+        desc = desc.replace("100%", '<span style="color: #4ade80;">100%</span>')
+        
         highlights_html += f"""
           <tr>
             <td style="padding: 20px; background-color: #1e293b; border-radius: 12px; border-left: 4px solid {color};">
@@ -433,24 +446,63 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
           <tr><td height="15"></td></tr>
         """
 
+    linkedin_url = os.getenv("LINKEDIN_URL", "https://linkedin.com/in/sam-salameh")
+    phone = os.getenv("CANDIDATE_PHONE", "+961 70 841 1009")
+    candidate_email = os.getenv("SENDER_EMAIL", "sam.dev1@hotmail.com")
+    candidate_profession = os.getenv("CANDIDATE_PROFESSION", "Senior Network Engineer")
+
     return f"""<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"></head>
-<body style="background-color: #0b0f19; padding: 40px 20px; font-family: sans-serif;">
-  <table width="100%" align="center" style="max-width: 650px; margin: 0 auto; background-color: #111827; border-radius: 16px; overflow: hidden;">
-    <tr><td style="padding: 40px 30px; text-align: center; background: #0f172a;">
-        <div style="font-size: 28px; font-weight: 800; color: #ffffff;">SAM SALAMEH</div>
-    </td></tr>
-    <tr><td height="4" style="background: #06b6d4;"></td></tr>
-    <tr><td style="padding: 40px 35px;">
-        <p style="color: #f8fafc;">Dear <strong>{company_name}</strong> Hiring Team,</p>
-        <p style="color: #cbd5e1;">Application for <span style="color: #06b6d4;">{job_title}</span>.</p>
-        <table width="100%">{highlights_html}</table>
-        <p style="color: #cbd5e1;">{body_text}</p>
-    </td></tr>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="background-color: #0b0f19; padding: 40px 20px; font-family: sans-serif; margin: 0;">
+  <table width="100%" align="center" cellpadding="0" cellspacing="0" style="max-width: 650px; margin: 0 auto; background-color: #111827; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+    <tr>
+      <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px 30px; text-align: center;">
+        <div style="display: inline-block; width: 60px; height: 60px; background-color: #06b6d4; border-radius: 30px; line-height: 60px; color: #ffffff; font-size: 24px; font-weight: bold; margin-bottom: 15px;">
+           SS
+        </div>
+        <div style="font-size: 13px; letter-spacing: 4px; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px;">{candidate_profession}</div>
+        <div style="font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">SAM SALAMEH</div>
+      </td>
+    </tr>
+    <tr><td height="4" style="background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);"></td></tr>
+    <tr>
+      <td style="padding: 40px 35px;">
+        <p style="font-size: 17px; margin-top: 0; color: #f8fafc;">Dear <strong>{company_name}</strong> Hiring Team,</p>
+        <p style="font-size: 15px; line-height: 1.8; color: #cbd5e1;">I am formally reaching out to express my high-level interest in the <span style="color: #06b6d4; font-weight: 600;">{job_title}</span> position.</p>
+        <p style="font-size: 15px; line-height: 1.8; color: #cbd5e1;">My methodology is built specifically for organizations that focus heavily on <strong>automation, KPIs, and scaling corporate culture</strong>.</p>
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+          {highlights_html}
+        </table>
+
+        <div style="padding: 20px 25px; background-color: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 12px; margin-bottom: 30px; text-align: center;">
+          <p style="margin: 0; font-style: italic; color: #e2e8f0; font-size: 16px; line-height: 1.5;">
+            "I am looking to bring rigorous accountability and structured scaling to the <strong>{company_name}</strong> team."
+          </p>
+        </div>
+        
+        <p style="font-size: 15px; line-height: 1.8; color: #cbd5e1; margin-bottom: 0;">I have attached <b>My CV</b> for your comprehensive review.</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="background-color: #0f172a; padding: 40px 30px; text-align: center; border-top: 1px solid #1e293b;">
+        <a href="{linkedin_url}" style="display: inline-block; padding: 14px 32px; background-color: #06b6d4; color: #ffffff; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 14px; letter-spacing: 1.5px;">VIEW LINKEDIN PORTFOLIO</a>
+        <div style="margin-top: 30px;">
+          <a href="mailto:{candidate_email}" style="color: #94a3b8; font-size: 14px; text-decoration: none;">{candidate_email}</a>
+          <span style="color: #334155; margin: 0 10px;">|</span>
+          <a href="tel:{phone}" style="color: #94a3b8; font-size: 14px; text-decoration: none;">{phone}</a>
+        </div>
+        <div style="font-size: 12px; color: #475569; margin-top: 20px;">{candidate_profession}</div>
+      </td>
+    </tr>
   </table>
 </body>
 </html>"""
+
 
 def close_smtp_pool():
     global _SMTP_POOL
