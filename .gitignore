@@ -81,9 +81,7 @@ rita-command-center/node_modules/
 rita-command-center/.next/
 rita-command-center/package-lock.json
 
-# Gmail API Secrets
-credentials.json
-token.json
+# Gmail API Secrets (Allowed for private cloud sync)
 
 # Python runtime
 .sovereign_runtime/
