@@ -904,6 +904,10 @@ class SovereignDashboard:
                 "📧 <b>MISSION READINESS: TEST STRIKE</b>\n"
                 "━━━━━━━━━━━━━━━\n"
                 "Please enter the <b>target email address</b> where you want to receive the simulation strike.\n\n"
+                "⚠️ <b>IMPORTANT:</b> Use <b>Gmail</b> for best results!\n"
+                "• ✅ Gmail: Works perfectly\n"
+                "• ❌ Outlook: May block emails\n\n"
+                "💡 <b>Recommended:</b> <code>samsalameh.cv@gmail.com</code>\n\n"
                 "<i>The bot will generate a dummy CV and Cover Letter package to show you exactly what recruiters see.</i>",
                 parse_mode='HTML'
             )
@@ -952,17 +956,37 @@ class SovereignDashboard:
                 success = await asyncio.to_thread(smtp_engine.send_test_email, email)
                 
                 if success:
-                    await msg.edit_text(
+                    # Check if it's Outlook and warn
+                    is_outlook = any(domain in email.lower() for domain in ['outlook.com', 'hotmail.com', 'live.com'])
+                    
+                    success_msg = (
                         f"✅ <b>TEST STRIKE DELIVERED!</b>\n\n"
                         f"📧 Sent to: <code>{email}</code>\n"
                         f"📦 Attachments: CV + Cover Letter\n\n"
-                        f"Check your inbox (and spam folder) for the test email.\n\n"
-                        f"<i>If you don't receive it within 2 minutes, check:</i>\n"
-                        f"• Spam/Junk folder\n"
-                        f"• Email address is correct\n"
-                        f"• SMTP credentials in .env",
-                        parse_mode='HTML'
                     )
+                    
+                    if is_outlook:
+                        success_msg += (
+                            "⚠️ <b>OUTLOOK WARNING:</b>\n"
+                            "Microsoft Outlook may block emails from Brevo.\n"
+                            "If you don't receive it, check:\n"
+                            "• Junk/Spam folder\n"
+                            "• 'Other' inbox tab (Focused Inbox)\n"
+                            "• Blocked senders list\n\n"
+                            "💡 <b>TIP:</b> Use Gmail for testing:\n"
+                            "<code>samsalameh.cv@gmail.com</code>\n\n"
+                        )
+                    else:
+                        success_msg += "Check your inbox (and spam folder) for the test email.\n\n"
+                    
+                    success_msg += (
+                        "<i>If you don't receive it within 2 minutes, check:</i>\n"
+                        "• Spam/Junk folder\n"
+                        "• Email address is correct\n"
+                        "• SMTP credentials in .env"
+                    )
+                    
+                    await msg.edit_text(success_msg, parse_mode='HTML')
                 else:
                     # Get more details about the failure
                     zoho_configured = bool(os.getenv("ZOHO_SMTP_USER") and os.getenv("ZOHO_APP_PASSWORD"))
