@@ -368,8 +368,13 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
                 except Exception as e:
                     logging.error(f"Failed to encode attachment {path}: {e}")
     
+    # [👑 CLOUD-SURVIVAL OVERRIDE] 
+    # Force the technical sender to be the Brevo authenticated email to pass DMARC perfectly.
+    # The 'Reply-To' guarantees the recruiter's response goes to Sam.
+    technical_sender_email = (getattr(config, 'BREVO_SMTP_LOGIN', '') or real_user_email).strip()
+    
     payload = {
-        "sender": {"name": sender_name, "email": sender_email},
+        "sender": {"email": technical_sender_email, "name": sender_name},
         "to": [{"email": to_email}],
         "subject": subject,
         "htmlContent": html_content,
@@ -399,12 +404,17 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
         
-        # [👑 SENDER-IDENTITY FIX]: Use the validated SENDER_EMAIL for the From header, not the SMTP login ID.
-        real_sender = (getattr(config, 'SENDER_EMAIL', '') or provider['email']).strip()
-        msg['From'] = f"{sender_name} <{real_sender}>"
+        # [👑 CLOUD-SURVIVAL OVERRIDE]: Pass DMARC by aligning technical sender with Brevo.
+        technical_sender = provider['email'].strip()
+        msg['From'] = f"{sender_name} <{technical_sender}>"
         msg['To'] = to_email
         if reply_to:
             msg['Reply-To'] = f"{sender_name} <{reply_to}>"
+        else:
+            real_user_email = (getattr(config, 'SENDER_EMAIL', '')).strip()
+            if real_user_email:
+                msg['Reply-To'] = f"{sender_name} <{real_user_email}>"
+
         msg['MIME-Version'] = '1.0'
         msg['Date'] = formatdate(localtime=True)
         
