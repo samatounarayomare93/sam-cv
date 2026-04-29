@@ -27,10 +27,10 @@ def get_gmail_service():
                 raise FileNotFoundError("credentials.json not found. Please place it in the project root.")
             
             # [🛡️ CLOUD SAFETY]: Never run an interactive server in a headless/cloud environment
-            import sys
-            is_headless = False # FORCED FOR AUTH RUN
+            is_headless = os.getenv("RENDER") is not None
             if is_headless:
-                raise PermissionError("Gmail Token expired/invalid. Interactive login is blocked on Cloud. Falling back to secondary sender.")
+                logging.error("❌ GMAIL AUTH REJECTED: Interactive login is blocked on Cloud. Token must be generated locally.")
+                raise PermissionError("Gmail Token expired/invalid. Interactive login is blocked on Cloud.")
 
             flow = InstalledAppFlow.from_client_secrets_file(
                 'credentials.json', SCOPES)

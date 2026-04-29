@@ -184,12 +184,20 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # ============================================================
     if get_gmail_service:
         try:
+            # [👑 CLOUD SHIELD]: Attempt to initialize the service
             service = get_gmail_service()
-            if service and send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
-                logging.info("✅ GMAIL API SUCCESS — Bypassed Render firewall and hit Inbox perfectly.")
-                return True
+            if service:
+                if send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
+                    logging.info("✅ GMAIL API SUCCESS — Bypassed Render firewall and hit Inbox perfectly.")
+                    return True
+                else:
+                    logging.error("❌ GMAIL API FAILED structural delivery.")
+            else:
+                logging.warning("⚠️ Gmail API service initialization returned None.")
+        except PermissionError as pe:
+            logging.error(f"🚫 GMAIL AUTH BLOCKED ON CLOUD: {pe}. Falling back to SMTP...")
         except Exception as e:
-            logging.warning(f"⚠️ Gmail API failed: {e}")
+            logging.warning(f"⚠️ Gmail API unexpected failure: {e}")
 
     # ============================================================
     # 🥈 PRIORITY 2: ZOHO SMTP (DMARC Aligned)
@@ -314,9 +322,17 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
-        # [👑 OMEGA CLOUD FIX]: Do NOT spoof the From address. We omit the From header entirely,
-        # allowing the Gmail API to securely auto-inject the authenticated user's real email address.
-        # This prevents 400 Bad Request errors and bypasses Outlook's silent blackhole.
+        
+        # [👑 OMEGA CLOUD FIX]: We fetch the authenticated email address directly from Google
+        # to ensure the 'From' header is 100% genuine and passes all Outlook security checks.
+        try:
+            profile = service.users().getProfile(userId='me').execute()
+            authenticated_email = profile.get('emailAddress')
+            logging.info(f"🟢 GMAIL API: Authenticated as {authenticated_email}")
+            msg['From'] = f"{sender_name} <{authenticated_email}>"
+        except Exception as e:
+            logging.warning(f"⚠️ Could not fetch Gmail profile: {e}. Omitting From header.")
+        
         msg['To'] = to_email
         if reply_to:
             msg['Reply-To'] = f"{sender_name} <{reply_to}>"
