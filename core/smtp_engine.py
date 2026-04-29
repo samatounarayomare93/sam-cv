@@ -88,6 +88,12 @@ def _get_available_providers():
     outlook_pass = (getattr(config, 'OUTLOOK_PASSWORD', '') or '').strip()
     if outlook_user and outlook_pass:
         providers.append({'name': 'Outlook', 'server': 'smtp-mail.outlook.com', 'port': 587, 'email': outlook_user, 'password': outlook_pass, 'use_ssl': False})
+        
+    zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
+    zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
+    if zoho_user and zoho_pass:
+        providers.append({'name': 'Zoho (587)', 'server': 'smtp.zoho.com', 'port': 587, 'email': zoho_user, 'password': zoho_pass, 'use_ssl': False})
+        providers.append({'name': 'Zoho (465)', 'server': 'smtp.zoho.com', 'port': 465, 'email': zoho_user, 'password': zoho_pass, 'use_ssl': True})
     
     return providers
 
@@ -171,6 +177,29 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # [👑 CENTRALIZED METADATA]: Generate Strike-ID once for the entire chain
     strike_id = random.randint(1000, 9999)
     subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
+
+    # ============================================================
+    # 🥇 PRIORITY 1: ZOHO SMTP (User specifically requested)
+    # ============================================================
+    zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
+    zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
+    if zoho_user and zoho_pass:
+        zoho_provider = {
+            'name': 'Zoho (STARTTLS-587)',
+            'server': 'smtp.zoho.com',
+            'port': 587,
+            'email': zoho_user,
+            'password': zoho_pass,
+            'use_ssl': False
+        }
+        try:
+            logging.info("📧 [ZOHO-SMTP] Attempting Native Zoho Delivery (DMARC Aligned)...")
+            res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+            if res:
+                logging.info("✅ ZOHO SMTP SUCCESS — Delivered to Inbox natively.")
+                return True
+        except Exception as e:
+            logging.warning(f"⚠️ Zoho SMTP failed: {e}")
 
     # ============================================================
     # 🚀 RENDER OPTIMIZATION: Prioritize Port 2525
