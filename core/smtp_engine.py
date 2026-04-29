@@ -123,8 +123,8 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
             'highlights': dynamic_highlights
         }
         
-        # 👑 [VIP EXACT ATTACHMENTS]: Use static PDF CV + dynamic Cover Letter
-        cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.pdf'))
+        # 👑 [VIP EXACT ATTACHMENTS]: Use HTML CV + dynamic PDF Cover Letter
+        cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
         cl_path = generate_dynamic_cover_letter(company_name, job_title, dummy_lead.get('custom_body', ''), strike_id=8551)
         attachment_paths = [cv_path, cl_path]
         
@@ -149,8 +149,8 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
     else:
         attachments = attachment_paths or []
         
-    # [👑 VIP EXACT ATTACHMENTS]: Always ensure the master PDF CV is included in real strikes
-    cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.pdf'))
+    # [👑 VIP EXACT ATTACHMENTS]: Always ensure the master HTML CV is included in real strikes
+    cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
     if cv_path not in attachments and os.path.exists(cv_path):
         attachments.insert(0, cv_path)
         
