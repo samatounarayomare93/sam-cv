@@ -179,7 +179,20 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
 
     # ============================================================
-    # 🥇 PRIORITY 1: ZOHO SMTP (User specifically requested)
+    # 🌟 ABSOLUTE PRIORITY 1: GMAIL API (HTTP Port 443)
+    # The ONLY way to bypass Render's Free Tier firewall AND hit the Inbox.
+    # ============================================================
+    if get_gmail_service:
+        try:
+            service = get_gmail_service()
+            if service and send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
+                logging.info("✅ GMAIL API SUCCESS — Bypassed Render firewall and hit Inbox perfectly.")
+                return True
+        except Exception as e:
+            logging.warning(f"⚠️ Gmail API failed: {e}")
+
+    # ============================================================
+    # 🥈 PRIORITY 2: ZOHO SMTP (DMARC Aligned)
     # ============================================================
     zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
     zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
@@ -281,17 +294,6 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         except Exception as e:
             logging.warning(f"⚠️ Brevo HTTP failed: {e}")
 
-    # ============================================================
-    # 🆘 LAST RESORT: GMAIL API (OAuth)
-    # ============================================================
-    if get_gmail_service:
-        try:
-            service = get_gmail_service()
-            if service and send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
-                return True
-        except Exception as e:
-            logging.warning(f"⚠️ Gmail API failed: {e}")
-            
     logging.error("❌ ALL STRIKE PATHS FAILED: Payload could not be delivered.")
     return False
 
