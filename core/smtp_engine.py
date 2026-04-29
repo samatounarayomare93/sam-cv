@@ -243,12 +243,11 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             }
             try:
                 # [👑 CLOUD DELIVERABILITY FIX]: If we use Hotmail via Brevo, Outlook blackholes it.
-                # We use the Zoho address instead - it might hit Junk, but it won't vanish.
+                # We use the Zoho address as the VISIBLE sender, but the Brevo Login for AUTH.
                 neutral_sender = (getattr(config, 'ZOHO_SMTP_USER', '') or brevo_smtp_user).strip()
-                brevo_smtp_provider['email'] = neutral_sender
                 
-                logging.info(f"📧 [RENDER-BOOST] Using Neutral Identity: {neutral_sender}")
-                res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                logging.info(f"📧 [RENDER-BOOST] Using Neutral Identity: {neutral_sender} (Auth: {brevo_smtp_user})")
+                res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to, sender_override=neutral_sender)
                 if res:
                     logging.info("✅ RENDER-BOOST SUCCESS — Port 2525 bypassed Render block!")
                     return True
@@ -420,7 +419,7 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     except:
         return False
 
-def _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=None, reply_to=None):
+def _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=None, reply_to=None, sender_override=None):
     """[👑 SMTP IGNITION] Final structural delivery."""
     try:
         if not subject:
@@ -430,8 +429,9 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
         
-        # [👑 CLOUD-SURVIVAL OVERRIDE]: Pass DMARC by aligning technical sender with Brevo.
-        technical_sender = provider['email'].strip()
+        # [👑 CLOUD-SURVIVAL OVERRIDE]: Pass DMARC by aligning technical sender.
+        # Use sender_override if provided (for Neutral Identity), otherwise use provider login.
+        technical_sender = (sender_override or provider['email']).strip()
         msg['From'] = f"{sender_name} <{technical_sender}>"
         msg['To'] = to_email
         if reply_to:
