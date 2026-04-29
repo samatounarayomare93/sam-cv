@@ -473,18 +473,41 @@ class SovereignDashboard:
                 stats = await self.db.get_stats()
             except:
                 pass
-            msg = (
-                "💪 <b>STRENGTH CHECK: MAX POWER</b>\n"
-                "━━━━━━━━━━━━━━━\n"
-                f"🧠 <b>Intelligence:</b> {health['ai']}\n"
-                f"👤 <b>Access:</b> {health['access']}\n"
-                f"🔌 <b>Cloud Sync:</b> {health['persistence']}\n"
-                f"⚙️ <b>Engine:</b> 🟢 ACTIVE & HUNTING\n"
-                f"🚀 <b>Strikes Deployed:</b> {stats.get('total_strikes', 0)}\n"
-                f"🎯 <b>Targets Engaged:</b> {stats.get('recon_rows', 0)}\n"
-                "━━━━━━━━━━━━━━━\n"
-                "<i>Bot is running at 10,000,000% efficiency. Actively searching the internet, discovering companies, and applying autonomously!</i>"
-            )
+            
+            # 🛡️ ULTIMATE FAILOVER: Check all systems
+            try:
+                from core.ultimate_failover import get_failover
+                failover = get_failover()
+                failover_status = await failover.check_and_heal(self.db, self.ai)
+                status_msg = failover.get_system_status_message(failover_status)
+                
+                msg = (
+                    "💪 <b>STRENGTH CHECK: MAX POWER</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    f"🧠 <b>Intelligence:</b> {health['ai']}\n"
+                    f"👤 <b>Access:</b> {health['access']}\n"
+                    f"🔌 <b>Cloud Sync:</b> {health['persistence']}\n"
+                    f"⚙️ <b>Engine:</b> 🟢 ACTIVE & HUNTING\n"
+                    f"🚀 <b>Strikes Deployed:</b> {stats.get('total_strikes', 0)}\n"
+                    f"🎯 <b>Targets Engaged:</b> {stats.get('recon_rows', 0)}\n"
+                    "━━━━━━━━━━━━━━━\n\n"
+                    f"{status_msg}\n"
+                    "<i>Bot is running at 10,000,000% efficiency with ultimate failover protection!</i>"
+                )
+            except Exception as e:
+                logging.error(f"Failover check failed: {e}")
+                msg = (
+                    "💪 <b>STRENGTH CHECK: MAX POWER</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    f"🧠 <b>Intelligence:</b> {health['ai']}\n"
+                    f"👤 <b>Access:</b> {health['access']}\n"
+                    f"🔌 <b>Cloud Sync:</b> {health['persistence']}\n"
+                    f"⚙️ <b>Engine:</b> 🟢 ACTIVE & HUNTING\n"
+                    f"🚀 <b>Strikes Deployed:</b> {stats.get('total_strikes', 0)}\n"
+                    f"🎯 <b>Targets Engaged:</b> {stats.get('recon_rows', 0)}\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    "<i>Bot is running at 10,000,000% efficiency. Actively searching the internet, discovering companies, and applying autonomously!</i>"
+                )
             await update.effective_message.reply_text(msg, parse_mode='HTML')
 
         elif cmd == "/matrix":

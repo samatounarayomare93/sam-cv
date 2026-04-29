@@ -454,59 +454,128 @@ class AlphaOrchestrator:
         if self.ai:
             from core.cv_tailor import get_tailored_cv_path
             from core.scrapers.omni_crawler import MarketOracle
+            from core.ultimate_failover import get_failover
             
             logging.info(f"🧠 Beaming target to Omni-Intelligence: {company_name}")
             
-            # 🏹 OMNISCIENT: Swarm Intelligence Integration
-            # Check the Hive-Mind first to see if another node has already sniped this target.
-            hiring_mgr = lead.get("hiring_manager")
-            recruiter_data = await self.db.get_global_recon(company_name) if self.db else None
-            
-            if recruiter_data:
-                logging.info(f"👑 HIVE-MIND SYNC: Recruiter already sniped: {recruiter_data['name']}")
-                hiring_mgr = recruiter_data["name"]
-            else:
-                # Sniper Recon (LinkedIn Sniper)
-                if not hiring_mgr or hiring_mgr == "Unknown" or hiring_mgr == "Hiring Manager":
-                    recruiter_data = await MarketOracle.get_recruiter_info(company_name, job_title)
+            # 🛡️ ULTIMATE FAILOVER: Try AI, fallback to templates if it fails
+            try:
+                # 🏹 OMNISCIENT: Swarm Intelligence Integration
+                # Check the Hive-Mind first to see if another node has already sniped this target.
+                hiring_mgr = lead.get("hiring_manager")
+                recruiter_data = await self.db.get_global_recon(company_name) if self.db else None
+                
+                if recruiter_data:
+                    logging.info(f"👑 HIVE-MIND SYNC: Recruiter already sniped: {recruiter_data['name']}")
                     hiring_mgr = recruiter_data["name"]
-                    # Report success to the swarm
-                    if self.db: await self.db.report_recon_success(company_name, hiring_mgr, recruiter_data.get("url", ""))
-            
-            # Record Nudge Task for the Sniped Recruiter
-            await self.record_linkedin_nudge_task(company_name, job_title, recruiter_data)
-            
-            # 📰 APEX DEITY: News-Pulse Recon (Oracle Pulse)
-            news_headline = await MarketOracle.get_latest_news(company_name)
-            oracle_pulse = await MarketOracle.get_news_pulse(company_name)
-            logging.info(f"🔮 ORACLE PULSE: Sentiment: {oracle_pulse['sentiment']} | Event: {oracle_pulse['event']}")
-            
-            # 🧬 OMNISCIENT: Total Narrative Recon
-            company_values = await MarketOracle.get_culture_values(company_name)
-            competitor_fail = await MarketOracle.get_competitor_disruption(company_name)
-            
-            # 🌌 TRANSCENDENCE: Social Infiltration Recon
-            internal_lingo = await MarketOracle.get_internal_lingo(company_name)
-            executive_names = await MarketOracle.get_leadership_team(company_name)
-            
-            # Fetch latest evolutionary weights before analysis
-            await self.sync_evolutionary_weights()
-            current_weights = variant_weights or self.variant_weights
+                else:
+                    # Sniper Recon (LinkedIn Sniper)
+                    if not hiring_mgr or hiring_mgr == "Unknown" or hiring_mgr == "Hiring Manager":
+                        try:
+                            recruiter_data = await MarketOracle.get_recruiter_info(company_name, job_title)
+                            hiring_mgr = recruiter_data["name"]
+                            # Report success to the swarm
+                            if self.db: await self.db.report_recon_success(company_name, hiring_mgr, recruiter_data.get("url", ""))
+                        except Exception as e:
+                            logging.warning(f"⚠️ LinkedIn recon failed: {e}")
+                            hiring_mgr = "Hiring Manager"
+                
+                # Record Nudge Task for the Sniped Recruiter
+                try:
+                    await self.record_linkedin_nudge_task(company_name, job_title, recruiter_data)
+                except Exception as e:
+                    logging.warning(f"⚠️ LinkedIn nudge task failed: {e}")
+                
+                # 📰 APEX DEITY: News-Pulse Recon (Oracle Pulse)
+                try:
+                    news_headline = await MarketOracle.get_latest_news(company_name)
+                    oracle_pulse = await MarketOracle.get_news_pulse(company_name)
+                    logging.info(f"🔮 ORACLE PULSE: Sentiment: {oracle_pulse['sentiment']} | Event: {oracle_pulse['event']}")
+                except Exception as e:
+                    logging.warning(f"⚠️ News pulse failed: {e}")
+                    news_headline = ""
+                    oracle_pulse = {"sentiment": "neutral", "event": "none"}
+                
+                # 🧬 OMNISCIENT: Total Narrative Recon
+                try:
+                    company_values = await MarketOracle.get_culture_values(company_name)
+                    competitor_fail = await MarketOracle.get_competitor_disruption(company_name)
+                except Exception as e:
+                    logging.warning(f"⚠️ Company recon failed: {e}")
+                    company_values = []
+                    competitor_fail = ""
+                
+                # 🌌 TRANSCENDENCE: Social Infiltration Recon
+                try:
+                    internal_lingo = await MarketOracle.get_internal_lingo(company_name)
+                    executive_names = await MarketOracle.get_leadership_team(company_name)
+                except Exception as e:
+                    logging.warning(f"⚠️ Social recon failed: {e}")
+                    internal_lingo = []
+                    executive_names = []
+                
+                # Fetch latest evolutionary weights before analysis
+                await self.sync_evolutionary_weights()
+                current_weights = variant_weights or self.variant_weights
 
-            location = lead.get("location") or "Global"
-            is_relevant, reason, cover_letter, salary, score, advantage, keywords, persona, psych_variant, archetype, highlights = await self.ai.analyze_job(
-                job_title, 
-                description[:3000] if description else "Professional role",
-                variant_weights=current_weights,
-                person_name=hiring_mgr,
-                location=location,
-                news_headline=news_headline,
-                company_values=company_values,
-                competitor_fail=competitor_fail,
-                internal_lingo=internal_lingo,
-                executive_names=executive_names,
-                oracle_pulse=oracle_pulse
-            )
+                location = lead.get("location") or "Global"
+                
+                # 🛡️ TRY AI ANALYSIS
+                try:
+                    is_relevant, reason, cover_letter, salary, score, advantage, keywords, persona, psych_variant, archetype, highlights = await self.ai.analyze_job(
+                        job_title, 
+                        description[:3000] if description else "Professional role",
+                        variant_weights=current_weights,
+                        person_name=hiring_mgr,
+                        location=location,
+                        news_headline=news_headline,
+                        company_values=company_values,
+                        competitor_fail=competitor_fail,
+                        internal_lingo=internal_lingo,
+                        executive_names=executive_names,
+                        oracle_pulse=oracle_pulse
+                    )
+                except Exception as ai_error:
+                    # 🛡️ ULTIMATE FAILOVER: AI failed, use fallback templates
+                    logging.error(f"❌ AI ANALYSIS FAILED: {ai_error}")
+                    logging.info("🛡️ ACTIVATING FAILOVER: Using pre-written templates")
+                    
+                    failover = get_failover()
+                    fallback_result = failover._fallback_analysis(job_title, description, company_name)
+                    
+                    is_relevant = fallback_result['is_relevant']
+                    reason = fallback_result['reason']
+                    cover_letter = fallback_result['cover_letter']
+                    salary = fallback_result['salary']
+                    score = fallback_result['score']
+                    advantage = fallback_result['advantage']
+                    keywords = fallback_result['keywords']
+                    persona = fallback_result['persona']
+                    psych_variant = fallback_result['psych_variant']
+                    archetype = fallback_result['archetype']
+                    highlights = fallback_result['highlights']
+                    
+                    logging.info(f"✅ FAILOVER SUCCESS: Generated application using template (score: {score})")
+            
+            except Exception as e:
+                # 🛡️ ULTIMATE FAILOVER: Even if everything fails, use basic template
+                logging.error(f"❌ COMPLETE ANALYSIS FAILURE: {e}")
+                logging.info("🛡️ ULTIMATE FAILOVER: Using basic template")
+                
+                failover = get_failover()
+                fallback_result = failover._fallback_analysis(job_title, description or "", company_name)
+                
+                is_relevant = True  # Always try to apply
+                reason = "Failover mode - applying with template"
+                cover_letter = fallback_result['cover_letter']
+                salary = "Competitive"
+                score = 70  # Default score
+                advantage = "Strong technical background"
+                keywords = ["network", "engineer", "infrastructure"]
+                persona = "Professional"
+                psych_variant = "ANALYTICAL"
+                archetype = "Technical Expert"
+                highlights = fallback_result['highlights']
             
             # ELITE SCORE THRESHOLD: Lowered for aggressive initial expansion
             # Jitter prevents "Hard Blocking" on close matches
