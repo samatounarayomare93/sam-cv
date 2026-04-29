@@ -219,21 +219,12 @@ class SovereignDashboard:
             return
 
         if cmd == "/ignite":
-            await update.effective_message.reply_text("🔥 <b>IGNITION SEQUENCE INITIATED...</b>\n<i>Purging stale nodes and starting the Swarm.</i>", parse_mode='HTML')
+            # ☁️ CLOUD-SAFE: Bot is already running 24/7 on Render
+            await update.effective_message.reply_text("🔥 <b>IGNITION SEQUENCE INITIATED...</b>\n<i>System is running 24/7 on cloud.</i>", parse_mode='HTML')
             try:
-                current_pid = os.getpid()
-                if os.name == 'nt':
-                    kill_cmd = f'taskkill /F /FI "PID ne {current_pid}" /IM python.exe /T'
-                else:
-                    kill_cmd = 'pkill -9 -f "python" || true'
-                await asyncio.create_subprocess_shell(kill_cmd)
-                await asyncio.sleep(2)
-                watchdog_path = os.path.join(os.getcwd(), "core", "watchdog.py")
-                if os.path.exists(watchdog_path):
-                    subprocess.Popen([sys.executable, watchdog_path])
-                else:
-                    subprocess.Popen([sys.executable, "-m", "core.watchdog"])
-                await update.effective_message.reply_text("✅ <b>EMPIRE IGNITED.</b>\nAbsolute Singularity is now 100% active.", parse_mode='HTML')
+                if self.db:
+                    await self.db.activate_kill_switch(False)  # Ensure kill switch is off
+                await update.effective_message.reply_text("✅ <b>EMPIRE IGNITED.</b>\nAbsolute Singularity is now 100% active on cloud.", parse_mode='HTML')
             except Exception as e:
                 await update.effective_message.reply_text(f"⚠️ <b>IGNITION ERROR:</b> {e}", parse_mode='HTML')
 
@@ -249,16 +240,25 @@ class SovereignDashboard:
             await update.effective_message.reply_text("⏸️ <b>ENGINE PAUSED.</b>\nAll autonomous cycles suspended. The swarm is holding position.", parse_mode='HTML')
 
         elif cmd == "/launch_single":
-            await update.effective_message.reply_text("🚀 <b>SINGLE STRIKE LAUNCHING...</b>\nObjective: Individual Job Capture.", parse_mode='HTML')
-            subprocess.Popen([sys.executable, "-m", "core.main_bot", "--single"])
+            # ☁️ CLOUD-SAFE: Bot is already running, just confirm
+            await update.effective_message.reply_text("🚀 <b>SINGLE STRIKE MODE</b>\nBot is already running 24/7 on cloud in continuous mode.", parse_mode='HTML')
 
         elif cmd == "/launch_infinite" or cmd == "/hunter" or cmd == "/run_now":
-            await update.effective_message.reply_text("♾️ <b>INFINITE SWARM LAUNCHED...</b>\nGod-Tier hunter now stalking targets across the cloud.", parse_mode='HTML')
-            subprocess.Popen([sys.executable, "-m", "core.main_bot", "--infinite"])
+            # ☁️ CLOUD-SAFE: Bot is already running infinite loop
+            await update.effective_message.reply_text("♾️ <b>INFINITE SWARM ACTIVE</b>\nBot is already running 24/7 on cloud, continuously hunting and applying.", parse_mode='HTML')
 
         elif cmd == "/test_gmail":
-            await update.effective_message.reply_text("💌 <b>DISPATCHING GMAIL TEST...</b>\nChecking API throughput via Ghost Proxy.", parse_mode='HTML')
-            subprocess.Popen([sys.executable, "scratch/test_gmail_api_final.py"])
+            # ☁️ CLOUD-SAFE: Test email directly instead of spawning process
+            await update.effective_message.reply_text("💌 <b>DISPATCHING GMAIL TEST...</b>\nSending test email now...", parse_mode='HTML')
+            try:
+                from core.smtp_engine import send_test_email
+                result = send_test_email()
+                if result:
+                    await update.effective_message.reply_text("✅ <b>GMAIL TEST SUCCESS!</b>\nCheck your inbox.", parse_mode='HTML')
+                else:
+                    await update.effective_message.reply_text("⚠️ <b>GMAIL TEST FAILED</b>\nCheck logs for details.", parse_mode='HTML')
+            except Exception as e:
+                await update.effective_message.reply_text(f"❌ <b>TEST ERROR:</b> {e}", parse_mode='HTML')
 
         elif cmd == "/test_brevo":
             await update.effective_message.reply_text("🛡️ <b>SMTP RELAY TEST: BREVO</b>\nAlternative delivery lane cleared.", parse_mode='HTML')
@@ -382,14 +382,14 @@ class SovereignDashboard:
                         parse_mode='HTML'
                     )
 
-                # 4. Also send the raw log file if it exists
+                # 4. Also send the raw log file if it exists (☁️ CLOUD-SAFE: logs might not exist)
                 log_path = "logs/orchestrator.log"
                 if os.path.exists(log_path) and os.path.getsize(log_path) > 0:
                     try:
                         with open(log_path, "rb") as f:
                             await context.bot.send_document(chat_id=update.effective_chat.id, document=f, filename="sam_raw_logs_24h.txt", caption="📎 Raw system logs attached above")
-                    except:
-                        pass
+                    except Exception as e:
+                        logging.debug(f"Could not send log file: {e}")
 
             except Exception as e:
                 await update.effective_message.reply_text(f"⚠️ <b>ERROR generating report:</b> {e}", parse_mode='HTML')
@@ -410,9 +410,8 @@ class SovereignDashboard:
             await update.effective_message.reply_text(msg, parse_mode='HTML')
 
         elif cmd == "/reboot":
-            await update.effective_message.reply_text("🔄 <b>TOTAL SYSTEM REBOOT</b>\nRestarting core engines... Linking back in 30s.", parse_mode='HTML')
-            subprocess.Popen([sys.executable, "run.py"])
-            sys.exit(0)
+            # ☁️ CLOUD-SAFE: On cloud, Render handles restarts
+            await update.effective_message.reply_text("🔄 <b>REBOOT REQUEST</b>\nOn cloud, Render automatically restarts the bot if needed. System is running 24/7.", parse_mode='HTML')
 
         elif cmd == "/hud":
             msg = await update.effective_message.reply_text("📟 <b>INITIALIZING LIVE HUD...</b>", parse_mode='HTML')
@@ -430,20 +429,9 @@ class SovereignDashboard:
             except Exception as e:
                 await update.effective_message.reply_text(f"⚠️ <b>BACKUP FAILED:</b> {e}", parse_mode='HTML')
 
-        elif cmd.startswith("/cmd"):
-            command = cmd_text[4:].strip()
-            if not command:
-                await update.effective_message.reply_text("Usage: /cmd <shell command>", parse_mode='HTML')
-                return
-            await update.effective_message.reply_text(f"💻 <b>Executing:</b> <code>{command}</code>", parse_mode='HTML')
-            try:
-                process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                stdout, stderr = process.communicate(timeout=30)
-                output = stdout or stderr or "Command executed with no output."
-                if len(output) > 3900: output = output[:3900] + "\n...[TRUNCATED]"
-                await update.effective_message.reply_text(f"```\n{output}\n```", parse_mode='MarkdownV2')
-            except Exception as e:
-                await update.effective_message.reply_text(f"⚠️ <b>EXECUTION ERROR:</b> {e}", parse_mode='HTML')
+        elif cmd == "/cmd":
+            # ☁️ CLOUD-SAFE: Disable shell command execution on cloud for security
+            await update.effective_message.reply_text("🚫 <b>SHELL COMMANDS DISABLED</b>\nFor security, shell commands are disabled on cloud. Use specific bot commands instead.", parse_mode='HTML')
 
         elif cmd == "/audit":
             stats = await self.db.get_stats()
@@ -634,8 +622,15 @@ class SovereignDashboard:
                 del self._phantom_state[update.effective_user.id]
 
         elif cmd == "/oracle":
+            # ☁️ CLOUD-SAFE: Run oracle inline instead of spawning process
             await update.effective_message.reply_text("🔮 <b>MARKET ORACLE:</b> Scanning global news for expansion signals...", parse_mode='HTML')
-            subprocess.Popen([sys.executable, "market_oracle.py"])
+            try:
+                from core.scrapers.omni_crawler import MarketOracle
+                # Run a quick market scan
+                news = await MarketOracle.get_latest_news("Technology Companies Dubai")
+                await update.effective_message.reply_text(f"🔮 <b>ORACLE PULSE:</b>\n{news[:500]}...", parse_mode='HTML')
+            except Exception as e:
+                await update.effective_message.reply_text(f"⚠️ <b>ORACLE ERROR:</b> {e}", parse_mode='HTML')
 
         elif cmd == "/mock_interview":
             latest = await self.db.get_latest_application()

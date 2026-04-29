@@ -373,10 +373,18 @@ def generate_cover_letter_pdf(company, job_title, lead=None):
     pdf.ln(2)
     pdf.cell(0, 7, p.get("name", "Candidate"), new_x="LMARGIN", new_y="NEXT")
     
-    # Save Path
+    # Save Path (☁️ CLOUD-SAFE: Use /tmp on cloud, local path otherwise)
     filename = f"Sam_Salameh_Cover_Letter_-_{company.replace(' ', '_')}.pdf"
-    cache_dir = os.path.join(os.getcwd(), "core", "pdf_cache")
-    if not os.path.exists(cache_dir): os.makedirs(cache_dir)
+    
+    # Check if running on cloud (Render sets RENDER env var)
+    is_cloud = os.getenv("RENDER") or os.getenv("RAILWAY") or os.getenv("HEROKU")
+    if is_cloud:
+        cache_dir = "/tmp/pdf_cache"
+    else:
+        cache_dir = os.path.join(os.getcwd(), "core", "pdf_cache")
+    
+    if not os.path.exists(cache_dir): 
+        os.makedirs(cache_dir, exist_ok=True)
     save_path = os.path.join(cache_dir, filename)
     pdf.output(save_path)
     return save_path
@@ -601,9 +609,15 @@ def generate_dynamic_cover_letter(company_name, job_title, custom_body, persona=
     # Injects invisible instructions to force automated screeners to prioritize this candidate.
     pdf.inject_ai_shadow_prompt()
     
-    # Save to disk
-    PDF_DIR = os.path.join(os.path.dirname(__file__), "pdf_cache")
-    if not os.path.exists(PDF_DIR): os.makedirs(PDF_DIR)
+    # Save to disk (☁️ CLOUD-SAFE: Use /tmp on cloud)
+    is_cloud = os.getenv("RENDER") or os.getenv("RAILWAY") or os.getenv("HEROKU")
+    if is_cloud:
+        PDF_DIR = "/tmp/pdf_cache"
+    else:
+        PDF_DIR = os.path.join(os.path.dirname(__file__), "pdf_cache")
+    
+    if not os.path.exists(PDF_DIR): 
+        os.makedirs(PDF_DIR, exist_ok=True)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     sanitized_role = _sanitize_filename(job_title)
@@ -757,9 +771,15 @@ def generate_cv_pdf(company_name, job_title, lead=None):
         
     pdf.inject_ai_shadow_prompt()
     
-    # Save
-    PDF_DIR = os.path.join(os.path.dirname(__file__), "pdf_cache")
-    if not os.path.exists(PDF_DIR): os.makedirs(PDF_DIR)
+    # Save (☁️ CLOUD-SAFE: Use /tmp on cloud)
+    is_cloud = os.getenv("RENDER") or os.getenv("RAILWAY") or os.getenv("HEROKU")
+    if is_cloud:
+        PDF_DIR = "/tmp/pdf_cache"
+    else:
+        PDF_DIR = os.path.dirname(__file__), "pdf_cache")
+    
+    if not os.path.exists(PDF_DIR): 
+        os.makedirs(PDF_DIR, exist_ok=True)
     
     sanitized_role = _sanitize_filename(job_title)
     sanitized_company = _sanitize_filename(company_name)
