@@ -49,7 +49,8 @@ class RealityShapingDB:
         else:
             self.enabled = True
             
-        # [SMART-AUTH]: Start with Anon, failover to Service Role if needed
+        # [👑 MILLION-PERCENT STABILITY]: Increased retries for absolute cloud immortality
+        self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         active_key = self.service_role_key or self.key
         self.headers = {
             "apikey": active_key,
@@ -58,8 +59,7 @@ class RealityShapingDB:
             "Prefer": "return=representation"
         }
         
-        # [👑 MILLION-PERCENT STABILITY]: Increased retries for absolute cloud immortality
-        self._max_retries = 4
+        self._max_retries = 5
         self._base_delay = 1.0
         self.proxies = os.getenv("RESIDENTIAL_PROXIES", "").split(",") if os.getenv("RESIDENTIAL_PROXIES") else []
         self.node_id = self._generate_node_id()
@@ -626,13 +626,13 @@ class RealityShapingDB:
         company = lead_data.get("company_name", "").strip()
         email = lead_data.get("email", "").strip()
         
-        # [🚫 SAVE GATE]: Never save garbage leads to the cloud DB
-        JUNK_COMPANIES = {'target node', 'unknown', 'none', '', 'automatic target', 'oracle lead', 'null'}
-        if company.lower() in JUNK_COMPANIES:
+        # [🚫 SAVE GATE]: Filter out absolute garbage, but ALLOW 'Unknown' if we have an email
+        JUNK_COMPANIES = {'target node', 'none', '', 'automatic target', 'oracle lead', 'null'}
+        if not company or company.lower() in JUNK_COMPANIES:
             logging.debug(f"🚫 SAVE BLOCKED: Refusing to save junk lead '{company}'")
             return
-        if not email:
-            logging.debug(f"🚫 SAVE BLOCKED: No email for lead '{company}' — skipping")
+        if not email and not lead_data.get("url"):
+            logging.debug(f"🚫 SAVE BLOCKED: Missing critical data for lead '{company}' — skipping")
             return
         
         payload = {
@@ -669,12 +669,16 @@ class RealityShapingDB:
         return []
 
     async def update_lead_status(self, lead_url: str, status: str):
-        if not self.enabled: return
-        logging.info(f"🔄 DB: Updating status for {lead_url} to {status}...")
+        if not self.enabled or not lead_url: return
+        logging.info(f"🔄 DB: Updating status for {lead_url[:50]}... to {status}")
         endpoint = f"{self.url}/rest/v1/leads"
+        # [👑 FIX]: PostgREST handles dict params by encoding them correctly
         params = {"job_url": f"eq.{lead_url}"}
         success, res = await self._request_with_retry("PATCH", endpoint, {"status": status}, params=params)
-        logging.info(f"🔄 DB Result: {success} | {res}")
+        if not success:
+            logging.error(f"❌ DB UPDATE FAILED for {lead_url[:50]}: {res}")
+        else:
+            logging.debug(f"✅ DB UPDATE SUCCESS: {status}")
 
     async def activate_kill_switch(self, state: bool) -> bool:
         if not self.enabled: return False

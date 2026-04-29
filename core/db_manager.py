@@ -66,12 +66,22 @@ class DatabaseManager:
             return self.client._is_dup_locally(identifier)
 
     def sync_save_potential_lead(self, lead_data: Dict[str, Any], score: int = 0):
+        """[👑 ROBUST-BRIDGE]: Synchronously trigger an async lead save with failover."""
         try:
-            loop = asyncio.get_event_loop()
-            asyncio.run_coroutine_threadsafe(self.save_potential_lead(lead_data, score), loop)
-        except:
-            # Best effort
-            pass
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                asyncio.run_coroutine_threadsafe(self.save_potential_lead(lead_data, score), loop)
+            else:
+                # No loop running in this thread, use a one-off run
+                asyncio.run(self.save_potential_lead(lead_data, score))
+        except Exception as e:
+            logging.debug(f"⚠️ Sync Bridge Bypass: {e}")
+            # Fallback to absolute local shadow if cloud bridge collapses
+            self.client._log_locally(lead_data)
 
 # Singleton handle
 db_manager = DatabaseManager()

@@ -903,13 +903,48 @@ class SovereignDashboard:
                     return
 
                 # Run in thread to avoid blocking event loop during PDF generation
+                logging.info(f"🧪 Sending test email to: {email}")
                 success = await asyncio.to_thread(smtp_engine.send_test_email, email)
+                
                 if success:
-                    await msg.edit_text("✅ <b>TEST STRIKE DELIVERED!</b>\nCheck your inbox for the simulation results.", parse_mode='HTML')
+                    await msg.edit_text(
+                        f"✅ <b>TEST STRIKE DELIVERED!</b>\n\n"
+                        f"📧 Sent to: <code>{email}</code>\n"
+                        f"📦 Attachments: CV + Cover Letter\n\n"
+                        f"Check your inbox (and spam folder) for the test email.\n\n"
+                        f"<i>If you don't receive it within 2 minutes, check:</i>\n"
+                        f"• Spam/Junk folder\n"
+                        f"• Email address is correct\n"
+                        f"• SMTP credentials in .env",
+                        parse_mode='HTML'
+                    )
                 else:
-                    await msg.edit_text("❌ <b>STRIKE FAILED.</b>\nCheck system logs for SMTP/API connectivity errors.", parse_mode='HTML')
+                    # Get more details about the failure
+                    zoho_configured = bool(os.getenv("ZOHO_SMTP_USER") and os.getenv("ZOHO_APP_PASSWORD"))
+                    brevo_configured = bool(os.getenv("BREVO_SMTP_LOGIN") and os.getenv("BREVO_SMTP_PASSWORD"))
+                    gmail_configured = bool(os.getenv("GMAIL_SMTP_USER") and os.getenv("GMAIL_APP_PASSWORD"))
+                    
+                    error_msg = "❌ <b>STRIKE FAILED</b>\n\n"
+                    error_msg += f"📧 Target: <code>{email}</code>\n\n"
+                    error_msg += "<b>Email Providers Status:</b>\n"
+                    error_msg += f"• Zoho: {'✅ Configured' if zoho_configured else '❌ Not configured'}\n"
+                    error_msg += f"• Brevo: {'✅ Configured' if brevo_configured else '❌ Not configured'}\n"
+                    error_msg += f"• Gmail: {'✅ Configured' if gmail_configured else '❌ Not configured'}\n\n"
+                    
+                    if not (zoho_configured or brevo_configured or gmail_configured):
+                        error_msg += "⚠️ <b>No email providers configured!</b>\n"
+                        error_msg += "Please add SMTP credentials to .env file."
+                    else:
+                        error_msg += "⚠️ Check system logs for detailed error.\n"
+                        error_msg += "Common issues:\n"
+                        error_msg += "• Wrong SMTP password\n"
+                        error_msg += "• Firewall blocking ports\n"
+                        error_msg += "• Email provider blocking"
+                    
+                    await msg.edit_text(error_msg, parse_mode='HTML')
             except Exception as e:
-                await msg.edit_text(f"💥 <b>INTERNAL ERROR:</b> {e}", parse_mode='HTML')
+                logging.error(f"💥 Test strike error: {e}")
+                await msg.edit_text(f"💥 <b>INTERNAL ERROR:</b>\n<code>{str(e)[:200]}</code>", parse_mode='HTML')
             return
 
         if user_text.startswith('/'): return

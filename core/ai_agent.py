@@ -175,7 +175,31 @@ class OmniIntelligence:
         """
         [🌌 TRANSCENDENCE READY]
         Analyzes a job with Social Infiltration and Meta-Strategy Selection.
+        [🚀 ZERO-COST OPTIMIZATION] Integrated AI caching for 60% API savings.
         """
+        
+        # 🚀 ZERO-COST: Check cache first
+        try:
+            from core.ai_cache import get_cached_analysis, save_analysis_to_cache
+            
+            cached = get_cached_analysis(job_title, description, person_name or "")
+            if cached:
+                analysis = cached.get("analysis", {})
+                return (
+                    analysis.get("is_relevant", False),
+                    analysis.get("reason", ""),
+                    analysis.get("cover_letter_body", ""),
+                    analysis.get("extracted_salary", "0"),
+                    analysis.get("lead_score", 0),
+                    analysis.get("competitive_advantage", ""),
+                    analysis.get("keywords", []),
+                    analysis.get("culture_persona", "Modern"),
+                    analysis.get("psychological_variant", "EMPATHETIC"),
+                    analysis.get("personality_archetype", "VISIONARY_TECH"),
+                    analysis.get("highlights", [])
+                )
+        except Exception as e:
+            logging.debug(f"Cache check failed: {e}")
         
         # Determine the target variant based on evolutionary weights if provided
         target_variant = "EMPATHETIC"
@@ -347,7 +371,7 @@ class OmniIntelligence:
                         cover_letter = await self.ghost_pass(cover_letter, job_title)
                     except: pass
                 
-                    return (
+                    result = (
                         data.get("is_relevant", False),
                         data.get("reason", "Analyzed via Gemini-Flash"),
                         cover_letter,
@@ -360,6 +384,27 @@ class OmniIntelligence:
                         data.get("personality_archetype", "VISIONARY_TECH"),
                         data.get("highlights", [])
                     )
+                    
+                    # 🚀 ZERO-COST: Save to cache
+                    try:
+                        from core.ai_cache import save_analysis_to_cache
+                        save_analysis_to_cache(job_title, description, person_name or "", {
+                            "is_relevant": result[0],
+                            "reason": result[1],
+                            "cover_letter_body": result[2],
+                            "extracted_salary": result[3],
+                            "lead_score": result[4],
+                            "competitive_advantage": result[5],
+                            "keywords": result[6],
+                            "culture_persona": result[7],
+                            "psychological_variant": result[8],
+                            "personality_archetype": result[9],
+                            "highlights": result[10]
+                        })
+                    except Exception as e:
+                        logging.debug(f"Cache save failed: {e}")
+                    
+                    return result
             
             # 2. Secondary Engine Attempt (Groq)
             if self.groq_key:

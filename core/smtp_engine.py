@@ -101,6 +101,8 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
     """[👑 OMEGA] Sends a premium visual verification strike to verify the dual PDF package."""
     recipient_email = recipient_email or getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com')
     
+    logging.info(f"🧪 TEST STRIKE: Sending to {recipient_email}")
+    
     # [👑 VIP REALISM]: Matching the CEO's requested industry example
     company_name = 'Future Tech Industries'
     job_title = 'Lead Automation Engineer'
@@ -121,20 +123,33 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
     
     # Send test using exact structural parity with the lead's instruction
     if not attachment_paths:
-        from core.pdf_generator import generate_dynamic_cover_letter
-        dummy_lead = {
-            'company_name': company_name,
-            'job_title': job_title,
-            'custom_body': body,
-            'highlights': dynamic_highlights
-        }
-        
-        # 👑 [VIP EXACT ATTACHMENTS]: Use HTML CV + dynamic PDF Cover Letter
-        cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
-        cl_path = generate_dynamic_cover_letter(company_name, job_title, dummy_lead.get('custom_body', ''), strike_id=8551)
-        attachment_paths = [cv_path, cl_path]
-        
-    return send_email(recipient_email, company_name, job_title, body, 'test', 'test', attachment_paths, highlights=dynamic_highlights)
+        try:
+            from core.pdf_generator import generate_dynamic_cover_letter
+            dummy_lead = {
+                'company_name': company_name,
+                'job_title': job_title,
+                'custom_body': body,
+                'highlights': dynamic_highlights
+            }
+            
+            # 👑 [VIP EXACT ATTACHMENTS]: Use HTML CV + dynamic PDF Cover Letter
+            cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
+            cl_path = generate_dynamic_cover_letter(company_name, job_title, dummy_lead.get('custom_body', ''), strike_id=8551)
+            attachment_paths = [cv_path, cl_path]
+            logging.info(f"✅ Generated attachments: CV + Cover Letter")
+        except Exception as e:
+            logging.error(f"❌ Failed to generate attachments: {e}")
+            attachment_paths = []
+    
+    # Send email and return actual result
+    result = send_email(recipient_email, company_name, job_title, body, 'test', 'test', attachment_paths, highlights=dynamic_highlights)
+    
+    if result:
+        logging.info(f"✅ TEST STRIKE SUCCESS: Email sent to {recipient_email}")
+    else:
+        logging.error(f"❌ TEST STRIKE FAILED: Could not send to {recipient_email}")
+    
+    return result
 
 
 
@@ -165,7 +180,22 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
     return send_email(email, company, title, lead.get('custom_body', ''), "omni", lead.get('mission_type', 'global'), valid_attachments, sender_name=sender_name, highlights=highlights)
 
 def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None, reply_to=None):
-    """High-reliability delivery engine. Priority: Zoho SMTP > Outlook SMTP > Brevo HTTP > Gmail API."""
+    """High-reliability delivery engine with smart provider rotation. Priority: Zoho SMTP > Outlook SMTP > Brevo HTTP > Gmail API."""
+    
+    # 🚀 ZERO-COST: Check email rotation system
+    try:
+        from core.email_rotator import can_send_email, get_next_email_provider, record_email_sent
+        
+        if not can_send_email():
+            logging.error("❌ DAILY EMAIL LIMIT REACHED for all providers!")
+            return False
+        
+        # Get next available provider
+        next_provider = get_next_email_provider()
+        if next_provider:
+            logging.info(f"📧 Using provider: {next_provider['display_name']} (rotation system)")
+    except Exception as e:
+        logging.debug(f"Email rotation check failed: {e}")
     
     # [👑 VIP RECOVERY]: Robust fallback for reply-to
     if not reply_to:
@@ -220,6 +250,13 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
             if res:
                 logging.info("✅ ZOHO SMTP SUCCESS — Delivered to Inbox natively.")
+                
+                # 🚀 ZERO-COST: Record email sent
+                try:
+                    from core.email_rotator import record_email_sent
+                    record_email_sent("zoho")
+                except: pass
+                
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Zoho SMTP failed: {e}")
@@ -250,6 +287,13 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to, sender_override=neutral_sender)
                 if res:
                     logging.info("✅ RENDER-BOOST SUCCESS — Port 2525 bypassed Render block!")
+                    
+                    # 🚀 ZERO-COST: Record email sent
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("brevo")
+                    except: pass
+                    
                     return True
             except Exception as e:
                 logging.warning(f"⚠️ Render-Boost failed: {e}")
@@ -273,6 +317,13 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
             if res:
                 logging.info("✅ BREVO SMTP-2525 SUCCESS")
+                
+                # 🚀 ZERO-COST: Record email sent
+                try:
+                    from core.email_rotator import record_email_sent
+                    record_email_sent("brevo")
+                except: pass
+                
                 return True
         except Exception as e:
             logging.warning(f"⚠️ Brevo SMTP-2525 failed: {e}")

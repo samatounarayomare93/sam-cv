@@ -277,15 +277,21 @@ class AlphaOrchestrator:
                             return None
                             
                     elif response.status_code in [403, 429]:
-                        wait_time = (attempt + 1) * 5 + random.uniform(1, 3)
-                        logging.warning(f"🛡️ Blocked ({response.status_code}) - waiting {wait_time:.1f}s...")
+                        wait_time = (attempt + 1) * 7 + random.uniform(2, 5)
+                        logging.warning(f"🛡️ Blocked ({response.status_code}) - Force-rotating identity and waiting {wait_time:.1f}s...")
+                        
                         # 🛡️ OMNISCIENT: Report block to Hive-Mind
                         if self.db:
                             domain = target_url.split("//")[-1].split("/")[0]
                             await self.db.report_blacklisted_domain(domain, f"HTTP {response.status_code}")
+                        
+                        # FORCE IDENTITY ROTATION
+                        self.evasion.rotate_identity()
+                        if self._session:
+                            await self._session.close()
+                            self._session = None # Force new session/proxy on retry
                             
                         await asyncio.sleep(wait_time)
-                        self.evasion.rotate_ua()  # Rotate UA on block
                         
                     elif response.status_code in [500, 502, 503, 504]:
                         await asyncio.sleep(2 ** attempt)
@@ -395,12 +401,21 @@ class AlphaOrchestrator:
             'what', 'the', 'info', 'contact', 'about', 'home', 'page', 'test',
             'admin', 'user', 'unternehmensstruktur', 'unknown', 'none', 'null',
             'undefined', 'error', 'help', 'support', 'search', 'index', 'api',
-            # ✅ FIX: Added garbage fallback names that the crawler produces
-            'target node', 'oracle lead', 'automatic target', 'founding operations partner',
+            'target node', 'unknown', 'none', 'automatic target', 'oracle lead', 'null', 
+            'microsoft word', 'cv template', 'example company', 'test job', 'placeholder',
+            'careers at', 'hiring manager', 'recruitment team', 'hr department', 'admin',
+            'application', 'resume', 'cv', 'job opening', 'linkedin job',
             'youtube', 'wikipedia', 'google', 'microsoft', 'apple', 'amazon',
             'microsoft word', 'odoo dubai office', 'top startup investors', 'dubai office',
             'search result', 'index of', 'parent directory'
         }
+        
+        JUNK_EMAILS = {
+            'noreply@', 'no-reply@', 'donotreply@', 'support@', 'info@', 'careers@',
+            'jobs@', 'hr@', 'recruitment@', 'admin@', 'office@', 'contact@', 'hello@',
+            'apply@', 'applicant@', 'talent@', 'people@', 'team@'
+        }
+        
         if company_name.lower().strip() in JUNK_NAMES or len(company_name.strip()) < 2:
             logging.info(f"🗑️ JUNK FILTER: Rejected garbage lead '{company_name}'. Skipping.")
             # Also mark it as processed in the cloud to stop it from reappearing
@@ -812,6 +827,12 @@ class AlphaOrchestrator:
                         logging.info("🛰️ SOVEREIGN HUNT: Scanning registered custom platforms...")
                         platform_leads = await self.omni_crawler.hunt_registered_platforms()
                         raw_leads.extend(platform_leads)
+                        
+                        # [👑 OMEGA-STRIKE]: Every 3 cycles, perform a massive web-wide discovery
+                        if strike_counter % 3 == 0:
+                            await self.telemetry_stream("INFO", "🕵️‍♂️ OMNI-CRAWLER MAX: Initiating web-wide deep discovery...")
+                            web_leads = await self.omni_crawler.hunt_the_web()
+                            raw_leads.extend(web_leads)
 
                     if scrape_tasks:
                         results = await asyncio.gather(*scrape_tasks, return_exceptions=True)
@@ -829,7 +850,11 @@ class AlphaOrchestrator:
                     # Sort by priority_score (Descending) to ensure high-value strikes happen first
                     raw_leads.sort(key=lambda x: x.get("priority_score", 0), reverse=True)
                     
-                    logging.info(f"🎯 Cycle Complete. Acquired {len(raw_leads)} leads. Top Priority: {raw_leads[0].get('company_name')} ({raw_leads[0].get('priority_score')})")
+                    # [👑 CRITICAL FIX]: Persist ALL acquired leads to the Cloud DB immediately
+                    # This prevents lead loss if the bot crashes or the cycle is interrupted.
+                    logging.info(f"📥 PERSISTENCE: Archiving {len(raw_leads)} leads to the Hive-Mind...")
+                    save_tasks = [self.db.save_potential_lead(l, score=l.get('priority_score', 80)) for l in raw_leads]
+                    await asyncio.gather(*save_tasks, return_exceptions=True)
                     
                     # Limit to top 15 most valuable to prevent API burn, but prioritize Ghost Jobs
                     tasks = [self.process_single_lead(lead, variant_weights=weights) for lead in raw_leads[:15]]

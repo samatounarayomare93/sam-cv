@@ -483,6 +483,24 @@ class OmniCrawler:
             '"HR Director" Europe "relocation"',
             '"Office Administrator" "remote" "apply now"',
             '"Talent Acquisition" "Global" "sponsorship"',
+
+            # [🇸🇦 KSA & 🇦🇪 UAE SURGE]
+            'site:linkedin.com/jobs "Operations Manager" Riyadh "apply"',
+            'site:linkedin.com/jobs "HR Director" Dubai "hiring"',
+            'site:linkedin.com/posts "hiring" "Administrative" Saudi Arabia',
+            'site:linkedin.com/posts "Operations" "UAE" "careers@"',
+            '"HR Manager" "NEOM" "recruitment" "email"',
+            '"Administrative Lead" "Riyadh Air" "apply"',
+            '"Operations" "Dubai Future Foundation" "careers"',
+            
+            # [🇪🇺 EUROPEAN REMOTE EXPANSION]
+            'site:linkedin.com/jobs "Operations Manager" Berlin "remote" "apply"',
+            'site:linkedin.com/jobs "HR Lead" Amsterdam "remote"',
+            'site:linkedin.com/posts "hiring" "Remote" Europe "Operations"',
+            'site:linkedin.com/posts "Administrative" "Remote" Germany',
+            '"Operations Director" "London" "remote" "visa"',
+            '"HR Business Partner" "Zurich" "remote" "hiring"',
+            
             # Regional Strike Queries
             '"Operations Manager" "Dubai" "hiring" "email"',
             '"HR Lead" "Saudi Arabia" "remote" "apply"',
@@ -561,6 +579,13 @@ class OmniCrawler:
                     # [🚫 SOVEREIGN EXCLUSION]: Skip Israel-related results
                     if ".il" in url_lower or "israel" in url_lower:
                         continue
+                    
+                    # [🧊 DOMAIN COOLING]: Respect Hive-Mind blacklist
+                    domain = urlparse(url).netloc.replace("www.", "")
+                    if domain and self.db:
+                        if await self.db.is_globally_blacklisted(domain):
+                            logging.debug(f"🧊 COOLING: Skipping blacklisted domain {domain}")
+                            continue
                     
                     # [🎯 JOB GATE]: Skip non-job URLs entirely — this is the primary noise filter
                     if not _is_valid_job_url(url_lower):

@@ -63,8 +63,15 @@ class HumanParityJitter:
 class EvasionRouter:
     """Manages Proxy Routing and Anti-Cloudflare headers with enhanced stealth."""
     
-    # Use imported USER_AGENTS from stealth_config
-    USER_AGENTS = USER_AGENTS
+    USER_AGENTS = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:125.0) Gecko/20100101 Firefox/125.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
+    ]
     
     # Accept-Language variations
     LANGUAGES = [
@@ -72,6 +79,7 @@ class EvasionRouter:
         "en-US,en;q=0.9,ar;q=0.8",
         "en-GB,en;q=0.9",
         "en;q=0.9,en-US;q=0.8",
+        "en-US,en;q=0.9,fr;q=0.7,de;q=0.6",
     ]
     
     def __init__(self):
@@ -83,16 +91,16 @@ class EvasionRouter:
         """Generate random stealth headers with modern Client-Hints."""
         ua = self.USER_AGENTS[self._ua_index]
         # Extract Chrome version for Client-Hints if applicable
-        chrome_ver = "121"
+        chrome_ver = "124"
         if "Chrome/" in ua:
             chrome_ver = ua.split("Chrome/")[1].split(".")[0]
             
         headers = {
             "User-Agent": ua,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "Accept-Language": random.choice(self.LANGUAGES),
-            "Accept-Encoding": "gzip, deflate, br",
-            "Sec-Ch-Ua": f'"Not A(Brand";v="99", "Google Chrome";v="{chrome_ver}", "Chromium";v="{chrome_ver}"',
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Sec-Ch-Ua": f'"Not-A.Brand";v="99", "Chromium";v="{chrome_ver}", "Google Chrome";v="{chrome_ver}"',
             "Sec-Ch-Ua-Mobile": "?0",
             "Sec-Ch-Ua-Platform": '"Windows"',
             "Sec-Fetch-Dest": "document",
@@ -103,6 +111,7 @@ class EvasionRouter:
             "Connection": "keep-alive",
             "Cache-Control": "max-age=0",
             "DNT": "1",
+            "Priority": "u=0, i",
         }
         return headers
     
@@ -139,24 +148,37 @@ class ProxyMesh:
         self._lock = asyncio.Lock()
 
     async def _refresh_proxies(self):
-        """Scrapes free global proxies as a sovereign fallback grid."""
+        """Scrapes free global proxies as a sovereign fallback grid with multi-source failover."""
         async with self._lock:
             if time.time() - self._last_refresh < self._refresh_interval and len(self.proxies) > 1: 
                 return
             logging.info("🕸️ SHADOW GRID: Refreshing global proxy grid...")
-            try:
-                # Use a more reliable free proxy API
-                res = requests.get("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=5000&country=all&ssl=all&anonymity=all", timeout=10)
-                if res.status_code == 200:
-                    scraped = [p.strip() for p in res.text.split("\n") if p.strip()]
-                    # Keep the direct connection (None) as the first option
-                    self.proxies = [None] + [f"http://{p}" for p in scraped[:30]]
-                    self._last_refresh = time.time()
-                    logging.info(f"🕸️ SHADOW GRID: {len(self.proxies)} nodes active in the mesh.")
-                else:
-                    logging.warning(f"Shadow Grid Refresh Failed (HTTP {res.status_code})")
-            except Exception as e:
-                logging.error(f"Shadow Grid Refresh Failed: {e}")
+            
+            sources = [
+                "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=5000&country=all&ssl=all&anonymity=all",
+                "https://www.proxy-list.download/api/v1/get?type=http",
+                "https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt"
+            ]
+            
+            new_proxies = []
+            for url in sources:
+                try:
+                    res = requests.get(url, timeout=15)
+                    if res.status_code == 200:
+                        scraped = [p.strip() for p in res.text.split("\n") if p.strip()]
+                        valid = [f"http://{p}" if "://" not in p else p for p in scraped if len(p) > 7]
+                        new_proxies.extend(valid)
+                        if len(new_proxies) > 50: break
+                except Exception as e:
+                    logging.warning(f"Shadow Grid Source Failed ({url[:30]}...): {e}")
+
+            if new_proxies:
+                # Keep direct connection (None) as the first option, then unique proxies
+                self.proxies = [None] + list(set(new_proxies))[:100]
+                self._last_refresh = time.time()
+                logging.info(f"🕸️ SHADOW GRID: {len(self.proxies)} nodes active in the mesh.")
+            else:
+                logging.warning("Shadow Grid Refresh Failed: No proxies found from any source.")
 
     async def get_next(self):
         """[👑 PROXY-ROUTER]: Priority logic: Residential -> Shadow Grid -> Direct."""
