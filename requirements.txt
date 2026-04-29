@@ -34,7 +34,8 @@ telethon>=1.30.0
 
 # System Utilities
 psutil>=5.8.0
-SpeechRecognition>=3.10.0
-pydub>=0.25.1
-httpx
+httpx>=0.24.0
+
+# Timezone Support
+pytz>=2023.3
 
