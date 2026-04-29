@@ -362,7 +362,10 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
             
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
-        msg['From'] = f"{sender_name} <{provider['email']}>"
+        
+        # [👑 SENDER-IDENTITY FIX]: Use the validated SENDER_EMAIL for the From header, not the SMTP login ID.
+        real_sender = (getattr(config, 'SENDER_EMAIL', '') or provider['email']).strip()
+        msg['From'] = f"{sender_name} <{real_sender}>"
         msg['To'] = to_email
         msg['MIME-Version'] = '1.0'
         msg['Date'] = formatdate(localtime=True)
