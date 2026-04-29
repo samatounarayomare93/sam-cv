@@ -54,42 +54,44 @@ _proxy_mesh = ProxyMesh()
 _evasion = EvasionRouter()
 _async_session: Optional[httpx.AsyncClient] = None
 
-async def get_session():
-    global _async_session
-    if _async_session is None or _async_session.is_closed:
-        _async_session = httpx.AsyncClient(timeout=30, follow_redirects=True)
-    return _async_session
+async def _get_proxy():
+    """[👑 SOVEREIGN PROXY]: Select the best available proxy for this request."""
+    proxies = os.getenv("RESIDENTIAL_PROXIES", "").split(",") if os.getenv("RESIDENTIAL_PROXIES") else []
+    if proxies:
+        proxy = random.choice([p.strip() for p in proxies if p.strip()])
+        if proxy:
+            return proxy
+    # Fallback to the Shadow Grid (free proxies)
+    proxy = await _proxy_mesh.get_next()
+    return proxy
 
 async def fetch_page_async(url, headers, timeout=15, retry_count=0):
-    session = await get_session()
     # [👑 SOVEREIGN STEALTH]: Rotate headers and proxy for each request
     stealth_headers = _evasion.get_stealth_headers()
     stealth_headers.update(headers)
     
-    # [🕸️ SHADOW GRID]: Auto-rotate proxy if residential is missing
-    proxies = os.getenv("RESIDENTIAL_PROXIES", "").split(",") if os.getenv("RESIDENTIAL_PROXIES") else []
-    if proxies:
-        proxy = random.choice(proxies)
-        proxy_dict = {"http": proxy, "https": proxy}
-    else:
-        # Fallback to the Shadow Grid fallback (Free proxies)
-        proxy = await _proxy_mesh.get_next()
-        proxy_dict = {"http": proxy, "https": proxy} if proxy else None
-
+    # [🕸️ FIX: ACTUALLY INJECT PROXY INTO THE CLIENT]
+    proxy = await _get_proxy()
+    
     try:
-        response = await session.get(url, headers=stealth_headers, timeout=timeout)
-        if response.status_code == 403 or response.status_code == 429:
-            logging.warning(f"⚠️ Page blocked (HTTP {response.status_code}) on {url}, rotating identity...")
-            _evasion.rotate_ua()
-            await asyncio.sleep(random.uniform(2, 5))
-            if retry_count < 3:
-                return await fetch_page_async(url, headers, timeout, retry_count + 1)
-        return response
+        async with httpx.AsyncClient(
+            timeout=timeout,
+            follow_redirects=True,
+            proxy=proxy
+        ) as client:
+            response = await client.get(url, headers=stealth_headers)
+            if response.status_code == 403 or response.status_code == 429:
+                logging.warning(f"⚠️ Page blocked (HTTP {response.status_code}) on {url}, rotating identity...")
+                _evasion.rotate_ua()
+                await asyncio.sleep(random.uniform(2, 5))
+                if retry_count < 3:
+                    return await fetch_page_async(url, headers, timeout, retry_count + 1)
+            return response
     except Exception as e:
         logging.debug(f"Request failed for {url}: {e}")
         _evasion.rotate_ua()
         if retry_count < 2:
-             await asyncio.sleep(1)
+             await asyncio.sleep(random.uniform(1, 3))
              return await fetch_page_async(url, headers, timeout, retry_count + 1)
         return None
 
@@ -232,10 +234,11 @@ async def get_job_email_and_desc_async(url, headers):
     return (valid[0], all_text[:1000]) if valid else (None, "")
 
 async def scrape_new_companies_async():
-    logging.info("🌍 Initiating PARALLEL Auto-Sourcing on Daleel Madani...")
+    logging.info("🌍 Initiating BATCHED Auto-Sourcing on Daleel Madani...")
     user_agents = EvasionRouter.USER_AGENTS
     base_url = "https://daleel-madani.org/jobs"
-    max_pages = 25 # Reduced slightly for extreme speed
+    max_pages = 15  # Reduced to avoid hammering
+    batch_size = 3  # [👑 FIX: BATCH instead of 25 parallel to prevent 403 flood]
     
     site_patch = {}
     try:
@@ -244,12 +247,24 @@ async def scrape_new_companies_async():
         site_patch = await db.get_site_patch("daleel-madani.org") or {}
     except: pass
 
-    tasks = [scrape_daleel_page(p, user_agents, base_url, site_patch) for p in range(0, max_pages)]
-    results = await asyncio.gather(*tasks)
-    
     all_jobs = []
-    for res in results: all_jobs.extend(res)
-    logging.info(f"🏁 Daleel Parallel Finished: {len(all_jobs)} jobs found")
+    pages = list(range(0, max_pages))
+    
+    # Process in small batches with delays between each batch
+    for i in range(0, len(pages), batch_size):
+        batch = pages[i:i + batch_size]
+        tasks = [scrape_daleel_page(p, user_agents, base_url, site_patch) for p in batch]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for res in results:
+            if isinstance(res, list):
+                all_jobs.extend(res)
+        # Human-like delay between batches
+        if i + batch_size < len(pages):
+            delay = random.uniform(3, 7)
+            logging.info(f"⏳ Daleel batch {i//batch_size + 1} done ({len(all_jobs)} jobs so far). Waiting {delay:.1f}s...")
+            await asyncio.sleep(delay)
+    
+    logging.info(f"🏁 Daleel Batched Finished: {len(all_jobs)} jobs found")
     return all_jobs
 
 def scrape_new_companies():

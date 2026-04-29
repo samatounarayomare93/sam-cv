@@ -384,7 +384,7 @@ class OmniIntelligence:
         try:
             session = await self._get_session()
             headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
-            data = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": prompt}]}
+            data = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": prompt[:8000]}]}
             
             response = await session.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=data)
             if response.status_code == 200:
@@ -557,7 +557,7 @@ class OmniIntelligence:
         headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
         data = {
             "model": "llama-3.3-70b-versatile",
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": prompt[:10000]}],  # Truncate for Groq context window
             "response_format": {"type": "json_object"},
             "temperature": 0.0 # High precision
         }
@@ -582,7 +582,7 @@ class OmniIntelligence:
         }
         data = {
             "model": "llama-3.3-70b-versatile", # Using 70b specifically for fallback for higher intelligence
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": prompt[:12000]}],  # [👑 FIX: Truncate to avoid 400 context overflow]
             "response_format": {"type": "json_object"},
             "temperature": 0.3
         }
@@ -619,13 +619,14 @@ class OmniIntelligence:
                     logging.warning(f"⏳ GROQ RATE LIMITED - Retrying in {delay}s...")
                     await asyncio.sleep(delay)
                 else:
-                    logging.error(f"❌ GROQ HTTP {response.status_code}: {response.text}")
+                    error_body = response.text[:300] if hasattr(response, 'text') else 'No body'
+                    logging.error(f"❌ GROQ HTTP {response.status_code}: {error_body}")
                     break
             except asyncio.TimeoutError:
                 logging.warning(f"⏳ GROQ TIMEOUT - Attempt {attempt + 1}")
                 await asyncio.sleep(1)
             except Exception as e:
-                logging.error(f"❌ GROQ FAILURE: {str(e)}")
+                logging.error(f"❌ GROQ FAILURE: {response.status_code if 'response' in dir() else 'N/A'} — {str(e)[:200]}")
                 break
         
         return self._apex_static_fallback(job_title, news_headline)

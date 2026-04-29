@@ -198,7 +198,32 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         logging.info("📧 [ZOHO] Not configured — set ZOHO_SMTP_USER + ZOHO_APP_PASSWORD in env")
 
     # ============================================================
-    # 🥈 PRIORITY 2: YAHOO SMTP
+    # 🥈 PRIORITY 2: BREVO SMTP PORT 2525 (Render doesn't block 2525!)
+    # Render free blocks 587/465 but NOT port 2525 (non-standard)
+    # Using Brevo's own relay → better reputation than HTTP API
+    # ============================================================
+    brevo_smtp_user = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
+    brevo_smtp_pass = (getattr(config, 'BREVO_SMTP_PASSWORD', '') or '').strip()
+    if brevo_smtp_user and brevo_smtp_pass:
+        brevo_smtp_provider = {
+            'name': 'Brevo SMTP (2525)',
+            'server': 'smtp-relay.brevo.com',
+            'port': 2525,
+            'email': brevo_smtp_user,
+            'password': brevo_smtp_pass,
+            'use_ssl': False
+        }
+        try:
+            logging.info("📧 [BREVO-SMTP] Attempting Brevo SMTP port 2525 (Render-bypass path)...")
+            res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject)
+            if res:
+                logging.info("✅ BREVO SMTP-2525 SUCCESS — port 2525 works from Render!")
+                return True
+        except Exception as e:
+            logging.warning(f"⚠️ Brevo SMTP-2525 failed: {e}")
+
+    # ============================================================
+    # 🥉 PRIORITY 3: YAHOO SMTP
     # ============================================================
     yahoo_user = (getattr(config, 'YAHOO_SMTP_USER', '') or '').strip()
     yahoo_pass = (getattr(config, 'YAHOO_APP_PASSWORD', '') or '').strip()

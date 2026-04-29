@@ -15,6 +15,8 @@ import asyncio
 import warnings
 warnings.filterwarnings('ignore', category=RuntimeWarning, module='duckduckgo_search')
 warnings.filterwarnings('ignore', module='duckduckgo_search')
+warnings.filterwarnings('ignore', message='.*duckduckgo_search.*')
+warnings.filterwarnings('ignore', message='.*has been renamed.*')
 logging.getLogger("duckduckgo_search").setLevel(logging.CRITICAL)
 from typing import Optional, Dict, Any
 
