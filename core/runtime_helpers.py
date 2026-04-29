@@ -123,10 +123,6 @@ class EvasionRouter:
         """Rotate to next user agent"""
         self._ua_index = (self._ua_index + 1) % len(self.USER_AGENTS)
 
-# Shared Singletons
-evasion = EvasionRouter()
-proxy_mesh = ProxyMesh()
-
 
 class ProxyMesh:
     """The Shadow Grid: Rotational Proxy logic with Residential tier support."""
@@ -190,4 +186,8 @@ class ProxyMesh:
     def active_nodes(self):
         """Telemetry for HUD reporting."""
         return len(self.proxies) if self.proxies else 0
+
+# Shared Singletons - MUST be at end to avoid NameError
+evasion = EvasionRouter()
+proxy_mesh = ProxyMesh()
 
