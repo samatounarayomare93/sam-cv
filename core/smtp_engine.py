@@ -124,31 +124,31 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
     # Send test using exact structural parity with the lead's instruction
     if not attachment_paths:
         try:
-            from core.pdf_generator import generate_dynamic_cover_letter
-            dummy_lead = {
-                'company_name': company_name,
-                'job_title': job_title,
-                'custom_body': body,
-                'highlights': dynamic_highlights
-            }
+            attachments = []
             
-            # 👑 [INBOX DELIVERY]: Use PDF CV + PDF Cover Letter (Professional Standard)
-            from core.pdf_generator import generate_cv_pdf
+            # 1. HTML CV (complete, professional)
+            cv_html_path = os.path.abspath('Sam_Salameh_CV.html')
+            if os.path.exists(cv_html_path):
+                attachments.append(cv_html_path)
+                logging.info(f"✅ Added HTML CV: {cv_html_path}")
             
-            # Generate PDF CV from HTML
-            cv_pdf_path = generate_cv_pdf(company_name, job_title, dummy_lead)
+            # 2. PDF CV (generated from code)
+            from core.cv_pdf_full import generate_full_cv_pdf
+            cv_pdf_path = generate_full_cv_pdf()
+            if cv_pdf_path and os.path.exists(cv_pdf_path):
+                attachments.append(cv_pdf_path)
+                logging.info(f"✅ Added PDF CV: {cv_pdf_path}")
             
-            # Generate PDF Cover Letter
-            cl_path = generate_dynamic_cover_letter(company_name, job_title, dummy_lead.get('custom_body', ''), strike_id=8551)
+            attachment_paths = attachments if attachments else []
             
-            attachment_paths = [cv_pdf_path, cl_path]
-            logging.info(f"✅ Generated PDF attachments: CV + Cover Letter")
         except Exception as e:
-            logging.error(f"❌ Failed to generate attachments: {e}")
+            logging.error(f"❌ Failed to prepare attachments: {e}")
+            import traceback
+            traceback.print_exc()
             attachment_paths = []
     
     # Send email and return actual result
-    result = send_email(recipient_email, company_name, job_title, body, 'test', 'test', attachment_paths, highlights=dynamic_highlights)
+    result = send_email(recipient_email, company_name, job_title, body, 'test', 'test', attachment_paths, highlights=dynamic_highlights, strike_id="STRIKE-2771")
     
     if result:
         logging.info(f"✅ TEST STRIKE SUCCESS: Email sent to {recipient_email}")
@@ -165,6 +165,7 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
     email = lead.get('email')
     title = lead.get('job_title', 'Professional Role')
     highlights = lead.get('highlights', [])
+    strike_id = lead.get('strike_id', '')  # Get strike_id from lead
 
     if not _validate_email(email):
         logging.warning(f"SKIPPING STRIKE: No valid email for {company}.")
@@ -197,9 +198,9 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
         
     valid_attachments = [p for p in attachments if p and os.path.exists(p) and os.path.isfile(p)]
 
-    return send_email(email, company, title, lead.get('custom_body', ''), "omni", lead.get('mission_type', 'global'), valid_attachments, sender_name=sender_name, highlights=highlights)
+    return send_email(email, company, title, lead.get('custom_body', ''), "omni", lead.get('mission_type', 'global'), valid_attachments, sender_name=sender_name, highlights=highlights, strike_id=strike_id)
 
-def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None, reply_to=None):
+def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None, reply_to=None, strike_id=None):
     """High-reliability delivery engine with smart provider rotation. Priority: Zoho SMTP > Outlook SMTP > Brevo HTTP > Gmail API."""
     
     # 🚀 ZERO-COST: Check email rotation system
@@ -224,8 +225,14 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com'):
         to_email = getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com')
     
-    # [👑 CENTRALIZED METADATA]: Generate professional subject line
-    subject = f"{job_title} Application - {sender_name}"
+    # [👑 CENTRALIZED METADATA]: Generate professional subject line with company and STRIKE-ID
+    if strike_id:
+        subject = f"Application: {job_title} - {company_name} [{strike_id}]"
+    else:
+        subject = f"Application: {job_title} - {company_name}"
+    
+    # Debug: Print subject to verify
+    logging.info(f"📧 EMAIL SUBJECT: {subject}")
 
     # ============================================================
     # 🌟 ABSOLUTE PRIORITY 1: GMAIL API (HTTP Port 443)
@@ -251,7 +258,38 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             logging.warning(f"⚠️ Gmail API unexpected failure: {e}")
 
     # ============================================================
-    # 🥈 PRIORITY 2: ZOHO SMTP (DMARC Aligned)
+    # 🥈 PRIORITY 2: GMAIL SMTP (Port 465 SSL)
+    # Best deliverability with App Password
+    # ============================================================
+    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or '').strip()
+    if gmail_user and gmail_pass:
+        gmail_provider = {
+            'name': 'Gmail (SSL-465)',
+            'server': 'smtp.gmail.com',
+            'port': 465,
+            'email': gmail_user,
+            'password': gmail_pass,
+            'use_ssl': True
+        }
+        try:
+            logging.info("📧 [GMAIL-SMTP] Attempting Gmail SMTP Delivery (App Password)...")
+            res = _send_via_provider(to_email, company_name, job_title, custom_body, gmail_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+            if res:
+                logging.info("✅ GMAIL SMTP SUCCESS — Delivered via Gmail directly!")
+                
+                # 🚀 ZERO-COST: Record email sent
+                try:
+                    from core.email_rotator import record_email_sent
+                    record_email_sent("gmail")
+                except: pass
+                
+                return True
+        except Exception as e:
+            logging.warning(f"⚠️ Gmail SMTP failed: {e}")
+
+    # ============================================================
+    # 🥉 PRIORITY 3: ZOHO SMTP (DMARC Aligned)
     # ============================================================
     zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
     zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
@@ -393,7 +431,7 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         if not service: return False
         
         if not subject:
-            subject = f"{job_title} Application - {sender_name}"
+            subject = f"Application: {job_title} - {company_name}"
         
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
@@ -424,7 +462,13 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
                         part = MIMEBase('application', 'octet-stream')
                         part.set_payload(f.read())
                         encoders.encode_base64(part)
-                        part.add_header('Content-Disposition', f'attachment; filename="{os.path.basename(path)}"')
+                        
+                        # [👑 CLEAN FILENAME]: Always use simple filename for CV
+                        filename = os.path.basename(path)
+                        if 'CV' in filename or 'cv' in filename:
+                            filename = 'Sam_Salameh_CV.html' if filename.endswith('.html') else 'Sam_Salameh_CV.pdf'
+                        
+                        part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
                         msg.attach(part)
 
         raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode('utf-8')
@@ -446,7 +490,7 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     sender_email = brevo_smtp_login if brevo_smtp_login else real_user_email
     
     if not subject:
-        subject = f"{job_title} Application - {sender_name}"
+        subject = f"Application: {job_title} - {company_name}"
         
     html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
     
@@ -491,7 +535,7 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
     """[👑 SMTP IGNITION] Final structural delivery."""
     try:
         if not subject:
-            subject = f"{job_title} Application - {sender_name}"
+            subject = f"Application: {job_title} - {company_name}"
             
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
@@ -527,7 +571,13 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
                         part = MIMEBase('application', 'octet-stream')
                         part.set_payload(f.read())
                         encoders.encode_base64(part)
-                        part.add_header('Content-Disposition', f'attachment; filename="{os.path.basename(path)}"')
+                        
+                        # [👑 CLEAN FILENAME]: Always use simple filename for CV
+                        filename = os.path.basename(path)
+                        if 'CV' in filename or 'cv' in filename:
+                            filename = 'Sam_Salameh_CV.html' if filename.endswith('.html') else 'Sam_Salameh_CV.pdf'
+                        
+                        part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
                         msg.attach(part)
 
         # Connect & Send
@@ -557,42 +607,34 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
         return False
 
 def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
-    """Professional clean email template - INBOX optimized."""
+    """Professional dark mode email template - matching the CV design."""
     
-    # Build highlights section
+    # Build highlights section (dark mode style)
     highlights_html = ""
     if highlights:
-        highlights_html = "<div style='margin: 20px 0;'><strong style='color: #2563eb;'>Key Qualifications:</strong><ul style='margin: 10px 0; padding-left: 20px;'>"
-        for h in highlights[:3]:
+        highlights_html = "<div style='margin: 30px 0;'>"
+        for i, h in enumerate(highlights[:3], 1):
             title = h.get('title', '')
             desc = h.get('desc', '')
             if title and desc:
-                highlights_html += f"<li style='margin: 8px 0; color: #374151;'><strong>{title}:</strong> {desc}</li>"
-        highlights_html += "</ul></div>"
+                highlights_html += f"""
+                <div style='margin: 20px 0; padding: 20px; background: rgba(255,255,255,0.05); border-left: 4px solid #00b4d8;'>
+                    <div style='color: #00b4d8; font-weight: bold; font-size: 14px; margin-bottom: 8px;'>
+                        0{i}. {title}
+                    </div>
+                    <div style='color: #b8c5d0; font-size: 13px; line-height: 1.6;'>
+                        {desc}
+                    </div>
+                </div>
+                """
+        highlights_html += "</div>"
     
     # Get candidate info from environment
     linkedin_url = os.getenv("LINKEDIN_URL", "https://linkedin.com/in/sam-salameh")
     phone = os.getenv("CANDIDATE_PHONE", "+961 70 841 1009")
-    candidate_email = os.getenv("SENDER_EMAIL", "sam.dev1@hotmail.com")
+    candidate_email = os.getenv("SENDER_EMAIL", "samsalameh.cv@gmail.com")
     candidate_name = os.getenv("SENDER_NAME", "Sam Salameh")
     candidate_profession = os.getenv("CANDIDATE_PROFESSION", "Senior Network Engineer")
-    
-    # Use custom body if provided, otherwise use default
-    if body_text and len(body_text.strip()) > 50:
-        main_content = f"<p style='color: #374151; line-height: 1.6; margin: 15px 0;'>{body_text}</p>"
-    else:
-        main_content = f"""
-        <p style='color: #374151; line-height: 1.6; margin: 15px 0;'>
-            I am writing to express my strong interest in the <strong>{job_title}</strong> position at {company_name}. 
-            With my extensive background in {candidate_profession.lower()}, I am confident in my ability to contribute 
-            meaningfully to your team.
-        </p>
-        <p style='color: #374151; line-height: 1.6; margin: 15px 0;'>
-            My experience includes designing and implementing enterprise-grade network infrastructure, managing complex 
-            technical projects, and delivering solutions that drive business growth. I am particularly drawn to this 
-            opportunity because of {company_name}'s reputation for excellence and innovation.
-        </p>
-        """
     
     return f"""<!DOCTYPE html>
 <html>
@@ -600,59 +642,76 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 20px; font-family: Arial, Helvetica, sans-serif; background-color: #f3f4f6;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb;">
-    <!-- Header -->
+<body style="margin: 0; padding: 20px; font-family: 'Segoe UI', Arial, sans-serif; background-color: #1a1d29;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #2d3748 0%, #1a1d29 100%);">
+    
+    <!-- Header with Circle Avatar -->
     <tr>
-      <td style="padding: 30px 40px; background-color: #ffffff; border-bottom: 3px solid #2563eb;">
-        <h1 style="margin: 0; font-size: 24px; color: #1f2937; font-weight: 600;">{candidate_name}</h1>
-        <p style="margin: 5px 0 0 0; font-size: 14px; color: #6b7280;">{candidate_profession}</p>
+      <td style="padding: 40px 40px 20px 40px; text-align: center;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="text-align: center;">
+              <div style="width: 70px; height: 70px; margin: 0 auto 15px auto; background: #00b4d8; border-radius: 50%; line-height: 70px; text-align: center;">
+                <span style="color: white; font-size: 28px; font-weight: bold;">SS</span>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <div style="color: #94a3b8; font-size: 11px; letter-spacing: 3px; margin-bottom: 8px;">
+          {candidate_profession.upper()}
+        </div>
+        <h1 style="margin: 0; font-size: 28px; color: #ffffff; font-weight: 700; letter-spacing: 2px;">
+          {candidate_name.upper()}
+        </h1>
       </td>
     </tr>
     
     <!-- Body -->
     <tr>
       <td style="padding: 40px;">
-        <p style="margin: 0 0 15px 0; font-size: 16px; color: #1f2937;">Dear {company_name} Hiring Team,</p>
-        
-        <p style="margin: 15px 0; font-size: 16px; color: #1f2937; font-weight: 600;">
-            Re: Application for {job_title}
+        <p style="margin: 0 0 20px 0; font-size: 16px; color: #e2e8f0;">
+          Dear {company_name} Hiring Team,
         </p>
         
-        {main_content}
+        <p style="margin: 20px 0; font-size: 15px; color: #e2e8f0; line-height: 1.8;">
+          I am formally reaching out to express my high-level interest in the <span style="color: #00b4d8; font-weight: 600;">{job_title}</span> position.
+        </p>
+        
+        <p style="margin: 20px 0; font-size: 15px; color: #e2e8f0; line-height: 1.8;">
+          My methodology is built specifically for organizations that focus heavily on automation, KPIs, and scaling corporate culture.
+        </p>
         
         {highlights_html}
         
-        <p style='color: #374151; line-height: 1.6; margin: 15px 0;'>
-            I have attached my CV for your review. I would welcome the opportunity to discuss how my skills and 
-            experience align with your needs.
+        <div style="margin: 40px 0 30px 0; padding: 30px; background: rgba(0, 180, 216, 0.1); border-radius: 8px; text-align: center;">
+          <p style="margin: 0; font-size: 16px; color: #e2e8f0; font-style: italic; line-height: 1.8;">
+            "I am looking to bring rigorous accountability and structured scaling to the {company_name} team."
+          </p>
+        </div>
+        
+        <p style="margin: 20px 0; font-size: 15px; color: #e2e8f0; line-height: 1.8;">
+          I have attached <strong style="color: #00b4d8;">My CV</strong> for your comprehensive review.
         </p>
         
-        <p style='color: #374151; line-height: 1.6; margin: 15px 0;'>
-            Thank you for considering my application. I look forward to hearing from you.
-        </p>
-        
-        <p style='color: #374151; line-height: 1.6; margin: 25px 0 5px 0;'>
-            Best regards,<br>
-            <strong>{candidate_name}</strong>
-        </p>
+        <div style="margin: 40px 0 0 0; text-align: center;">
+          <a href="{linkedin_url}" style="display: inline-block; padding: 15px 40px; background: #00b4d8; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; letter-spacing: 1px;">
+            VIEW LINKEDIN PORTFOLIO
+          </a>
+        </div>
       </td>
     </tr>
     
     <!-- Footer -->
     <tr>
-      <td style="padding: 30px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb;">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="font-size: 14px; color: #6b7280; line-height: 1.6;">
-              <strong style="color: #1f2937;">{candidate_name}</strong><br>
-              {candidate_profession}<br>
-              <a href="mailto:{candidate_email}" style="color: #2563eb; text-decoration: none;">{candidate_email}</a><br>
-              <a href="tel:{phone}" style="color: #2563eb; text-decoration: none;">{phone}</a><br>
-              <a href="{linkedin_url}" style="color: #2563eb; text-decoration: none;">LinkedIn Profile</a>
-            </td>
-          </tr>
-        </table>
+      <td style="padding: 30px 40px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);">
+        <div style="color: #94a3b8; font-size: 14px; line-height: 1.8;">
+          <a href="mailto:{candidate_email}" style="color: #94a3b8; text-decoration: none;">{candidate_email}</a>
+          <span style="margin: 0 10px;">|</span>
+          <a href="tel:{phone}" style="color: #94a3b8; text-decoration: none;">{phone}</a>
+        </div>
+        <div style="color: #64748b; font-size: 13px; margin-top: 10px;">
+          {candidate_profession}
+        </div>
       </td>
     </tr>
   </table>

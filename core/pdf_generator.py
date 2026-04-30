@@ -779,12 +779,8 @@ def generate_cv_pdf(company_name, job_title, lead=None):
     if not os.path.exists(PDF_DIR): 
         os.makedirs(PDF_DIR, exist_ok=True)
     
-    sanitized_role = _sanitize_filename(job_title)
-    sanitized_company = _sanitize_filename(company_name)
-    
-    # [👑 SIMPLE NAMING] Clean professional CV filename
-    safe_name = p.get("name", "Candidate").replace(" ", "_")
-    filename = f"{safe_name}_CV.pdf"
+    # [👑 SIMPLE NAMING] Clean professional CV filename - ALWAYS the same
+    filename = "Sam_Salameh_CV.pdf"
     pdf_path = os.path.join(PDF_DIR, filename)
     
     pdf.output(pdf_path)
