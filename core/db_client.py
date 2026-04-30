@@ -66,8 +66,6 @@ class RealityShapingDB:
         self.node_name = os.getenv("NODE_NAME", socket.gethostname())
         self._semaphore = None # Lazy initialization
 
-        self._semaphore = None # Lazy initialization
-
     @property
     def _request_semaphore(self):
         """Lazy initialization of semaphore to avoid 'attached to different loop' faults."""
@@ -151,7 +149,6 @@ class RealityShapingDB:
                 logging.warning(f"🏰 SOVEREIGN MODE: Leadership sync error: {e}. Acting as Solo Master.")
                 return True # Fail upwards to ensure operations continue
         return we_are_leader
-        return False
 
     async def is_bot_leader(self) -> Optional[bool]:
         if not self.enabled: return True
@@ -1068,6 +1065,23 @@ class RealityShapingDB:
             return [dict(r) for r in rows]
         except:
             return []
+
+    async def get_recon_summary(self) -> Dict[str, int]:
+        """Returns compact recon counts for dashboards and health views."""
+        summary = {"applications": 0, "recon": 0, "tasks": 0}
+        try:
+            conn = sqlite3.connect(self.local_db)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM applications")
+            summary["applications"] = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM global_recon")
+            summary["recon"] = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM tasks")
+            summary["tasks"] = cursor.fetchone()[0]
+            conn.close()
+        except Exception:
+            pass
+        return summary
 
     async def add_discovered_link(self, url: str, source: str):
         """Logs a potential platform link found during discovery."""

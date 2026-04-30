@@ -151,7 +151,10 @@ class AlphaOrchestrator:
         log_map = {"INFO": logging.info, "ERROR": logging.error, "WARNING": logging.warning, "CRITICAL": logging.critical}
         log_map.get(level, logging.info)(message)
         if self.db:
-            asyncio.create_task(self.db.stream_log(level, message))
+            try:
+                asyncio.create_task(self.db.stream_log(level, message))
+            except RuntimeError:
+                pass
 
     def get_circadian_intensity(self) -> float:
         """Determines strike intensity based on day of week and hour."""
@@ -234,9 +237,9 @@ class AlphaOrchestrator:
     
     async def close(self):
         """Graceful cleanup"""
-        if self._session and not self._session.closed:
+        if self._session and not self._session.is_closed:
             await self._session.close()
-            self._session = None
+        self._session = None
 
     async def check_kill_switch(self) -> bool:
         """Reads global environment and live DB flag for instantaneous halt."""
@@ -817,7 +820,7 @@ class AlphaOrchestrator:
         asyncio.create_task(self._leadership_watchdog())
         
         # [🛡️ SOVEREIGN MODE DETECTION]
-        health = self.db.get_system_health()
+        health = self.db.get_system_health() if self.db else {"mode": "standalone"}
         mode_msg = f"🛰️ SWARM MODE: {health['mode']} Protocol Active."
         logging.info(mode_msg)
         await self.telemetry_stream("INFO", mode_msg)

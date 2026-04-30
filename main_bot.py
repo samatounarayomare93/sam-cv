@@ -15,23 +15,31 @@ logging.basicConfig(
 )
 
 # Add core directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'core'))
+BASE_DIR = os.path.dirname(__file__)
+CORE_DIR = os.path.join(BASE_DIR, 'core')
+if CORE_DIR not in sys.path:
+    sys.path.insert(0, CORE_DIR)
 
 # Import and run the main bot
 from core.main_bot import run_orchestrator
 import asyncio
 
+
+def is_cloud_environment() -> bool:
+    return any(os.getenv(name) for name in ('RENDER', 'RAILWAY', 'HEROKU', 'VERCEL', 'FLY_IO'))
+
+
 if __name__ == "__main__":
-    logging.info("🚀 Starting Sam CV Bot on Cloud...")
+    logging.info("🚀 Starting Sam CV Bot...")
     logging.info(f"📍 Python: {sys.version}")
     logging.info(f"📂 Working Directory: {os.getcwd()}")
     
     # Detect cloud environment
-    cloud_env = os.getenv('RENDER') or os.getenv('RAILWAY') or os.getenv('HEROKU') or 'Local'
+    cloud_env = 'Cloud' if is_cloud_environment() else 'Local'
     logging.info(f"☁️ Cloud Mode: {cloud_env}")
     
     # Start keep-alive server if on cloud
-    if cloud_env != 'Local':
+    if cloud_env == 'Cloud':
         try:
             from core.keep_alive import keep_alive
             keep_alive()

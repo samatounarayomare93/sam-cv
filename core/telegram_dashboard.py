@@ -115,47 +115,35 @@ class SovereignDashboard:
         for uid in self.authorized_users:
             try:
                 # Need to seek(0) if it's a file object, but usually we pass the file handle
-                if hasattr(document, 'seek'): document.seek(0)
+                if hasattr(document, 'seek'):
+                    document.seek(0)
                 await bot.send_document(chat_id=uid, document=document, caption=caption, parse_mode=parse_mode)
             except Exception as e:
                 logging.error(f"⚠️ Doc Broadcast failed for User {uid}: {e}")
-
-        # [👑 UI HARMONY]: Ensure buttons appear even in Standby
-        await self._sync_ui_standalone(application)
-        pass
 
     async def _sync_ui_standalone(self, application):
         """Standalone UI sync that can be called without start_polling."""
         commands = [
             BotCommand("menu", "📱 القائمة الرئيسية (Main Menu)"),
-            BotCommand("status", "🖥️ تقرير السحاب (Cloud Status)"),
-            BotCommand("ignite", "🔥 إشعال النظام (Total Ignition)"),
-            BotCommand("kill", "🛑 إيقاف طوارئ (Emergency Kill)"),
-            BotCommand("omega_halt", "🛑 التوقف التام (Total Halt)"),
             BotCommand("start", "🚀 بدء التشغيل (Start Ops)"),
-            BotCommand("resume", "🟢 استئناف العمل (Resume Swarm)"),
-            BotCommand("pause", "⏸️ إيقاف مؤقت (Pause Engine)"),
-            BotCommand("unpause", "▶️ إلغاء الإيقاف (Unpause)"),
-            BotCommand("reboot", "🔄 إعادة تشغيل (Full Reboot)"),
+            BotCommand("status", "🖥️ تقرير السحاب (Cloud Status)"),
+            BotCommand("logs", "📜 سجل النظام (System Logs)"),
             BotCommand("stats", "📊 إحصائيات المهمة (Mission Stats)"),
-            BotCommand("audit", "👁️ مراجعة الأهداف (Visual Audit)"),
-            BotCommand("track", "🛰️ تتبع الرادار (Live Tracking)"),
-            BotCommand("oracle", "🔮 استشعار السوق (Market Oracle)"),
+            BotCommand("tasks", "🧬 قائمة المهام (Mission Tasks)"),
             BotCommand("leads", "📋 فرص الوظائف (Job Leads)"),
             BotCommand("companies", "🏢 تحليل الشركات (Company Intel)"),
-            BotCommand("pulse", "📜 نبض النظام (System Pulse)"),
-            BotCommand("synapse", "💪 فحص القوة (Strength Check)"),
-            BotCommand("tasks", "🧬 قائمة المهام (Mission Tasks)"),
             BotCommand("shield", "🛡️ درع الحماية (Security Shield)"),
-            BotCommand("hud", "📟 الشاشة الحية (Live HUD)"),
-            BotCommand("launch_infinite", "♾️ الغزو اللانهائي (Infinite Swarm)"),
-            BotCommand("launch_single", "🚀 هجوم مفرد (Single Strike)"),
-            BotCommand("run_now", "⚡ تنفيذ فوري (Run Now)"),
-            BotCommand("test_strike", "🧪 هجوم تجريبي (Test Strike)"),
-            BotCommand("ai_status", "🧠 حالة الذكاء (AI Brain Status)"),
+            BotCommand("pulse", "📜 نبض النظام (System Pulse)"),
+            BotCommand("track", "🛰️ تتبع الرادار (Live Tracking)"),
+            BotCommand("synapse", "💪 فحص القوة (Strength Check)"),
+            BotCommand("oracle", "🔮 استشعار السوق (Market Oracle)"),
+            BotCommand("guide", "📖 الدليل الشامل (Operation Manual)"),
             BotCommand("settings", "⚙️ الإعدادات (System Settings)"),
-            BotCommand("logs", "📜 سجل النظام (System Logs)"),
-            BotCommand("guide", "📖 الدليل الشامل (Operation Manual)")
+            BotCommand("reboot", "🔄 إعادة تشغيل (Full Reboot)"),
+            BotCommand("pause", "⏸️ إيقاف مؤقت (Pause Engine)"),
+            BotCommand("resume", "🟢 استئناف العمل (Resume Swarm)"),
+            BotCommand("unpause", "▶️ إلغاء الإيقاف (Unpause)"),
+            BotCommand("omega_halt", "🛑 التوقف التام (Total Halt)")
         ]
         try:
             await application.bot.set_my_commands(commands)
@@ -212,7 +200,7 @@ class SovereignDashboard:
         TEXT_ONLY_CMDS = {
             "tasks", "shield", "pulse", "leads", "prep", "campaign", "followup", 
             "companies", "test_strike", "evolution", "audit", "ai_status", 
-            "vision", "synapse", "matrix", "phantom"
+            "vision", "synapse", "matrix", "phantom", "menu", "guide"
         }
         if cmd.lstrip("/") in TEXT_ONLY_CMDS:
             await self._handle_text_map(cmd.lstrip("/"), update, context)
@@ -228,55 +216,79 @@ class SovereignDashboard:
             except Exception as e:
                 await update.effective_message.reply_text(f"⚠️ <b>IGNITION ERROR:</b> {e}", parse_mode='HTML')
 
+        elif cmd == "/start":
+            reply_markup, inline_markup = self._get_sovereign_keyboards()
+            await update.effective_message.reply_text(
+                "👑 <b>PROJECT CHRONOS: SOVEREIGN V2</b>\n"
+                f"<i>Node: {os.getenv('NODE_NAME', 'MASTER-CLOUD')}</i>\n"
+                "<i>Status: Armed & Operational</i>\n\n"
+                "Use the <b>COMMAND CENTER</b> (Inline) or the <b>SOVEREIGN TILESET</b> (Bottom).\n"
+                "<i>Click '📖 GUIDE' for a full Arabic manual of all abilities.</i>",
+                parse_mode='HTML',
+                reply_markup=reply_markup
+            )
+            await update.effective_message.reply_text("🎮 <b>DYNAMIC COMMAND CENTER:</b>", reply_markup=inline_markup, parse_mode='HTML')
+
+        elif cmd in ("/stats", "/menu"):
+            await self._dispatch_command("/status", update, context)
+            return
+
         elif cmd == "/kill" or cmd == "/omega_halt":
-            await self.db.activate_kill_switch(True)
+            if self.db:
+                await self.db.activate_kill_switch(True)
             await update.effective_message.reply_text("🚨 <b>SYSTEM OVERRIDE: TOTAL KILL SWITCH ENGAGED.</b>\nAll infinite cycles frozen.", parse_mode='HTML')
 
         elif cmd == "/resume" or cmd == "/unpause":
-            await self.db.activate_kill_switch(False)
+            if self.db:
+                await self.db.activate_kill_switch(False)
             await update.effective_message.reply_text("🟢 <b>SOVEREIGN COMMAND: SYSTEMS RE-ACTIVATED.</b>\nOperations resumed.", parse_mode='HTML')
 
         elif cmd == "/pause":
             await update.effective_message.reply_text("⏸️ <b>ENGINE PAUSED.</b>\nAll autonomous cycles suspended. The swarm is holding position.", parse_mode='HTML')
 
         elif cmd == "/launch_single":
-            # ☁️ CLOUD-SAFE: Bot is already running, just confirm
-            await update.effective_message.reply_text("🚀 <b>SINGLE STRIKE MODE</b>\nBot is already running 24/7 on cloud in continuous mode.", parse_mode='HTML')
+            await update.effective_message.reply_text("🚀 <b>READY</b>\nThe bot already runs continuously in the cloud. Use /status to verify live health.", parse_mode='HTML')
 
         elif cmd == "/launch_infinite" or cmd == "/hunter" or cmd == "/run_now":
-            # ☁️ CLOUD-SAFE: Bot is already running infinite loop
-            await update.effective_message.reply_text("♾️ <b>INFINITE SWARM ACTIVE</b>\nBot is already running 24/7 on cloud, continuously hunting and applying.", parse_mode='HTML')
+            await update.effective_message.reply_text("♾️ <b>READY</b>\nContinuous mode is already active. Use /logs or /tasks for live work.", parse_mode='HTML')
 
-        elif cmd == "/test_gmail":
-            # ☁️ CLOUD-SAFE: Test email directly instead of spawning process
-            await update.effective_message.reply_text("💌 <b>DISPATCHING GMAIL TEST...</b>\nSending test email now...", parse_mode='HTML')
+        elif cmd in ("/test_gmail", "/test_brevo"):
+            # Real test path uses the existing SMTP engine; no fake status text.
+            target_email = os.getenv("GMAIL_TEST_RECIPIENT") or os.getenv("GMAIL_SMTP_USER")
+            await update.effective_message.reply_text("💌 <b>RUNNING SMTP TEST...</b>", parse_mode='HTML')
             try:
-                from core.smtp_engine import send_test_email
-                result = send_test_email()
+                result = await asyncio.to_thread(smtp_engine.send_test_email, target_email)
                 if result:
-                    await update.effective_message.reply_text("✅ <b>GMAIL TEST SUCCESS!</b>\nCheck your inbox.", parse_mode='HTML')
+                    await update.effective_message.reply_text(f"✅ <b>SMTP TEST SUCCESS</b>\nSent to <code>{target_email}</code>", parse_mode='HTML')
                 else:
-                    await update.effective_message.reply_text("⚠️ <b>GMAIL TEST FAILED</b>\nCheck logs for details.", parse_mode='HTML')
+                    await update.effective_message.reply_text("⚠️ <b>SMTP TEST FAILED</b>\nCheck server logs and credentials.", parse_mode='HTML')
             except Exception as e:
                 await update.effective_message.reply_text(f"❌ <b>TEST ERROR:</b> {e}", parse_mode='HTML')
 
-        elif cmd == "/test_brevo":
-            await update.effective_message.reply_text("🛡️ <b>SMTP RELAY TEST: BREVO</b>\nAlternative delivery lane cleared.", parse_mode='HTML')
-
         elif cmd == "/queue":
-            pending = await self.db.get_pending_tasks(limit=10)
+            pending = await self.db.get_pending_tasks(limit=10) if self.db else []
             count = len(pending) if pending else 0
             msg = "📧 <b>MISSION DISPATCH QUEUE</b>\n━━━━━━━━━━━━━━━\n"
             msg += f"📦 Pending Actions: {count}\n"
             msg += "📍 Status: Actively Processing\n"
             msg += "━━━━━━━━━━━━━━━"
+            if pending:
+                msg += "\n" + "\n".join([f"• {t.get('type', 'TASK')} -> {str(t.get('target', ''))[:30]}" for t in pending[:5]])
             await update.effective_message.reply_text(msg, parse_mode='HTML')
 
         elif cmd == "/supabase":
-            await update.effective_message.reply_text("🩺 <b>DATABASE TELEMETRY</b>\nStatus: 🟢 ONLINE\nLatency: &lt; 15ms\nSync: Local Mirror Active", parse_mode='HTML')
+            status = "ONLINE" if self.db else "OFFLINE"
+            await update.effective_message.reply_text(f"🩺 <b>DATABASE TELEMETRY</b>\nStatus: 🟢 {status}\nSync: {'Local Mirror Active' if self.db else 'Unavailable'}", parse_mode='HTML')
+
+        elif cmd == "/menu":
+            reply_markup, inline_markup = self._get_sovereign_keyboards()
+            await update.effective_message.reply_text("📱 <b>MAIN MENU</b>", reply_markup=reply_markup, parse_mode='HTML')
+            await update.effective_message.reply_text("🎮 <b>DYNAMIC COMMAND CENTER:</b>", reply_markup=inline_markup, parse_mode='HTML')
 
         elif cmd == "/auto_backup":
-            await self._execute_backup_logic(context.bot, self.authorized_users[0])
+            await update.effective_message.reply_text("💾 <b>AUTO BACKUP</b>\nThis is a maintenance helper, not a user action.", parse_mode='HTML')
+            if self.authorized_users:
+                await self._execute_backup_logic(context.bot, self.authorized_users[0])
             return
 
         elif cmd == "/logs":
@@ -423,19 +435,19 @@ class SovereignDashboard:
             return
 
         elif cmd == "/backup":
-            await update.effective_message.reply_text("💾 <b>INFINITE DATA LAKE:</b> Initiating Cloud Backup...", parse_mode='HTML')
+            await update.effective_message.reply_text("💾 <b>CREATING BACKUP...</b>", parse_mode='HTML')
             try:
                 await self._execute_backup_logic(context.bot, update.effective_message.chat_id)
+                await update.effective_message.reply_text("✅ <b>BACKUP COMPLETE</b>", parse_mode='HTML')
             except Exception as e:
                 await update.effective_message.reply_text(f"⚠️ <b>BACKUP FAILED:</b> {e}", parse_mode='HTML')
 
         elif cmd == "/cmd":
-            # ☁️ CLOUD-SAFE: Disable shell command execution on cloud for security
-            await update.effective_message.reply_text("🚫 <b>SHELL COMMANDS DISABLED</b>\nFor security, shell commands are disabled on cloud. Use specific bot commands instead.", parse_mode='HTML')
+            await update.effective_message.reply_text("🚫 <b>COMMAND SHELL NOT AVAILABLE</b>\nUse /status, /logs, /tasks, or /leads instead.", parse_mode='HTML')
 
         elif cmd == "/audit":
-            stats = await self.db.get_stats()
-            health = self.db.get_advanced_health() # For memory/uptime only
+            stats = await self.db.get_stats() if self.db else {}
+            health = self.db.get_advanced_health() if self.db else {} # For memory/uptime only
             msg = (
                 "👁️ <b>SOVEREIGN AUDIT REPORT</b>\n"
                 f"━━━━━━━━━━━━━━━\n"
@@ -447,7 +459,7 @@ class SovereignDashboard:
             await update.effective_message.reply_text(msg, parse_mode='HTML')
 
         elif cmd == "/track":
-            tasks = await self.db.get_pending_tasks(limit=3)
+            tasks = await self.db.get_pending_tasks(limit=3) if self.db else []
             task_str = "\n".join([f"🎯 {t['type']}: {t['target'][:20]}..." for t in tasks]) if tasks else "Radar quiet. All targets processed."
             msg = (
                 "🛰️ <b>LIVE TRACKING RADAR</b>\n"
@@ -459,12 +471,19 @@ class SovereignDashboard:
             await update.effective_message.reply_text(msg, parse_mode='HTML')
 
         elif cmd == "/magic" or cmd == "/refresh_ui":
-            await update.effective_message.reply_text("🪄 <b>PURGING UI CACHE...</b>\n<i>Force-pushing 50 tactical commands to the Sovereign Link.</i>", parse_mode='HTML')
-            await self._post_init(context.application)
-            await update.effective_message.reply_text("✅ <b>UI SYNCHRONIZED.</b>\nPlease close and restart your Telegram app to see the 50-command menu.", parse_mode='HTML')
+            await update.effective_message.reply_text("🪄 <b>PURGING UI CACHE...</b>\n<i>Force-pushing commands to the Sovereign Link.</i>", parse_mode='HTML')
+            try:
+                await self._sync_ui_standalone(context.application)
+                await update.effective_message.reply_text("✅ <b>UI SYNCHRONIZED.</b>", parse_mode='HTML')
+            except Exception as e:
+                await update.effective_message.reply_text(f"⚠️ <b>UI REFRESH FAILED:</b> {e}", parse_mode='HTML')
 
         elif cmd == "/ai_config":
-            await update.effective_message.reply_text("🛠️ <b>AI CONFIGURATION CORE</b>\n━━━━━━━━━━━━━━━\nEngine: <code>Gemini-1.5-Pro</code>\nTemperature: <code>0.7</code>\nCreativity: <code>Enabled</code>\n━━━━━━━━━━━━━━━", parse_mode='HTML')
+            engine = getattr(self.ai, 'primary_engine', 'unknown') if self.ai else 'unavailable'
+            await update.effective_message.reply_text(
+                f"🛠️ <b>AI CONFIGURATION CORE</b>\n━━━━━━━━━━━━━━━\nEngine: <code>{engine}</code>\nStatus: <code>{'Ready' if self.ai else 'Unavailable'}</code>\n━━━━━━━━━━━━━━━\n<i>This page is informational; real AI work happens in /prep and /oracle.</i>",
+                parse_mode='HTML'
+            )
 
         elif cmd == "/synapse":
             health = self.db.get_system_health()
@@ -544,7 +563,10 @@ class SovereignDashboard:
             await update.effective_message.reply_text("🕵️ <b>PHANTOM NETWORK STATUS</b>\n━━━━━━━━━━━━━━━\nUserBot: 🟡 STANDBY\nGhost Proxi: 🟢 ACTIVE\nDetection: <code>Undetectable</code>\n━━━━━━━━━━━━━━━", parse_mode='HTML')
 
         elif cmd == "/simulation" or cmd == "/simulate":
-            await self.handle_command(update, context, command_override="/test_strike")
+            await self._dispatch_command("/test_strike", update, context)
+
+        elif cmd == "/test_strike":
+            await update.effective_message.reply_text("🧪 <b>TEST STRIKE</b>\nUse the menu prompt to enter an email address. Then the bot will run the real SMTP path.", parse_mode='HTML')
 
         elif cmd == "/apply_patch":
             await update.effective_message.reply_text("🩹 <b>PATCH SUB-ENGINE:</b> Standby. Use <code>/repair</code> for full diagnostics.", parse_mode='HTML')
@@ -723,7 +745,6 @@ class SovereignDashboard:
         elif cmd == "/guide" or cmd == "/manual":
             guide_text = (
                 "📖 <b>دليل القيادة الميدانية (Project Chronos)</b>\n\n"
-                # ... guide text truncated for brevity in this view request ...
                 "<b>1. أوامر الهجوم والمراقبة (Core & Ops):</b>\n"
                 "🚀 <b>Run Now | تشغيل:</b> تفعيل محرك البحث وبدء الغزو فوراً.\n"
                 "🖥️ <b>Status | الحالة:</b> عرض تقرير عن صحة السيرفر السحابي.\n"
@@ -753,8 +774,6 @@ class SovereignDashboard:
 
         elif cmd == "/start" or cmd == "/menu":
             reply_markup, inline_markup = self._get_sovereign_keyboards()
-
-
             await update.effective_message.reply_text(
                 "👑 <b>PROJECT CHRONOS: SOVEREIGN V2</b>\n"
                 f"<i>Node: {os.getenv('NODE_NAME', 'MASTER-CLOUD')}</i>\n"
@@ -771,18 +790,14 @@ class SovereignDashboard:
         from telegram import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
         
         reply_keyboard = [
-            [KeyboardButton("🚀 Run Now | تشغيل"), KeyboardButton("🖥️ Status | الحالة")],
-            [KeyboardButton("🧬 Tasks | المهام"), KeyboardButton("🛡️ Shield | الدرع")],
-            [KeyboardButton("📜 Pulse | النبض"), KeyboardButton("📈 Stats | الإحصائيات")],
-            [KeyboardButton("📋 Leads | الفرص"), KeyboardButton("🎓 Prep | التحضير")],
-            [KeyboardButton("🧪 Test Strike | تجربة")], 
-            [KeyboardButton("🚀 Campaign | حملة جديدة"), KeyboardButton("🏢 Companies | الشركات")],
-            [KeyboardButton("🔄 Follow-up | المتابعة")],
+            [KeyboardButton("🖥️ Status | الحالة"), KeyboardButton("📊 Stats | الإحصائيات")],
+            [KeyboardButton("📋 Leads | الفرص"), KeyboardButton("🧬 Tasks | المهام")],
+            [KeyboardButton("🛡️ Shield | الدرع"), KeyboardButton("📜 Pulse | النبض")],
+            [KeyboardButton("🏢 Companies | الشركات"), KeyboardButton("📖 Guide | الدليل")],
+            [KeyboardButton("🛰️ Track | التتبع"), KeyboardButton("🔮 Oracle | السوق")],
+            [KeyboardButton("⚙️ Settings | الإعدادات"), KeyboardButton("🔄 Reboot | إعادة تشغيل")],
             [KeyboardButton("⏸️ Pause | إيقاف مؤقت"), KeyboardButton("▶️ Resume | استئناف")],
-            [KeyboardButton("🛰️ Track | التتبع"), KeyboardButton("🛑 Omega Halt | التوقف التام")],
-            [KeyboardButton("🩹 Lazarus | الإحياء"), KeyboardButton("🩹 Repair | الإصلاح")],
-            [KeyboardButton("🧹 Hygiene | التنظيف"), KeyboardButton("📜 Logs | السجلات")],
-            [KeyboardButton("🔄 Reboot | إعادة تشغيل")]
+            [KeyboardButton("🛑 Omega Halt | التوقف التام"), KeyboardButton("📜 Logs | السجلات")]
         ]
         reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
 
@@ -895,7 +910,7 @@ class SovereignDashboard:
 
         elif key in ("stats", "status", "companies"):
             # [👑 UNIFIED HUD]: Redirect to the same centralized HUD logic
-            await self.handle_command(update, context, command_override="/status")
+            await self._dispatch_command("/status", update, context)
             return
 
         elif key == "test_strike":
@@ -1108,7 +1123,8 @@ class SovereignDashboard:
         await self._dispatch_command(query.data, update, context)
 
     async def handle_inline_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        strikes = await self.db.get_latest_applications(limit=15)
+        latest = await self.db.get_latest_application() if self.db else None
+        strikes = [latest] if latest else []
         results = []
         for i, s in enumerate(strikes):
             title = f"📄 CV: {s['company_name']} - {s['job_title']}"
