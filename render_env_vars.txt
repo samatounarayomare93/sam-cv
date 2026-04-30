@@ -1,0 +1,18 @@
+# Environment Variables for Render.com 
+# Copy these to Render.com Environment section 
+# Generated: Fri 05/01/2026  0:48:50.40 
+ 
+SUPABASE_URL=https://lckiazbadymeikmxesit.supabase.co
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdWJhc2UiLCJyZWYiOiJsY2tpYXpiYWR5bWVpa214ZXNpdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzc3MzE3MTU1LCJleHAiOjIwOTI4OTMxNTV9.X6XLJTCQnuf67AEWjRrGfCIbOGmnPaiVtKq9a5no1Uc
+GROQ_API_KEY=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
+GEMINI_API_KEY=AIzaSyC-Wp4uz6LNLsDMi0DXKRQCA8GdUDVCbkw
+ZOHO_SMTP_USER=samsalameh.cv@zohomail.com
+ZOHO_APP_PASSWORD=R0R6dqr5qL1g
+GMAIL_SMTP_USER=samsalameh.cv@gmail.com
+GMAIL_APP_PASSWORD=oimuanudzzngklnf
+TELEGRAM_BOT_TOKEN=8630175054:AAGuMqlmCJAizvDlFUrsg-UletxSdOcsvn0
+TELEGRAM_CHAT_ID=6639482672
+USE_AI_ANALYSIS=true
+VERBOSE_LOGGING=true
+MAX_PARALLEL_STRIKES=3
+KEEP_ALIVE_ENABLED=true
