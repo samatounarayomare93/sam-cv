@@ -203,8 +203,6 @@ class AlphaOrchestrator:
                         break
 
             proxy_dict = {"http": proxy, "https": proxy} if proxy else None
-
-            proxy_dict = {"http": proxy, "https": proxy} if proxy else None
             
             # 🕸️ OMNISCIENT: High-Entropy Impersonation
             # Rotate fingerprints to mimic a diverse human fleet
