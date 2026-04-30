@@ -176,29 +176,24 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
     else:
         attachments = attachment_paths or []
         
-    # [👑 INBOX DELIVERY]: Always generate PDF CV + PDF Cover Letter for professional delivery
+    # [👑 INBOX DELIVERY]: Use HTML CV (lightweight 19KB) instead of heavy PDF
     try:
-        from core.pdf_generator import generate_cv_pdf, generate_dynamic_cover_letter
+        # Use the existing HTML CV file (19KB, professional)
+        cv_html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
         
-        # Generate PDF CV
-        cv_pdf_path = generate_cv_pdf(company, title, lead)
-        
-        # Generate PDF Cover Letter if custom_body exists
-        if lead.get('custom_body'):
-            cl_pdf_path = generate_dynamic_cover_letter(company, title, lead.get('custom_body', ''))
-            attachments = [cv_pdf_path, cl_pdf_path]
+        if os.path.exists(cv_html_path):
+            attachments = [cv_html_path]
+            logging.info(f"✅ Using HTML CV for {company} (lightweight)")
         else:
+            # Fallback to PDF if HTML doesn't exist
+            from core.pdf_generator import generate_cv_pdf
+            cv_pdf_path = generate_cv_pdf(company, title, lead)
             attachments = [cv_pdf_path]
+            logging.info(f"✅ Generated PDF CV for {company}")
             
-        logging.info(f"✅ Generated PDF attachments for {company}")
     except Exception as e:
-        logging.error(f"❌ Failed to generate PDF attachments: {e}")
-        # Fallback to HTML CV if PDF generation fails
-        cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
-        if os.path.exists(cv_path):
-            attachments = [cv_path]
-        else:
-            attachments = []
+        logging.error(f"❌ Failed to attach CV: {e}")
+        attachments = []
         
     valid_attachments = [p for p in attachments if p and os.path.exists(p) and os.path.isfile(p)]
 

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sam Salameh - Professional CV</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            display: flex;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: #2c3e50;
+            color: white;
+            padding: 40px 30px;
+        }
+        
+        .avatar {
+            width: 100px;
+            height: 100px;
+            background: #3498db;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: bold;
+            margin: 0 auto 30px;
+        }
+        
+        .sidebar h3 {
+            color: #3498db;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 30px 0 15px 0;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+        }
+        
+        .sidebar p, .sidebar li {
+            font-size: 13px;
+            line-height: 1.8;
+            color: #ecf0f1;
+        }
+        
+        .sidebar ul {
+            list-style: none;
+        }
+        
+        .sidebar li {
+            padding: 8px 0;
+        }
+        
+        .skill-item {
+            background: #34495e;
+            padding: 8px 12px;
+            margin: 6px 0;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 40px;
+        }
+        
+        .header {
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .header h2 {
+            font-size: 18px;
+            color: #3498db;
+            font-weight: normal;
+        }
+        
+        .section {
+            margin-bottom: 35px;
+        }
+        
+        .section h3 {
+            font-size: 20px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .section p {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #555;
+            margin-bottom: 15px;
+        }
+        
+        .achievements {
+            background: #f8f9fa;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        
+        .achievements h4 {
+            color: #3498db;
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .achievements ul {
+            list-style: none;
+        }
+        
+        .achievements li {
+            padding: 8px 0;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.6;
+        }
+        
+        .achievements li:before {
+            content: "• ";
+            color: #3498db;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .experience-item {
+            margin-bottom: 25px;
+            padding-left: 20px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .experience-item h4 {
+            font-size: 16px;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .experience-item .company {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        
+        .experience-item .period {
+            font-size: 12px;
+            color: #95a5a6;
+            background: #ecf0f1;
+            padding: 4px 10px;
+            border-radius: 12px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="avatar">SS</div>
+            
+            <h3>CONTACT</h3>
+            <p>
+                +961 70 841 1009<br>
+                sam.dev1@hotmail.com<br>
+                Beirut, Lebanon<br>
+                linkedin.com/in/sam-salameh
+            </p>
+            
+            <h3>EDUCATION</h3>
+            <p>
+                <strong>B3 - Information Technology</strong><br>
+                Dekwene Technical School<br>
+                2016
+            </p>
+            
+            <h3>CORE SKILLS</h3>
+            <div class="skill-item">Network Design</div>
+            <div class="skill-item">Cisco IOS</div>
+            <div class="skill-item">MikroTik RouterOS</div>
+            <div class="skill-item">Ubiquiti UniFi</div>
+            <div class="skill-item">Fortinet</div>
+            <div class="skill-item">Fiber Optic</div>
+            <div class="skill-item">Firewalls & VPN</div>
+            <div class="skill-item">Traffic Analysis</div>
+            
+            <h3>LANGUAGES</h3>
+            <p>
+                English - Fluent<br>
+                Arabic - Native<br>
+                French - Intermediate
+            </p>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <h1>SAM SALAMEH</h1>
+                <h2>Senior Network Engineer</h2>
+            </div>
+            
+            <div class="section">
+                <h3>Executive Summary</h3>
+                <p>
+                    Accomplished Network Engineer with 15+ years of progressive experience designing, implementing, 
+                    configuring, and troubleshooting enterprise-grade networking infrastructure. Proven expertise in 
+                    managing complex network environments, optimizing performance, and ensuring high availability 
+                    across diverse platforms including Cisco, MikroTik, Ubiquiti, and Fortinet.
+                </p>
+                <p>
+                    Strong background in fiber optic installations, VPN configurations, firewall management, and 
+                    traffic analysis. Demonstrated ability to lead technical projects, mentor junior engineers, and 
+                    deliver solutions that drive business growth while maintaining strict security standards.
+                </p>
+            </div>
+            
+            <div class="achievements">
+                <h4>Key Achievements</h4>
+                <ul>
+                    <li><strong>OPERATIONS LIFECYCLE:</strong> Proven expertise in managing high-volume network deployments, 
+                    infrastructure upgrades, and system migrations with 100% uptime maintenance.</li>
+                    <li><strong>SERVICE & RETENTION:</strong> A track record of resolving 50+ daily complex technical 
+                    issues while maintaining strict SLA compliance and customer satisfaction.</li>
+                    <li><strong>WORKFLOW OPTIMIZATION:</strong> Experience in standardizing network configurations and 
+                    operational procedures to significantly reduce deployment time and overhead.</li>
+                </ul>
+            </div>
+            
+            <div class="section">
+                <h3>Professional Experience</h3>
+                
+                <div class="experience-item">
+                    <h4>Freelance Network Engineer</h4>
+                    <div class="company">Freelance</div>
+                    <div class="period">2023 - Present</div>
+                    <p>
+                        Providing comprehensive network engineering services to diverse clients including enterprise 
+                        businesses, ISPs, and educational institutions. Specializing in network design, implementation, 
+                        troubleshooting, and optimization across multiple vendor platforms.
+                    </p>
+                    <ul>
+                        <li>Designed and deployed enterprise-grade networks for 20+ clients</li>
+                        <li>Implemented secure VPN solutions and firewall configurations</li>
+                        <li>Conducted network audits and performance optimization</li>
+                        <li>Provided 24/7 technical support and emergency response</li>
+                    </ul>
+                </div>
+                
+                <div class="experience-item">
+                    <h4>Network Management Consultant</h4>
+                    <div class="company">Freelance</div>
+                    <div class="period">2021 - 2023</div>
+                    <p>
+                        Consulted with organizations on network infrastructure planning, security implementations, 
+                        and technology upgrades. Delivered strategic recommendations and hands-on technical solutions.
+                    </p>
+                    <ul>
+                        <li>Managed network infrastructure for multiple concurrent projects</li>
+                        <li>Implemented advanced routing protocols (OSPF, BGP, EIGRP)</li>
+                        <li>Configured and maintained enterprise firewalls and security systems</li>
+                        <li>Trained technical teams on best practices and new technologies</li>
+                    </ul>
+                </div>
+                
+                <div class="experience-item">
+                    <h4>Networking Technician</h4>
+                    <div class="company">Professional Network</div>
+                    <div class="period">2010 - 2023</div>
+                    <p>
+                        Provided comprehensive networking support including installation, configuration, maintenance, 
+                        and troubleshooting of network equipment and infrastructure.
+                    </p>
+                    <ul>
+                        <li>Installed and configured routers, switches, and wireless access points</li>
+                        <li>Performed fiber optic cable installations and terminations</li>
+                        <li>Monitored network performance and resolved connectivity issues</li>
+                        <li>Maintained detailed documentation of network configurations</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>Technical Expertise</h3>
+                <p>
+                    <strong>Networking:</strong> TCP/IP, VLAN, Routing & Switching, QoS, Network Security<br>
+                    <strong>Platforms:</strong> Cisco IOS, MikroTik RouterOS, Ubiquiti UniFi, Fortinet FortiGate<br>
+                    <strong>Infrastructure:</strong> Fiber Optic, Structured Cabling, Wireless Networks<br>
+                    <strong>Security:</strong> Firewalls, VPN (IPSec, SSL), Access Control, Intrusion Detection<br>
+                    <strong>Tools:</strong> Wireshark, SolarWinds, PRTG, Nagios, Cacti
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
