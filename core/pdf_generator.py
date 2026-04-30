@@ -623,10 +623,8 @@ def generate_dynamic_cover_letter(company_name, job_title, custom_body, persona=
     sanitized_role = _sanitize_filename(job_title)
     sanitized_company = _sanitize_filename(company_name)
     
-    # [👑 VIP NAMING] Exact aesthetic match for CEO request
-    safe_company_name = company_name.replace(" ", "_")
-    safe_company_name = _sanitize_filename(safe_company_name) # Remove illegal characters
-    filename = f"Sam_Salameh_Cover_Letter_-_{safe_company_name}.pdf"
+    # [👑 SIMPLE NAMING] Clean professional cover letter filename
+    filename = f"Sam_Salameh_Cover_Letter.pdf"
     
     pdf_path = os.path.join(PDF_DIR, filename)
     
@@ -784,9 +782,9 @@ def generate_cv_pdf(company_name, job_title, lead=None):
     sanitized_role = _sanitize_filename(job_title)
     sanitized_company = _sanitize_filename(company_name)
     
-    # [👑 VIP NAMING] Professional CV naming convention
+    # [👑 SIMPLE NAMING] Clean professional CV filename
     safe_name = p.get("name", "Candidate").replace(" ", "_")
-    filename = f"{safe_name}_CV_-_Application_{sanitized_role}_{sanitized_company}.pdf"
+    filename = f"{safe_name}_CV.pdf"
     pdf_path = os.path.join(PDF_DIR, filename)
     
     pdf.output(pdf_path)
