@@ -126,18 +126,33 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
         try:
             attachments = []
             
-            # 1. HTML CV (complete, professional)
-            cv_html_path = os.path.abspath('Sam_Salameh_CV.html')
-            if os.path.exists(cv_html_path):
-                attachments.append(cv_html_path)
-                logging.info(f"✅ Added HTML CV: {cv_html_path}")
+            # 1. PDF CV using Playwright (100% match to HTML)
+            try:
+                from core.cv_playwright_pdf import generate_cv_from_html_playwright
+                cv_pdf_path = generate_cv_from_html_playwright()
+                if cv_pdf_path and os.path.exists(cv_pdf_path):
+                    attachments.append(cv_pdf_path)
+                    logging.info(f"✅ Added Playwright PDF CV: {cv_pdf_path}")
+                else:
+                    raise Exception("Playwright PDF generation failed")
+            except Exception as e:
+                logging.warning(f"⚠️ Playwright failed: {e}, falling back to FPDF")
+                # Fallback to FPDF if Playwright fails
+                from core.cv_pdf_full import generate_full_cv_pdf
+                cv_pdf_path = generate_full_cv_pdf()
+                if cv_pdf_path and os.path.exists(cv_pdf_path):
+                    attachments.append(cv_pdf_path)
+                    logging.info(f"✅ Added FPDF CV: {cv_pdf_path}")
             
-            # 2. PDF CV (generated from code)
-            from core.cv_pdf_full import generate_full_cv_pdf
-            cv_pdf_path = generate_full_cv_pdf()
-            if cv_pdf_path and os.path.exists(cv_pdf_path):
-                attachments.append(cv_pdf_path)
-                logging.info(f"✅ Added PDF CV: {cv_pdf_path}")
+            # 2. Cover Letter PDF
+            try:
+                from core.cover_letter_pdf import generate_cover_letter_pdf
+                cover_pdf_path = generate_cover_letter_pdf(company_name, job_title)
+                if cover_pdf_path and os.path.exists(cover_pdf_path):
+                    attachments.append(cover_pdf_path)
+                    logging.info(f"✅ Added Cover Letter PDF: {cover_pdf_path}")
+            except Exception as e:
+                logging.warning(f"⚠️ Cover letter generation failed: {e}")
             
             attachment_paths = attachments if attachments else []
             
@@ -177,23 +192,44 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
     else:
         attachments = attachment_paths or []
         
-    # [👑 INBOX DELIVERY]: Use HTML CV (lightweight 19KB) instead of heavy PDF
+    # [👑 INBOX DELIVERY]: Use Playwright PDF (100% match to HTML) + Cover Letter
     try:
-        # Use the existing HTML CV file (19KB, professional)
-        cv_html_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
+        attachments = []
         
-        if os.path.exists(cv_html_path):
-            attachments = [cv_html_path]
-            logging.info(f"✅ Using HTML CV for {company} (lightweight)")
-        else:
-            # Fallback to PDF if HTML doesn't exist
-            from core.pdf_generator import generate_cv_pdf
-            cv_pdf_path = generate_cv_pdf(company, title, lead)
-            attachments = [cv_pdf_path]
-            logging.info(f"✅ Generated PDF CV for {company}")
+        # 1. CV PDF - Try Playwright first (best quality)
+        try:
+            from core.cv_playwright_pdf import generate_cv_from_html_playwright
+            cv_pdf_path = generate_cv_from_html_playwright()
+            
+            if cv_pdf_path and os.path.exists(cv_pdf_path):
+                attachments.append(cv_pdf_path)
+                logging.info(f"✅ Using Playwright PDF CV for {company} (100% HTML match)")
+            else:
+                raise Exception("Playwright PDF generation failed")
+        except Exception as e:
+            logging.warning(f"⚠️ Playwright failed: {e}, falling back to FPDF")
+            # Fallback to FPDF
+            from core.cv_pdf_full import generate_full_cv_pdf
+            cv_pdf_path = generate_full_cv_pdf()
+            
+            if cv_pdf_path and os.path.exists(cv_pdf_path):
+                attachments.append(cv_pdf_path)
+                logging.info(f"✅ Using FPDF CV for {company} (professional)")
+            else:
+                logging.error(f"❌ Failed to generate PDF CV")
+        
+        # 2. Cover Letter PDF
+        try:
+            from core.cover_letter_pdf import generate_cover_letter_pdf
+            cover_pdf_path = generate_cover_letter_pdf(company, title)
+            if cover_pdf_path and os.path.exists(cover_pdf_path):
+                attachments.append(cover_pdf_path)
+                logging.info(f"✅ Added Cover Letter PDF for {company}")
+        except Exception as e:
+            logging.warning(f"⚠️ Cover letter generation failed: {e}")
             
     except Exception as e:
-        logging.error(f"❌ Failed to attach CV: {e}")
+        logging.error(f"❌ Failed to attach documents: {e}")
         attachments = []
         
     valid_attachments = [p for p in attachments if p and os.path.exists(p) and os.path.isfile(p)]
@@ -690,12 +726,12 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
         </div>
         
         <p style="margin: 20px 0; font-size: 15px; color: #e2e8f0; line-height: 1.8;">
-          I have attached <strong style="color: #00b4d8;">My CV</strong> for your comprehensive review.
+          I have attached <strong style="color: #00b4d8;">My Professional CV</strong> and <strong style="color: #00b4d8;">Cover Letter</strong> in PDF format for your comprehensive review.
         </p>
         
         <div style="margin: 40px 0 0 0; text-align: center;">
           <a href="{linkedin_url}" style="display: inline-block; padding: 15px 40px; background: #00b4d8; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; letter-spacing: 1px;">
-            VIEW LINKEDIN PORTFOLIO
+            LINKEDIN PROFILE
           </a>
         </div>
       </td>

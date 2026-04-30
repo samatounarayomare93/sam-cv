@@ -2,7 +2,15 @@ import os
 import time
 import asyncio
 import logging
-from duckduckgo_search import DDGS
+import warnings
+warnings.filterwarnings('ignore', category=RuntimeWarning, module='ddgs')
+warnings.filterwarnings('ignore', message='.*duckduckgo_search.*')
+warnings.filterwarnings('ignore', message='.*has been renamed.*')
+logging.getLogger("ddgs").setLevel(logging.CRITICAL)
+try:
+    from ddgs import DDGS
+except ImportError:
+    from duckduckgo_search import DDGS
 import google.generativeai as genai
 from dotenv import load_dotenv
 

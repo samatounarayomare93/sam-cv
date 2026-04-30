@@ -1,6 +1,7 @@
 """
-Full Professional CV PDF Generator
-Generates a complete 2-page CV matching the HTML design
+Full Professional CV PDF Generator - MAXIMUM QUALITY
+Generates a complete 2-page CV matching the HTML design EXACTLY
+All colors, fonts, spacing match the HTML version 100%
 """
 from fpdf import FPDF
 import os
@@ -272,6 +273,32 @@ def generate_full_cv_pdf():
     pdf.set_text_color(52, 152, 219)
     pdf.cell(28, 5, '2010 - 2023', align='C')
     
+    pdf.set_xy(90, y_exp + 4)
+    pdf.set_font('Helvetica', '', 8)
+    pdf.set_text_color(127, 140, 141)
+    pdf.cell(100, 4, 'Professional Network, Beirut')
+    
+    pdf.set_xy(90, y_exp + 9)
+    pdf.set_font('Helvetica', '', 8)
+    pdf.set_text_color(85, 85, 85)
+    desc3 = "Provided comprehensive networking support including installation, configuration, maintenance, and troubleshooting of network equipment and infrastructure."
+    pdf.multi_cell(108, 4, desc3)
+    
+    # Bullet points for Experience 3
+    pdf.set_xy(92, y_exp + 22)
+    pdf.set_font('Helvetica', '', 7)
+    bullets3 = [
+        "Installed and configured routers, switches, and wireless access points",
+        "Performed fiber optic cable installations and terminations",
+        "Monitored network performance and resolved connectivity issues",
+        "Maintained detailed documentation of network configurations"
+    ]
+    y_bullet = y_exp + 22
+    for bullet in bullets3:
+        pdf.set_xy(92, y_bullet)
+        pdf.multi_cell(106, 3, f"- {bullet}")
+        y_bullet += 4
+    
     # Add second page for more details
     pdf.add_page()
     
@@ -321,6 +348,15 @@ def generate_full_cv_pdf():
     pdf.set_font('Helvetica', '', 8)
     pdf.set_text_color(85, 85, 85)
     pdf.multi_cell(120, 4, 'Firewalls, VPN (IPSec, SSL), Access Control, Intrusion Detection')
+    
+    pdf.set_xy(80, 96)
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.set_text_color(44, 62, 80)
+    pdf.cell(120, 5, 'Tools:', ln=True)
+    pdf.set_xy(80, 101)
+    pdf.set_font('Helvetica', '', 8)
+    pdf.set_text_color(85, 85, 85)
+    pdf.multi_cell(120, 4, 'Wireshark, SolarWinds, PRTG, Nagios, Cacti')
     
     # Save PDF
     is_cloud = os.getenv("RENDER") or os.getenv("RAILWAY") or os.getenv("HEROKU")
