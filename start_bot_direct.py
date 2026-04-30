@@ -113,6 +113,48 @@ try:
         except Exception as e:
             await update.message.reply_text(f"❌ Error: {e}")
     
+    async def scrape_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /scrape command"""
+        await update.message.reply_text("🔍 Scraping jobs... This may take a few minutes.")
+        try:
+            from core.scrapers.omni_crawler import OmniCrawler
+            crawler = OmniCrawler()
+            results = await crawler.scrape_all()
+            await update.message.reply_text(f"✅ Scraping complete! Found {len(results)} jobs.")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error: {e}")
+    
+    async def qualify_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /qualify command"""
+        await update.message.reply_text("✅ Qualifying leads...")
+        try:
+            pending = db.get_pending_leads()
+            qualified_count = 0
+            for lead in pending[:10]:  # Qualify first 10
+                score = ai.qualify_lead(lead)
+                if score > 70:
+                    db.update_lead_status(lead['url'], 'qualified')
+                    qualified_count += 1
+            await update.message.reply_text(f"✅ Qualified {qualified_count} leads!")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error: {e}")
+    
+    async def strike_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /strike command"""
+        await update.message.reply_text("🚀 Sending applications...")
+        try:
+            from core.smtp_engine import send_strike
+            qualified = db.get_qualified_leads()
+            sent_count = 0
+            for lead in qualified[:5]:  # Send to first 5
+                result = send_strike(lead)
+                if result:
+                    db.update_lead_status(lead['url'], 'sent')
+                    sent_count += 1
+            await update.message.reply_text(f"✅ Sent {sent_count} applications!")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error: {e}")
+    
     async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle button callbacks"""
         query = update.callback_query
@@ -129,6 +171,45 @@ try:
                     f"Pending: {stats.get('pending', 0)}"
                 )
                 await query.edit_message_text(msg)
+            except Exception as e:
+                await query.edit_message_text(f"❌ Error: {e}")
+        
+        elif query.data == "scrape":
+            await query.edit_message_text("🔍 Scraping jobs... This may take a few minutes.")
+            try:
+                from core.scrapers.omni_crawler import OmniCrawler
+                crawler = OmniCrawler()
+                results = await crawler.scrape_all()
+                await query.edit_message_text(f"✅ Scraping complete! Found {len(results)} jobs.")
+            except Exception as e:
+                await query.edit_message_text(f"❌ Error: {e}")
+        
+        elif query.data == "qualify":
+            await query.edit_message_text("✅ Qualifying leads...")
+            try:
+                pending = db.get_pending_leads()
+                qualified_count = 0
+                for lead in pending[:10]:  # Qualify first 10
+                    score = ai.qualify_lead(lead)
+                    if score > 70:
+                        db.update_lead_status(lead['url'], 'qualified')
+                        qualified_count += 1
+                await query.edit_message_text(f"✅ Qualified {qualified_count} leads!")
+            except Exception as e:
+                await query.edit_message_text(f"❌ Error: {e}")
+        
+        elif query.data == "strike":
+            await query.edit_message_text("🚀 Sending applications...")
+            try:
+                from core.smtp_engine import send_strike
+                qualified = db.get_qualified_leads()
+                sent_count = 0
+                for lead in qualified[:5]:  # Send to first 5
+                    result = send_strike(lead)
+                    if result:
+                        db.update_lead_status(lead['url'], 'sent')
+                        sent_count += 1
+                await query.edit_message_text(f"✅ Sent {sent_count} applications!")
             except Exception as e:
                 await query.edit_message_text(f"❌ Error: {e}")
         
@@ -158,6 +239,9 @@ try:
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("menu", menu))
         app.add_handler(CommandHandler("stats", stats))
+        app.add_handler(CommandHandler("scrape", scrape_cmd))
+        app.add_handler(CommandHandler("qualify", qualify_cmd))
+        app.add_handler(CommandHandler("strike", strike_cmd))
         app.add_handler(CommandHandler("test_email", test_email_cmd))
         app.add_handler(CallbackQueryHandler(handle_callback))
         
