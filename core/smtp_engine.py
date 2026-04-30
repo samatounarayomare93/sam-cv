@@ -562,78 +562,102 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
         return False
 
 def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
-    """[👑 INBOX PURGE V11] Ultra-Premium Transactional HTML Template."""
+    """Professional clean email template - INBOX optimized."""
+    
+    # Build highlights section
     highlights_html = ""
-    colors = ["#06b6d4", "#3b82f6", "#8b5cf6"]
-    for i, h in enumerate(highlights[:3]):
-        color = colors[i % 3]
-        title = h.get('title', 'Competency Block')
-        desc = h.get('desc', '')
-        
-        # [💎 ENHANCED]: Rich text highlighting inside the cards
-        desc = desc.replace("100%", '<span style="color: #4ade80;">100%</span>')
-        
-        highlights_html += f"""
-          <tr>
-            <td style="padding: 20px; background-color: #1e293b; border-radius: 12px; border-left: 4px solid {color};">
-              <span style="font-size: 14px; font-weight: 700; color: #ffffff; text-transform: uppercase; letter-spacing: 1px;">0{i+1}. {title}</span><br>
-              <span style="font-size: 14px; color: #94a3b8; line-height: 1.6;">{desc}</span>
-            </td>
-          </tr>
-          <tr><td height="15"></td></tr>
-        """
-
+    if highlights:
+        highlights_html = "<div style='margin: 20px 0;'><strong style='color: #2563eb;'>Key Qualifications:</strong><ul style='margin: 10px 0; padding-left: 20px;'>"
+        for h in highlights[:3]:
+            title = h.get('title', '')
+            desc = h.get('desc', '')
+            if title and desc:
+                highlights_html += f"<li style='margin: 8px 0; color: #374151;'><strong>{title}:</strong> {desc}</li>"
+        highlights_html += "</ul></div>"
+    
+    # Get candidate info from environment
     linkedin_url = os.getenv("LINKEDIN_URL", "https://linkedin.com/in/sam-salameh")
     phone = os.getenv("CANDIDATE_PHONE", "+961 70 841 1009")
     candidate_email = os.getenv("SENDER_EMAIL", "sam.dev1@hotmail.com")
+    candidate_name = os.getenv("SENDER_NAME", "Sam Salameh")
     candidate_profession = os.getenv("CANDIDATE_PROFESSION", "Senior Network Engineer")
-
+    
+    # Use custom body if provided, otherwise use default
+    if body_text and len(body_text.strip()) > 50:
+        main_content = f"<p style='color: #374151; line-height: 1.6; margin: 15px 0;'>{body_text}</p>"
+    else:
+        main_content = f"""
+        <p style='color: #374151; line-height: 1.6; margin: 15px 0;'>
+            I am writing to express my strong interest in the <strong>{job_title}</strong> position at {company_name}. 
+            With my extensive background in {candidate_profession.lower()}, I am confident in my ability to contribute 
+            meaningfully to your team.
+        </p>
+        <p style='color: #374151; line-height: 1.6; margin: 15px 0;'>
+            My experience includes designing and implementing enterprise-grade network infrastructure, managing complex 
+            technical projects, and delivering solutions that drive business growth. I am particularly drawn to this 
+            opportunity because of {company_name}'s reputation for excellence and innovation.
+        </p>
+        """
+    
     return f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="background-color: #0b0f19; padding: 40px 20px; font-family: sans-serif; margin: 0;">
-  <table width="100%" align="center" cellpadding="0" cellspacing="0" style="max-width: 650px; margin: 0 auto; background-color: #111827; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+<body style="margin: 0; padding: 20px; font-family: Arial, Helvetica, sans-serif; background-color: #f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb;">
+    <!-- Header -->
     <tr>
-      <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px 30px; text-align: center;">
-        <div style="display: inline-block; width: 60px; height: 60px; background-color: #06b6d4; border-radius: 30px; line-height: 60px; color: #ffffff; font-size: 24px; font-weight: bold; margin-bottom: 15px;">
-           SS
-        </div>
-        <div style="font-size: 13px; letter-spacing: 4px; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px;">{candidate_profession}</div>
-        <div style="font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">SAM SALAMEH</div>
+      <td style="padding: 30px 40px; background-color: #ffffff; border-bottom: 3px solid #2563eb;">
+        <h1 style="margin: 0; font-size: 24px; color: #1f2937; font-weight: 600;">{candidate_name}</h1>
+        <p style="margin: 5px 0 0 0; font-size: 14px; color: #6b7280;">{candidate_profession}</p>
       </td>
     </tr>
-    <tr><td height="4" style="background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);"></td></tr>
+    
+    <!-- Body -->
     <tr>
-      <td style="padding: 40px 35px;">
-        <p style="font-size: 17px; margin-top: 0; color: #f8fafc;">Dear <strong>{company_name}</strong> Hiring Team,</p>
-        <p style="font-size: 15px; line-height: 1.8; color: #cbd5e1;">I am formally reaching out to express my high-level interest in the <span style="color: #06b6d4; font-weight: 600;">{job_title}</span> position.</p>
-        <p style="font-size: 15px; line-height: 1.8; color: #cbd5e1;">My methodology is built specifically for organizations that focus heavily on <strong>automation, KPIs, and scaling corporate culture</strong>.</p>
+      <td style="padding: 40px;">
+        <p style="margin: 0 0 15px 0; font-size: 16px; color: #1f2937;">Dear {company_name} Hiring Team,</p>
         
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-          {highlights_html}
+        <p style="margin: 15px 0; font-size: 16px; color: #1f2937; font-weight: 600;">
+            Re: Application for {job_title}
+        </p>
+        
+        {main_content}
+        
+        {highlights_html}
+        
+        <p style='color: #374151; line-height: 1.6; margin: 15px 0;'>
+            I have attached my CV for your review. I would welcome the opportunity to discuss how my skills and 
+            experience align with your needs.
+        </p>
+        
+        <p style='color: #374151; line-height: 1.6; margin: 15px 0;'>
+            Thank you for considering my application. I look forward to hearing from you.
+        </p>
+        
+        <p style='color: #374151; line-height: 1.6; margin: 25px 0 5px 0;'>
+            Best regards,<br>
+            <strong>{candidate_name}</strong>
+        </p>
+      </td>
+    </tr>
+    
+    <!-- Footer -->
+    <tr>
+      <td style="padding: 30px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="font-size: 14px; color: #6b7280; line-height: 1.6;">
+              <strong style="color: #1f2937;">{candidate_name}</strong><br>
+              {candidate_profession}<br>
+              <a href="mailto:{candidate_email}" style="color: #2563eb; text-decoration: none;">{candidate_email}</a><br>
+              <a href="tel:{phone}" style="color: #2563eb; text-decoration: none;">{phone}</a><br>
+              <a href="{linkedin_url}" style="color: #2563eb; text-decoration: none;">LinkedIn Profile</a>
+            </td>
+          </tr>
         </table>
-
-        <div style="padding: 20px 25px; background-color: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 12px; margin-bottom: 30px; text-align: center;">
-          <p style="margin: 0; font-style: italic; color: #e2e8f0; font-size: 16px; line-height: 1.5;">
-            "I am looking to bring rigorous accountability and structured scaling to the <strong>{company_name}</strong> team."
-          </p>
-        </div>
-        
-        <p style="font-size: 15px; line-height: 1.8; color: #cbd5e1; margin-bottom: 0;">I have attached <b>My CV</b> for your comprehensive review.</p>
-      </td>
-    </tr>
-    <tr>
-      <td style="background-color: #0f172a; padding: 40px 30px; text-align: center; border-top: 1px solid #1e293b;">
-        <a href="{linkedin_url}" style="display: inline-block; padding: 14px 32px; background-color: #06b6d4; color: #ffffff; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 14px; letter-spacing: 1.5px;">VIEW LINKEDIN PORTFOLIO</a>
-        <div style="margin-top: 30px;">
-          <a href="mailto:{candidate_email}" style="color: #94a3b8; font-size: 14px; text-decoration: none;">{candidate_email}</a>
-          <span style="color: #334155; margin: 0 10px;">|</span>
-          <a href="tel:{phone}" style="color: #94a3b8; font-size: 14px; text-decoration: none;">{phone}</a>
-        </div>
-        <div style="font-size: 12px; color: #475569; margin-top: 20px;">{candidate_profession}</div>
       </td>
     </tr>
   </table>
