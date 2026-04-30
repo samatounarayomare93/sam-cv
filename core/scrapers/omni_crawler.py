@@ -24,7 +24,7 @@ from core.scrapers.scraper import fetch_page, _get_deep_dive_count, _increment_d
 from core.db_manager import db_manager
 from core.ai_agent import OmniIntelligence
 from core.scrapers.healer_intelligence import get_patrol
-from ddgs import DDGS
+from duckduckgo_search import DDGS
 from urllib.parse import urlparse
 
 

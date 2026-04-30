@@ -132,11 +132,17 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
                 'highlights': dynamic_highlights
             }
             
-            # 👑 [VIP EXACT ATTACHMENTS]: Use HTML CV + dynamic PDF Cover Letter
-            cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
+            # 👑 [INBOX DELIVERY]: Use PDF CV + PDF Cover Letter (Professional Standard)
+            from core.pdf_generator import generate_cv_pdf
+            
+            # Generate PDF CV from HTML
+            cv_pdf_path = generate_cv_pdf(company_name, job_title, dummy_lead)
+            
+            # Generate PDF Cover Letter
             cl_path = generate_dynamic_cover_letter(company_name, job_title, dummy_lead.get('custom_body', ''), strike_id=8551)
-            attachment_paths = [cv_path, cl_path]
-            logging.info(f"✅ Generated attachments: CV + Cover Letter")
+            
+            attachment_paths = [cv_pdf_path, cl_path]
+            logging.info(f"✅ Generated PDF attachments: CV + Cover Letter")
         except Exception as e:
             logging.error(f"❌ Failed to generate attachments: {e}")
             attachment_paths = []
@@ -170,10 +176,29 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
     else:
         attachments = attachment_paths or []
         
-    # [👑 VIP EXACT ATTACHMENTS]: Always ensure the master HTML CV is included in real strikes
-    cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
-    if cv_path not in attachments and os.path.exists(cv_path):
-        attachments.insert(0, cv_path)
+    # [👑 INBOX DELIVERY]: Always generate PDF CV + PDF Cover Letter for professional delivery
+    try:
+        from core.pdf_generator import generate_cv_pdf, generate_dynamic_cover_letter
+        
+        # Generate PDF CV
+        cv_pdf_path = generate_cv_pdf(company, title, lead)
+        
+        # Generate PDF Cover Letter if custom_body exists
+        if lead.get('custom_body'):
+            cl_pdf_path = generate_dynamic_cover_letter(company, title, lead.get('custom_body', ''))
+            attachments = [cv_pdf_path, cl_pdf_path]
+        else:
+            attachments = [cv_pdf_path]
+            
+        logging.info(f"✅ Generated PDF attachments for {company}")
+    except Exception as e:
+        logging.error(f"❌ Failed to generate PDF attachments: {e}")
+        # Fallback to HTML CV if PDF generation fails
+        cv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Sam_Salameh_CV.html'))
+        if os.path.exists(cv_path):
+            attachments = [cv_path]
+        else:
+            attachments = []
         
     valid_attachments = [p for p in attachments if p and os.path.exists(p) and os.path.isfile(p)]
 
@@ -204,9 +229,8 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com'):
         to_email = getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com')
     
-    # [👑 CENTRALIZED METADATA]: Generate Strike-ID once for the entire chain
-    strike_id = random.randint(1000, 9999)
-    subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
+    # [👑 CENTRALIZED METADATA]: Generate professional subject line
+    subject = f"{job_title} Application - {sender_name}"
 
     # ============================================================
     # 🌟 ABSOLUTE PRIORITY 1: GMAIL API (HTTP Port 443)
@@ -374,8 +398,7 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         if not service: return False
         
         if not subject:
-            strike_id = random.randint(1000, 9999)
-            subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
+            subject = f"{job_title} Application - {sender_name}"
         
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
@@ -428,8 +451,7 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     sender_email = brevo_smtp_login if brevo_smtp_login else real_user_email
     
     if not subject:
-        strike_id = random.randint(1000, 9999)
-        subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
+        subject = f"{job_title} Application - {sender_name}"
         
     html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
     
@@ -474,8 +496,7 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
     """[👑 SMTP IGNITION] Final structural delivery."""
     try:
         if not subject:
-            strike_id = random.randint(1000, 9999)
-            subject = f"Application: {job_title} - {company_name} [STRIKE-{strike_id}]"
+            subject = f"{job_title} Application - {sender_name}"
             
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
