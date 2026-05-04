@@ -369,6 +369,44 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                         return True
             except Exception as e:
                 logging.warning(f"⚠️ Gmail API failed: {e}")
+
+        # PRIORITY 4 on Render: Zoho SMTP port 465 (SSL - may work on Render)
+        zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
+        zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
+        if zoho_user and zoho_pass:
+            zoho_provider = {'name': 'Zoho (SSL-465)', 'server': 'smtp.zoho.com',
+                             'port': 465, 'email': zoho_user, 'password': zoho_pass, 'use_ssl': True}
+            try:
+                logging.info("📧 [ZOHO] PRIORITY 4: Attempting Zoho SMTP port 465...")
+                res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                if res:
+                    logging.info("✅ ZOHO SUCCESS!")
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("zoho_1")
+                    except: pass
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ Zoho failed: {e}")
+
+        # PRIORITY 5: Zoho account #2
+        zoho_user2 = os.getenv("ZOHO_SMTP_USER_2", "").strip()
+        zoho_pass2 = os.getenv("ZOHO_APP_PASSWORD_2", "").strip()
+        if zoho_user2 and zoho_pass2:
+            zoho_provider2 = {'name': 'Zoho2 (SSL-465)', 'server': 'smtp.zoho.com',
+                              'port': 465, 'email': zoho_user2, 'password': zoho_pass2, 'use_ssl': True}
+            try:
+                logging.info("📧 [ZOHO2] PRIORITY 5: Attempting Zoho #2 SMTP port 465...")
+                res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider2, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                if res:
+                    logging.info("✅ ZOHO #2 SUCCESS!")
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("zoho_2")
+                    except: pass
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ Zoho #2 failed: {e}")
         
         logging.error("❌ ALL HTTP APIs FAILED on Render (SMTP ports are blocked)")
         return False
@@ -681,29 +719,30 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         logging.error(f"FATAL GMAIL API ERROR: {e}")
         return False
 
-def send_email_via_resend(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
-    """[RESEND API] Best Gmail inbox delivery. Free 3000/month. Uses resend.com."""
+def send_email_via_resend(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None, api_key_env="RESEND_API_KEY"):
+    """[RESEND API] Best Gmail inbox delivery. Supports multiple accounts."""
     if not HAS_RESEND:
         logging.error("❌ [RESEND] resend package not installed!")
         return False
-    
-    resend_key = os.getenv("RESEND_API_KEY", "").strip()
-    if not resend_key:
-        logging.error("❌ [RESEND] RESEND_API_KEY not configured!")
+
+    # Try all configured Resend keys (account rotation)
+    resend_keys = []
+    for env_var in ["RESEND_API_KEY", "RESEND_API_KEY_2", "RESEND_API_KEY_3"]:
+        key = os.getenv(env_var, "").strip()
+        if key:
+            resend_keys.append((env_var, key))
+
+    if not resend_keys:
+        logging.error("❌ [RESEND] No RESEND_API_KEY configured!")
         return False
-    
-    resend_lib.api_key = resend_key
-    
+
     if not subject:
         subject = f"Application: {job_title} - {company_name}"
-    
+
     html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
-    
-    # Resend requires a verified domain for "from" address
-    # Using onboarding@resend.dev works for testing, or use verified domain
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
-    
-    # Build attachments list
+
+    # Build attachments
     attachments = []
     if attachment_paths:
         for path in attachment_paths:
@@ -711,34 +750,36 @@ def send_email_via_resend(to_email, company_name, job_title, custom_body, attach
                 try:
                     with open(path, "rb") as f:
                         content = base64.b64encode(f.read()).decode("utf-8")
-                        filename = os.path.basename(path)
-                        attachments.append({"filename": filename, "content": content})
+                        attachments.append({"filename": os.path.basename(path), "content": content})
                 except Exception as e:
                     logging.warning(f"⚠️ [RESEND] Failed to attach {path}: {e}")
-    
-    try:
-        params = {
-            "from": f"{sender_name} <onboarding@resend.dev>",
-            "to": [to_email],
-            "subject": subject,
-            "html": html_content,
-            "reply_to": reply_to or gmail_user or to_email,
-        }
-        if attachments:
-            params["attachments"] = attachments
-        
-        logging.info(f"📤 [RESEND] Sending to {to_email}...")
-        r = resend_lib.Emails.send(params)
-        
-        if r and r.get('id'):
-            logging.info(f"✅ [RESEND] Email delivered! ID: {r.get('id')}")
-            return True
-        else:
-            logging.error(f"❌ [RESEND] Unexpected response: {r}")
-            return False
-    except Exception as e:
-        logging.error(f"❌ [RESEND] Failed: {e}")
-        return False
+
+    # Try each Resend key until one works
+    for env_var, key in resend_keys:
+        try:
+            resend_lib.api_key = key
+            params = {
+                "from": f"{sender_name} <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+                "reply_to": reply_to or gmail_user or to_email,
+            }
+            if attachments:
+                params["attachments"] = attachments
+
+            logging.info(f"📤 [RESEND] Sending via {env_var} to {to_email}...")
+            r = resend_lib.Emails.send(params)
+
+            if r and r.get('id'):
+                logging.info(f"✅ [RESEND] SUCCESS! Email ID: {r.get('id')} → Delivered to INBOX!")
+                return True
+        except Exception as e:
+            logging.warning(f"⚠️ [RESEND] {env_var} failed: {e}, trying next key...")
+            continue
+
+    logging.error("❌ [RESEND] All Resend keys failed!")
+    return False
 
 
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
