@@ -374,39 +374,44 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
         zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
         if zoho_user and zoho_pass:
-            zoho_provider = {'name': 'Zoho (SSL-465)', 'server': 'smtp.zoho.com',
-                             'port': 465, 'email': zoho_user, 'password': zoho_pass, 'use_ssl': True}
-            try:
-                logging.info("📧 [ZOHO] PRIORITY 4: Attempting Zoho SMTP port 465...")
-                res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                if res:
-                    logging.info("✅ ZOHO SUCCESS!")
-                    try:
-                        from core.email_rotator import record_email_sent
-                        record_email_sent("zoho_1")
-                    except: pass
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ Zoho failed: {e}")
+            # Try port 465 first, then 587
+            for zoho_port, zoho_ssl in [(465, True), (587, False)]:
+                zoho_provider = {'name': f'Zoho ({"SSL" if zoho_ssl else "TLS"}-{zoho_port})',
+                                 'server': 'smtp.zoho.com', 'port': zoho_port,
+                                 'email': zoho_user, 'password': zoho_pass, 'use_ssl': zoho_ssl}
+                try:
+                    logging.info(f"📧 [ZOHO] PRIORITY 4: Attempting Zoho SMTP port {zoho_port}...")
+                    res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                    if res:
+                        logging.info(f"✅ ZOHO PORT {zoho_port} SUCCESS!")
+                        try:
+                            from core.email_rotator import record_email_sent
+                            record_email_sent("zoho_1")
+                        except: pass
+                        return True
+                except Exception as e:
+                    logging.warning(f"⚠️ Zoho port {zoho_port} failed: {e}")
 
         # PRIORITY 5: Zoho account #2
         zoho_user2 = os.getenv("ZOHO_SMTP_USER_2", "").strip()
         zoho_pass2 = os.getenv("ZOHO_APP_PASSWORD_2", "").strip()
         if zoho_user2 and zoho_pass2:
-            zoho_provider2 = {'name': 'Zoho2 (SSL-465)', 'server': 'smtp.zoho.com',
-                              'port': 465, 'email': zoho_user2, 'password': zoho_pass2, 'use_ssl': True}
-            try:
-                logging.info("📧 [ZOHO2] PRIORITY 5: Attempting Zoho #2 SMTP port 465...")
-                res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider2, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                if res:
-                    logging.info("✅ ZOHO #2 SUCCESS!")
-                    try:
-                        from core.email_rotator import record_email_sent
-                        record_email_sent("zoho_2")
-                    except: pass
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ Zoho #2 failed: {e}")
+            for zoho_port, zoho_ssl in [(465, True), (587, False)]:
+                zoho_provider2 = {'name': f'Zoho2 ({"SSL" if zoho_ssl else "TLS"}-{zoho_port})',
+                                  'server': 'smtp.zoho.com', 'port': zoho_port,
+                                  'email': zoho_user2, 'password': zoho_pass2, 'use_ssl': zoho_ssl}
+                try:
+                    logging.info(f"📧 [ZOHO2] PRIORITY 5: Attempting Zoho #2 port {zoho_port}...")
+                    res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider2, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                    if res:
+                        logging.info(f"✅ ZOHO #2 PORT {zoho_port} SUCCESS!")
+                        try:
+                            from core.email_rotator import record_email_sent
+                            record_email_sent("zoho_2")
+                        except: pass
+                        return True
+                except Exception as e:
+                    logging.warning(f"⚠️ Zoho #2 port {zoho_port} failed: {e}")
         
         logging.error("❌ ALL HTTP APIs FAILED on Render (SMTP ports are blocked)")
         return False
