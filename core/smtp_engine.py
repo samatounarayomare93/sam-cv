@@ -282,7 +282,8 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     logging.info(f"🔍 [GMAIL-CHECK] Pass: {'✅ SET' if gmail_pass else '❌ MISSING'} ({len(gmail_pass)} chars)")
     
     if gmail_user and gmail_pass:
-        gmail_provider = {
+        # Try Port 465 (SSL) first
+        gmail_provider_465 = {
             'name': 'Gmail (SSL-465)',
             'server': 'smtp.gmail.com',
             'port': 465,
@@ -291,11 +292,10 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             'use_ssl': True
         }
         try:
-            logging.info("📧 [GMAIL-SMTP] ⭐ PRIORITY 1: Attempting Gmail SMTP Delivery (App Password)...")
-            logging.info(f"📧 [GMAIL-SMTP] Connecting to {gmail_provider['server']}:{gmail_provider['port']} (SSL)")
-            res = _send_via_provider(to_email, company_name, job_title, custom_body, gmail_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+            logging.info("📧 [GMAIL-SMTP] ⭐ PRIORITY 1A: Attempting Gmail SMTP Port 465 (SSL)...")
+            res = _send_via_provider(to_email, company_name, job_title, custom_body, gmail_provider_465, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
             if res:
-                logging.info("✅ ⭐ GMAIL SMTP SUCCESS — Delivered via Gmail directly to INBOX!")
+                logging.info("✅ ⭐ GMAIL SMTP 465 SUCCESS — Delivered via Gmail directly to INBOX!")
                 
                 # 🚀 ZERO-COST: Record email sent
                 try:
@@ -305,9 +305,36 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 
                 return True
             else:
-                logging.error("❌ [GMAIL-SMTP] _send_via_provider returned False (connection or auth failed)")
+                logging.warning("⚠️ [GMAIL-SMTP] Port 465 failed, trying port 587...")
         except Exception as e:
-            logging.error(f"❌ [GMAIL-SMTP] FAILED with exception: {e}")
+            logging.warning(f"⚠️ [GMAIL-SMTP] Port 465 exception: {e}, trying port 587...")
+        
+        # Try Port 587 (STARTTLS) as fallback - better for cloud platforms
+        gmail_provider_587 = {
+            'name': 'Gmail (STARTTLS-587)',
+            'server': 'smtp.gmail.com',
+            'port': 587,
+            'email': gmail_user,
+            'password': gmail_pass,
+            'use_ssl': False
+        }
+        try:
+            logging.info("📧 [GMAIL-SMTP] ⭐ PRIORITY 1B: Attempting Gmail SMTP Port 587 (STARTTLS)...")
+            res = _send_via_provider(to_email, company_name, job_title, custom_body, gmail_provider_587, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+            if res:
+                logging.info("✅ ⭐ GMAIL SMTP 587 SUCCESS — Delivered via Gmail directly to INBOX!")
+                
+                # 🚀 ZERO-COST: Record email sent
+                try:
+                    from core.email_rotator import record_email_sent
+                    record_email_sent("gmail")
+                except: pass
+                
+                return True
+            else:
+                logging.error("❌ [GMAIL-SMTP] Both ports 465 and 587 failed")
+        except Exception as e:
+            logging.error(f"❌ [GMAIL-SMTP] Port 587 also failed: {e}")
             import traceback
             logging.error(f"❌ [GMAIL-SMTP] Traceback: {traceback.format_exc()}")
     else:
