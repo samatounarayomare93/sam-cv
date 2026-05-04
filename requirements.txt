@@ -41,6 +41,7 @@ pytz>=2023.3
 
 # Email Delivery (Best Gmail inbox delivery - FREE 3000/month)
 resend>=2.0.0
+mailjet-rest>=1.3.4
 
 # Email Delivery (Best Gmail deliverability - FREE 3000/month)
 resend>=2.0.0

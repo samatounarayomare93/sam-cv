@@ -21,6 +21,11 @@ try:
 except ImportError:
     HAS_RESEND = False
 try:
+    import mailjet_rest
+    HAS_MAILJET = True
+except ImportError:
+    HAS_MAILJET = False
+try:
     from core.gmail_auth import get_gmail_service
 except ImportError:
     get_gmail_service = None
@@ -426,6 +431,34 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                         return True
             except Exception as e:
                 logging.warning(f"⚠️ Gmail API failed: {e}")
+
+        # PRIORITY 14: Mailjet (200/day free)
+        if os.getenv("MAILJET_API_KEY") and os.getenv("MAILJET_API_SECRET"):
+            try:
+                logging.info("📧 [MAILJET] Attempting Mailjet API (200/day free)...")
+                if send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
+                    logging.info("✅ MAILJET SUCCESS!")
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("mailjet")
+                    except: pass
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ Mailjet failed: {e}")
+
+        # PRIORITY 15: SendPulse (400/day free)
+        if os.getenv("SENDPULSE_CLIENT_ID") and os.getenv("SENDPULSE_CLIENT_SECRET"):
+            try:
+                logging.info("📧 [SENDPULSE] Attempting SendPulse API (400/day free)...")
+                if send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
+                    logging.info("✅ SENDPULSE SUCCESS!")
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("sendpulse")
+                    except: pass
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ SendPulse failed: {e}")
 
         logging.error("❌ ALL PROVIDERS FAILED on Render")
         return False
@@ -895,6 +928,147 @@ def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, att
         else:
             logging.error(f"❌ [SENDPULSE] Failed: {r.status_code} - {r.text[:200]}")
             return False
+    except Exception as e:
+        logging.error(f"❌ [SENDPULSE] Exception: {e}")
+        return False
+
+
+def send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
+    """[MAILJET API] Free 200/day. Uses HTTP port 443 - works on Render."""
+    api_key = os.getenv("MAILJET_API_KEY", "").strip()
+    api_secret = os.getenv("MAILJET_API_SECRET", "").strip()
+    if not api_key or not api_secret:
+        return False
+
+    if not subject:
+        subject = f"Application: {job_title} - {company_name}"
+
+    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    sender_email = gmail_user or "sam.dev1@hotmail.com"
+
+    # Build attachments
+    attachment_list = []
+    if attachment_paths:
+        for path in attachment_paths:
+            if path and os.path.exists(path):
+                try:
+                    with open(path, "rb") as f:
+                        content = base64.b64encode(f.read()).decode("utf-8")
+                        attachment_list.append({
+                            "ContentType": "application/pdf",
+                            "Filename": os.path.basename(path),
+                            "Base64Content": content
+                        })
+                except Exception as e:
+                    logging.warning(f"⚠️ [MAILJET] Failed to attach {path}: {e}")
+
+    payload = {
+        "Messages": [{
+            "From": {"Email": sender_email, "Name": sender_name},
+            "To": [{"Email": to_email}],
+            "Subject": subject,
+            "HTMLPart": html_content,
+            "ReplyTo": {"Email": reply_to or gmail_user or sender_email}
+        }]
+    }
+    if attachment_list:
+        payload["Messages"][0]["Attachments"] = attachment_list
+
+    try:
+        logging.info(f"📤 [MAILJET] Sending to {to_email}...")
+        response = requests.post(
+            "https://api.mailjet.com/v3.1/send",
+            auth=(api_key, api_secret),
+            json=payload,
+            timeout=20
+        )
+        if response.status_code in (200, 201):
+            data = response.json()
+            messages = data.get("Messages", [])
+            if messages and messages[0].get("Status") == "success":
+                logging.info(f"✅ [MAILJET] Email sent successfully!")
+                return True
+        logging.error(f"❌ [MAILJET] Failed: {response.status_code} - {response.text[:200]}")
+        return False
+    except Exception as e:
+        logging.error(f"❌ [MAILJET] Exception: {e}")
+        return False
+
+
+def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
+    """[SENDPULSE API] Free 12,000/month (~400/day). Uses HTTP port 443 - works on Render."""
+    client_id = os.getenv("SENDPULSE_CLIENT_ID", "").strip()
+    client_secret = os.getenv("SENDPULSE_CLIENT_SECRET", "").strip()
+    if not client_id or not client_secret:
+        return False
+
+    if not subject:
+        subject = f"Application: {job_title} - {company_name}"
+
+    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    sender_email = gmail_user or "sam.dev1@hotmail.com"
+
+    try:
+        # Step 1: Get access token
+        token_response = requests.post(
+            "https://api.sendpulse.com/oauth/access_token",
+            json={
+                "grant_type": "client_credentials",
+                "client_id": client_id,
+                "client_secret": client_secret
+            },
+            timeout=15
+        )
+        if token_response.status_code != 200:
+            logging.error(f"❌ [SENDPULSE] Token failed: {token_response.text[:200]}")
+            return False
+
+        token = token_response.json().get("access_token")
+        if not token:
+            return False
+
+        # Step 2: Send email
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+        # Build attachments
+        attachments = {}
+        if attachment_paths:
+            for path in attachment_paths:
+                if path and os.path.exists(path):
+                    try:
+                        with open(path, "rb") as f:
+                            content = base64.b64encode(f.read()).decode("utf-8")
+                            attachments[os.path.basename(path)] = content
+                    except Exception as e:
+                        logging.warning(f"⚠️ [SENDPULSE] Failed to attach {path}: {e}")
+
+        payload = {
+            "email": {
+                "html": html_content,
+                "text": re.sub(r'<[^>]+>', '', html_content)[:500],
+                "subject": subject,
+                "from": {"name": sender_name, "email": sender_email},
+                "to": [{"name": to_email.split("@")[0], "email": to_email}],
+                "reply_to": {"name": sender_name, "email": reply_to or gmail_user or sender_email}
+            }
+        }
+        if attachments:
+            payload["email"]["attachments"] = attachments
+
+        logging.info(f"📤 [SENDPULSE] Sending to {to_email}...")
+        response = requests.post(
+            "https://api.sendpulse.com/smtp/emails",
+            headers=headers,
+            json=payload,
+            timeout=20
+        )
+        if response.status_code in (200, 201, 202):
+            logging.info(f"✅ [SENDPULSE] Email sent successfully!")
+            return True
+        logging.error(f"❌ [SENDPULSE] Failed: {response.status_code} - {response.text[:200]}")
+        return False
     except Exception as e:
         logging.error(f"❌ [SENDPULSE] Exception: {e}")
         return False
