@@ -277,10 +277,16 @@ async def scrape_new_companies_async():
     for i in range(0, len(pages), batch_size):
         batch = pages[i:i + batch_size]
         tasks = [scrape_daleel_page(p, user_agents, base_url, site_patch) for p in batch]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for res in results:
-            if isinstance(res, list):
-                all_jobs.extend(res)
+        try:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for j, res in enumerate(results):
+                if isinstance(res, Exception):
+                    logging.error(f"Daleel Page {batch[j]} failed: {res}")
+                elif isinstance(res, list):
+                    all_jobs.extend(res)
+        except Exception as e:
+            logging.error(f"Daleel batch {i//batch_size + 1} failed: {e}")
+        
         # Human-like delay between batches
         if i + batch_size < len(pages):
             delay = random.uniform(8, 15)  # [🛡️ STEALTH: Increased from 3-7 to 8-15 seconds]
@@ -291,7 +297,20 @@ async def scrape_new_companies_async():
     return all_jobs
 
 def scrape_new_companies():
-    return asyncio.run(scrape_new_companies_async())
+    # [🛡️ FIX]: Use get_event_loop() instead of asyncio.run() to avoid event loop conflicts
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If loop is already running, create a task instead
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, scrape_new_companies_async())
+                return future.result()
+        else:
+            return loop.run_until_complete(scrape_new_companies_async())
+    except RuntimeError:
+        # Fallback: create new event loop
+        return asyncio.run(scrape_new_companies_async())
 
 
 # ============================================================================

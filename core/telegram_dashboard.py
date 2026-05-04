@@ -987,7 +987,10 @@ class SovereignDashboard:
             try:
                 # [👑 DIAGNOSTIC]: Check for Render-specific SMTP blocks
                 if os.getenv("RENDER") and not (os.getenv("BREVO_SMTP_PASSWORD", "")).strip():
-                    await msg.edit_text("❌ <b>STRIKE FAILED: RENDER BLOCK</b>\nYou are on Render, but <code>BREVO_SMTP_PASSWORD</code> is not set. Render blocks standard SMTP (Port 587/465). Please add your Brevo key to bypass this.", parse_mode='HTML')
+                    try:
+                        await msg.edit_text("❌ <b>STRIKE FAILED: RENDER BLOCK</b>\nYou are on Render, but <code>BREVO_SMTP_PASSWORD</code> is not set. Render blocks standard SMTP (Port 587/465). Please add your Brevo key to bypass this.", parse_mode='HTML')
+                    except Exception as e:
+                        logging.warning(f"Failed to edit message: {e}")
                     return
 
                 # Run in thread to avoid blocking event loop during PDF generation
@@ -1025,7 +1028,10 @@ class SovereignDashboard:
                         "• SMTP credentials in .env"
                     )
                     
-                    await msg.edit_text(success_msg, parse_mode='HTML')
+                    try:
+                        await msg.edit_text(success_msg, parse_mode='HTML')
+                    except Exception as e:
+                        logging.warning(f"Failed to edit message: {e}")
                 else:
                     # Get more details about the failure
                     zoho_configured = bool(os.getenv("ZOHO_SMTP_USER") and os.getenv("ZOHO_APP_PASSWORD"))
@@ -1049,10 +1055,16 @@ class SovereignDashboard:
                         error_msg += "• Firewall blocking ports\n"
                         error_msg += "• Email provider blocking"
                     
-                    await msg.edit_text(error_msg, parse_mode='HTML')
+                    try:
+                        await msg.edit_text(error_msg, parse_mode='HTML')
+                    except Exception as e:
+                        logging.warning(f"Failed to edit message: {e}")
             except Exception as e:
                 logging.error(f"💥 Test strike error: {e}")
-                await msg.edit_text(f"💥 <b>INTERNAL ERROR:</b>\n<code>{str(e)[:200]}</code>", parse_mode='HTML')
+                try:
+                    await msg.edit_text(f"💥 <b>INTERNAL ERROR:</b>\n<code>{str(e)[:200]}</code>", parse_mode='HTML')
+                except Exception as edit_err:
+                    logging.warning(f"Failed to edit message: {edit_err}")
             return
 
         if user_text.startswith('/'): return
