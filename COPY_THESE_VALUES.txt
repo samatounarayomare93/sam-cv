@@ -1,0 +1,31 @@
+═══════════════════════════════════════════════════════════════
+RENDER.COM FORM VALUES - COPY THESE EXACTLY
+═══════════════════════════════════════════════════════════════
+
+Name:
+sam-job-automator
+
+Region:
+Frankfurt
+
+Branch:
+main
+
+Root Directory:
+(leave empty)
+
+Runtime:
+Python 3
+
+Build Command:
+pip install -r requirements.txt
+
+Start Command:
+python run.py
+
+Instance Type:
+Free
+
+═══════════════════════════════════════════════════════════════
+IMPORTANT: Copy each value exactly as shown above!
+═══════════════════════════════════════════════════════════════
