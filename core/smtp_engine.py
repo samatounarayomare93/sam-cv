@@ -447,7 +447,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 logging.warning(f"⚠️ Mailjet failed: {e}")
 
         # PRIORITY 15: SendPulse (400/day free)
-        if os.getenv("SENDPULSE_CLIENT_ID") and os.getenv("SENDPULSE_CLIENT_SECRET"):
+        if os.getenv("SENDPULSE_API_KEY") or (os.getenv("SENDPULSE_CLIENT_ID") and os.getenv("SENDPULSE_CLIENT_SECRET")):
             try:
                 logging.info("📧 [SENDPULSE] Attempting SendPulse API (400/day free)...")
                 if send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
@@ -998,9 +998,12 @@ def send_email_via_mailjet(to_email, company_name, job_title, custom_body, attac
 
 def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
     """[SENDPULSE API] Free 12,000/month (~400/day). Uses HTTP port 443 - works on Render."""
+    api_key = os.getenv("SENDPULSE_API_KEY", "").strip()
+    # Also support old client_id/secret format
     client_id = os.getenv("SENDPULSE_CLIENT_ID", "").strip()
     client_secret = os.getenv("SENDPULSE_CLIENT_SECRET", "").strip()
-    if not client_id or not client_secret:
+    
+    if not api_key and not (client_id and client_secret):
         return False
 
     if not subject:
@@ -1008,28 +1011,29 @@ def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, att
 
     html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
-    sender_email = gmail_user or "sam.dev1@hotmail.com"
+    # Use verified sender (account email)
+    sender_email = os.getenv("SENDPULSE_SENDER_EMAIL", gmail_user or "samatou683@gmail.com").strip()
 
     try:
-        # Step 1: Get access token
-        token_response = requests.post(
-            "https://api.sendpulse.com/oauth/access_token",
-            json={
-                "grant_type": "client_credentials",
-                "client_id": client_id,
-                "client_secret": client_secret
-            },
-            timeout=15
-        )
-        if token_response.status_code != 200:
-            logging.error(f"❌ [SENDPULSE] Token failed: {token_response.text[:200]}")
-            return False
+        # Get token - support both API key and client_id/secret
+        if api_key:
+            # Direct API key format: sp_apikey_xxx
+            token = api_key
+        else:
+            # OAuth2 client credentials
+            token_response = requests.post(
+                "https://api.sendpulse.com/oauth/access_token",
+                json={"grant_type": "client_credentials",
+                      "client_id": client_id, "client_secret": client_secret},
+                timeout=15
+            )
+            if token_response.status_code != 200:
+                logging.error(f"❌ [SENDPULSE] Token failed: {token_response.text[:200]}")
+                return False
+            token = token_response.json().get("access_token")
+            if not token:
+                return False
 
-        token = token_response.json().get("access_token")
-        if not token:
-            return False
-
-        # Step 2: Send email
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
         # Build attachments
@@ -1057,12 +1061,10 @@ def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, att
         if attachments:
             payload["email"]["attachments"] = attachments
 
-        logging.info(f"📤 [SENDPULSE] Sending to {to_email}...")
+        logging.info(f"📤 [SENDPULSE] Sending from {sender_email} to {to_email}...")
         response = requests.post(
             "https://api.sendpulse.com/smtp/emails",
-            headers=headers,
-            json=payload,
-            timeout=20
+            headers=headers, json=payload, timeout=20
         )
         if response.status_code in (200, 201, 202):
             logging.info(f"✅ [SENDPULSE] Email sent successfully!")
