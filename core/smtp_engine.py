@@ -336,28 +336,97 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     is_render = os.getenv("RENDER") is not None
     
     if is_render:
-        logging.info("☁️ [RENDER-MODE] Using HTTP APIs + SMTP for maximum throughput")
+        logging.info("☁️ [RENDER-MODE] Smart rotation: auto-switches when limit reached")
         
-        # ⭐ PRIORITY 1: RESEND (all configured accounts)
-        # Supports RESEND_API_KEY, RESEND_API_KEY_2 ... RESEND_API_KEY_10
-        if HAS_RESEND:
-            resend_keys = []
+        # ============================================================
+        # SMART ROTATION ENGINE
+        # Checks daily limits, auto-rotates to next available provider
+        # Order: Resend → Zoho → Brevo → SendPulse → Mailjet → Gmail API
+        # ============================================================
+        
+        def _try_resend():
+            """Try all Resend accounts in order"""
+            if not HAS_RESEND:
+                return False
             for i in range(1, 11):
                 env = "RESEND_API_KEY" if i == 1 else f"RESEND_API_KEY_{i}"
                 k = os.getenv(env, "").strip()
-                if k:
-                    resend_keys.append(k)
-            
-            if resend_keys:
+                if not k:
+                    continue
+                # Check rotator limit
+                provider_name = f"resend_{i}"
                 try:
+                    from core.email_rotator import get_rotator
+                    rotator = get_rotator()
+                    used = rotator.usage.get(provider_name, {}).get("count", 0)
+                    limit = rotator.providers and next((p["limit"] for p in rotator.providers if p["name"] == provider_name), 100) or 100
+                    if used >= limit:
+                        logging.info(f"⏭️ Resend #{i} limit reached ({used}/{limit}), skipping...")
+                        continue
+                except: pass
+                try:
+                    resend_lib.api_key = k
                     result = send_email_via_resend(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
                     if result:
+                        try:
+                            from core.email_rotator import record_email_sent
+                            record_email_sent(provider_name)
+                        except: pass
                         return True
                 except Exception as e:
-                    logging.warning(f"⚠️ Resend failed: {e}")
+                    logging.warning(f"⚠️ Resend #{i} failed: {e}")
+            return False
 
-        # PRIORITY 2: BREVO HTTP (300/day)
-        if getattr(config, 'BREVO_API_KEY', None):
+        def _try_zoho():
+            """Try all Zoho accounts in order"""
+            for i in range(1, 11):
+                u_env = "ZOHO_SMTP_USER" if i == 1 else f"ZOHO_SMTP_USER_{i}"
+                p_env = "ZOHO_APP_PASSWORD" if i == 1 else f"ZOHO_APP_PASSWORD_{i}"
+                z_user = os.getenv(u_env, "").strip()
+                z_pass = os.getenv(p_env, "").strip()
+                if not z_user or not z_pass:
+                    continue
+                # Check rotator limit
+                provider_name = f"zoho_{i}"
+                try:
+                    from core.email_rotator import get_rotator
+                    rotator = get_rotator()
+                    used = rotator.usage.get(provider_name, {}).get("count", 0)
+                    if used >= 500:
+                        logging.info(f"⏭️ Zoho #{i} limit reached ({used}/500), skipping...")
+                        continue
+                except: pass
+                for z_port, z_ssl in [(465, True), (587, False)]:
+                    z_provider = {
+                        'name': f'Zoho#{i}-{z_port}', 'server': 'smtp.zoho.com',
+                        'port': z_port, 'email': z_user, 'password': z_pass, 'use_ssl': z_ssl
+                    }
+                    try:
+                        res = _send_via_provider(to_email, company_name, job_title, custom_body, z_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                        if res:
+                            logging.info(f"✅ ZOHO #{i} PORT {z_port} SUCCESS!")
+                            try:
+                                from core.email_rotator import record_email_sent
+                                record_email_sent(provider_name)
+                            except: pass
+                            return True
+                        break
+                    except Exception as e:
+                        logging.warning(f"⚠️ Zoho #{i} port {z_port} failed: {e}")
+            return False
+
+        def _try_brevo():
+            """Try Brevo HTTP API"""
+            if not getattr(config, 'BREVO_API_KEY', None):
+                return False
+            try:
+                from core.email_rotator import get_rotator
+                rotator = get_rotator()
+                used = rotator.usage.get("brevo", {}).get("count", 0)
+                if used >= 300:
+                    logging.info(f"⏭️ Brevo limit reached ({used}/300), skipping...")
+                    return False
+            except: pass
             try:
                 if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
                     try:
@@ -366,92 +435,26 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                     except: pass
                     return True
             except Exception as e:
-                logging.warning(f"⚠️ Brevo HTTP failed: {e}")
+                logging.warning(f"⚠️ Brevo failed: {e}")
+            return False
 
-        # PRIORITY 3: MAILJET HTTP API (200/day free)
-        mailjet_pub = os.getenv("MAILJET_API_KEY", "").strip()
-        mailjet_priv = os.getenv("MAILJET_SECRET_KEY", "").strip()
-        if mailjet_pub and mailjet_priv:
+        def _try_sendpulse():
+            """Try SendPulse API"""
+            sp_key = os.getenv("SENDPULSE_API_KEY", "").strip()
+            sp_id = os.getenv("SENDPULSE_CLIENT_ID", "").strip()
+            sp_secret = os.getenv("SENDPULSE_CLIENT_SECRET", "").strip()
+            if not sp_key and not (sp_id and sp_secret):
+                return False
             try:
-                result = send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                if result:
-                    logging.info("✅ MAILJET SUCCESS!")
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ Mailjet failed: {e}")
-
-        # PRIORITY 4: SENDPULSE HTTP API (400/day free)
-        sendpulse_id = os.getenv("SENDPULSE_CLIENT_ID", "").strip()
-        sendpulse_secret = os.getenv("SENDPULSE_CLIENT_SECRET", "").strip()
-        if sendpulse_id and sendpulse_secret:
+                from core.email_rotator import get_rotator
+                rotator = get_rotator()
+                used = rotator.usage.get("sendpulse", {}).get("count", 0)
+                if used >= 400:
+                    logging.info(f"⏭️ SendPulse limit reached ({used}/400), skipping...")
+                    return False
+            except: pass
             try:
-                result = send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                if result:
-                    logging.info("✅ SENDPULSE SUCCESS!")
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ SendPulse failed: {e}")
-
-        # PRIORITY 3-12: ALL ZOHO ACCOUNTS (500/day each)
-        # Supports ZOHO_SMTP_USER, ZOHO_SMTP_USER_2 ... ZOHO_SMTP_USER_10
-        for i in range(1, 11):
-            u_env = "ZOHO_SMTP_USER" if i == 1 else f"ZOHO_SMTP_USER_{i}"
-            p_env = "ZOHO_APP_PASSWORD" if i == 1 else f"ZOHO_APP_PASSWORD_{i}"
-            z_user = os.getenv(u_env, "").strip()
-            z_pass = os.getenv(p_env, "").strip()
-            if not z_user or not z_pass:
-                continue
-            for z_port, z_ssl in [(465, True), (587, False)]:
-                z_provider = {
-                    'name': f'Zoho#{i} ({"SSL" if z_ssl else "TLS"}-{z_port})',
-                    'server': 'smtp.zoho.com', 'port': z_port,
-                    'email': z_user, 'password': z_pass, 'use_ssl': z_ssl
-                }
-                try:
-                    logging.info(f"📧 [ZOHO#{i}] Attempting port {z_port}...")
-                    res = _send_via_provider(to_email, company_name, job_title, custom_body, z_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                    if res:
-                        logging.info(f"✅ ZOHO #{i} PORT {z_port} SUCCESS!")
-                        try:
-                            from core.email_rotator import record_email_sent
-                            record_email_sent(f"zoho_{i}")
-                        except: pass
-                        return True
-                    break  # If port 465 fails, try 587
-                except Exception as e:
-                    logging.warning(f"⚠️ Zoho #{i} port {z_port} failed: {e}")
-
-        # PRIORITY 13: Gmail API (OAuth2 over HTTPS)
-        if get_gmail_service:
-            try:
-                service = get_gmail_service()
-                if service:
-                    if send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
-                        logging.info("✅ GMAIL API SUCCESS!")
-                        return True
-            except Exception as e:
-                logging.warning(f"⚠️ Gmail API failed: {e}")
-
-        # PRIORITY 14: Mailjet (200/day free)
-        if os.getenv("MAILJET_API_KEY") and os.getenv("MAILJET_API_SECRET"):
-            try:
-                logging.info("📧 [MAILJET] Attempting Mailjet API (200/day free)...")
-                if send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
-                    logging.info("✅ MAILJET SUCCESS!")
-                    try:
-                        from core.email_rotator import record_email_sent
-                        record_email_sent("mailjet")
-                    except: pass
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ Mailjet failed: {e}")
-
-        # PRIORITY 15: SendPulse (400/day free)
-        if os.getenv("SENDPULSE_API_KEY") or (os.getenv("SENDPULSE_CLIENT_ID") and os.getenv("SENDPULSE_CLIENT_SECRET")):
-            try:
-                logging.info("📧 [SENDPULSE] Attempting SendPulse API (400/day free)...")
                 if send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
-                    logging.info("✅ SENDPULSE SUCCESS!")
                     try:
                         from core.email_rotator import record_email_sent
                         record_email_sent("sendpulse")
@@ -459,8 +462,62 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                     return True
             except Exception as e:
                 logging.warning(f"⚠️ SendPulse failed: {e}")
+            return False
 
-        logging.error("❌ ALL PROVIDERS FAILED on Render")
+        def _try_mailjet():
+            """Try Mailjet API"""
+            mj_key = os.getenv("MAILJET_API_KEY", "").strip()
+            mj_secret = os.getenv("MAILJET_API_SECRET", os.getenv("MAILJET_SECRET_KEY", "")).strip()
+            if not mj_key or not mj_secret:
+                return False
+            try:
+                from core.email_rotator import get_rotator
+                rotator = get_rotator()
+                used = rotator.usage.get("mailjet", {}).get("count", 0)
+                if used >= 200:
+                    logging.info(f"⏭️ Mailjet limit reached ({used}/200), skipping...")
+                    return False
+            except: pass
+            try:
+                if send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("mailjet")
+                    except: pass
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ Mailjet failed: {e}")
+            return False
+
+        # ============================================================
+        # ROTATION ORDER: Try each provider, auto-skip when limit hit
+        # ============================================================
+        rotation_order = [
+            ("Resend",     _try_resend),
+            ("Zoho",       _try_zoho),
+            ("Brevo",      _try_brevo),
+            ("SendPulse",  _try_sendpulse),
+            ("Mailjet",    _try_mailjet),
+        ]
+
+        for provider_name, try_fn in rotation_order:
+            try:
+                if try_fn():
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ {provider_name} rotation failed: {e}")
+
+        # Last resort: Gmail API
+        if get_gmail_service:
+            try:
+                service = get_gmail_service()
+                if service:
+                    if send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
+                        return True
+            except Exception as e:
+                logging.warning(f"⚠️ Gmail API failed: {e}")
+
+        logging.error("❌ ALL PROVIDERS EXHAUSTED for today!")
         return False
 
     # ============================================================
