@@ -271,9 +271,50 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     logging.info(f"📧 EMAIL SUBJECT: {subject}")
 
     # ============================================================
-    # 🌟 ABSOLUTE PRIORITY 1: GMAIL SMTP (Port 465 SSL)
-    # Best deliverability - Gmail trusts Gmail!
+    # 🌟 CLOUD-OPTIMIZED PRIORITY
+    # On Render: SMTP ports are blocked, only HTTP works
     # ============================================================
+    is_render = os.getenv("RENDER") is not None
+    
+    if is_render:
+        logging.info("☁️ [RENDER-MODE] SMTP ports blocked, using HTTP API only")
+        
+        # PRIORITY 1 on Render: Brevo HTTP API (Port 443)
+        if getattr(config, 'BREVO_API_KEY', None):
+            try:
+                logging.info("📧 [BREVO-HTTP] ⭐ PRIORITY 1 (Render): Attempting Brevo HTTP API...")
+                if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
+                    logging.info("✅ BREVO HTTP SUCCESS — Delivered via Brevo API!")
+                    
+                    # 🚀 ZERO-COST: Record email sent
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("brevo")
+                    except: pass
+                    
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ Brevo HTTP failed: {e}")
+        
+        # PRIORITY 2 on Render: Gmail API (Port 443)
+        if get_gmail_service:
+            try:
+                service = get_gmail_service()
+                if service:
+                    if send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
+                        logging.info("✅ GMAIL API SUCCESS — Bypassed Render firewall!")
+                        return True
+            except Exception as e:
+                logging.warning(f"⚠️ Gmail API failed: {e}")
+        
+        logging.error("❌ ALL HTTP APIs FAILED on Render (SMTP ports are blocked)")
+        return False
+
+    # ============================================================
+    # 🌟 LOCAL/NON-RENDER PRIORITY: Try SMTP first
+    # ============================================================
+    logging.info("💻 [LOCAL-MODE] Trying SMTP connections...")
+    
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
     gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or '').strip()
     
@@ -578,13 +619,25 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         return False
 
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
-    """[REST API] Bypasses ISP SMTP blocks."""
+    """[REST API] Bypasses ISP SMTP blocks. Uses Gmail address as sender for inbox delivery."""
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
     
+    # 🎯 INBOX DELIVERY FIX: Use Gmail address as sender (not Brevo)
+    # This makes emails appear to come from Gmail, avoiding spam filters
+    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
     brevo_smtp_login = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
-    real_user_email = (getattr(config, 'SENDER_EMAIL', '') or '').strip() or 'sam.dev1@hotmail.com'
-    sender_email = brevo_smtp_login if brevo_smtp_login else real_user_email
+    
+    # Priority: Gmail > Brevo > Fallback
+    if gmail_user:
+        sender_email = gmail_user
+        logging.info(f"📧 [BREVO-HTTP] Using Gmail address as sender: {gmail_user}")
+    elif brevo_smtp_login:
+        sender_email = brevo_smtp_login
+        logging.info(f"📧 [BREVO-HTTP] Using Brevo address as sender: {brevo_smtp_login}")
+    else:
+        sender_email = 'sam.dev1@hotmail.com'
+        logging.warning(f"⚠️ [BREVO-HTTP] Using fallback sender: {sender_email}")
     
     if not subject:
         subject = f"Application: {job_title} - {company_name}"
@@ -602,30 +655,34 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
                 except Exception as e:
                     logging.error(f"Failed to encode attachment {path}: {e}")
     
-    # [👑 CLOUD-SURVIVAL OVERRIDE] 
-    # Force the technical sender to be the Brevo authenticated email to pass DMARC perfectly.
-    # The 'Reply-To' guarantees the recruiter's response goes to Sam.
-    technical_sender_email = (getattr(config, 'BREVO_SMTP_LOGIN', '') or real_user_email).strip()
-    
+    # 🎯 INBOX DELIVERY: Use Gmail as sender, Gmail as reply-to
+    # This makes the email look like it's coming directly from Gmail
     payload = {
-        "sender": {"email": technical_sender_email, "name": sender_name},
+        "sender": {"email": sender_email, "name": sender_name},
         "to": [{"email": to_email}],
         "subject": subject,
         "htmlContent": html_content,
-        "replyTo": {"email": reply_to if reply_to else real_user_email, "name": sender_name}
+        "replyTo": {"email": reply_to if reply_to else sender_email, "name": sender_name}
     }
     if attachment_list:
         payload["attachment"] = attachment_list
     
     try:
+        logging.info(f"📤 [BREVO-HTTP] Sending via Brevo API from {sender_email} to {to_email}")
         response = requests.post(
             "https://api.brevo.com/v3/smtp/email",
             headers={"api-key": api_key, "Content-Type": "application/json", "Accept": "application/json"},
             json=payload,
             timeout=20
         )
-        return response.status_code in (201, 200, 202)
-    except:
+        if response.status_code in (201, 200, 202):
+            logging.info(f"✅ [BREVO-HTTP] Email sent successfully! Status: {response.status_code}")
+            return True
+        else:
+            logging.error(f"❌ [BREVO-HTTP] Failed with status {response.status_code}: {response.text}")
+            return False
+    except Exception as e:
+        logging.error(f"❌ [BREVO-HTTP] Exception: {e}")
         return False
 
 def _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=None, reply_to=None, sender_override=None):
