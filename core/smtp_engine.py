@@ -619,27 +619,25 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         return False
 
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
-    """[REST API] Bypasses ISP SMTP blocks. Uses verified Brevo sender."""
+    """[REST API] Bypasses ISP SMTP blocks. Uses sam.dev1@hotmail.com - the ONLY sender that delivers!"""
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
     
-    # 🎯 CRITICAL FIX: Use VERIFIED Brevo sender, not Gmail
-    # Brevo only allows sending from verified email addresses
-    # We'll use the verified Brevo sender but set Reply-To to Gmail
+    # 🎯 CRITICAL: Based on Brevo delivery logs analysis:
+    # ✅ DELIVERED: sam.dev1@hotmail.com (Hotmail/Outlook sender)
+    # ❌ ERROR: a974ef001@smtp-brevo.com (Brevo sender - rejected by Gmail)
+    # ❌ ERROR: samsalameh.cv@zohomail.com (Zoho sender - rejected)
+    # ❌ ERROR: samsalameh.cv@gmail.com (Gmail sender - not verified in Brevo)
+    #
+    # SOLUTION: Use sam.dev1@hotmail.com as sender (verified + delivers!)
+    # Set Reply-To to samsalameh.cv@gmail.com so replies go to the right place
     
-    brevo_smtp_login = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
-    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    sender_email = 'sam.dev1@hotmail.com'  # ✅ ONLY sender that delivers!
+    logging.info(f"📧 [BREVO-HTTP] Using Hotmail sender (proven to deliver): {sender_email}")
     
-    # Use verified Brevo sender (a974ef001@smtp-brevo.com or samatou683@gmail.com)
-    if brevo_smtp_login:
-        sender_email = brevo_smtp_login
-        logging.info(f"📧 [BREVO-HTTP] Using verified Brevo sender: {brevo_smtp_login}")
-    else:
-        sender_email = 'sam.dev1@hotmail.com'  # Fallback to verified Hotmail
-        logging.warning(f"⚠️ [BREVO-HTTP] Using fallback sender: {sender_email}")
-    
-    # Set Reply-To to Gmail so responses go to the right place
+    # Reply-To goes to Gmail so recruiter responses reach Sam
     if not reply_to:
+        gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
         reply_to = gmail_user if gmail_user else sender_email
     
     if not subject:
@@ -658,7 +656,6 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
                 except Exception as e:
                     logging.error(f"Failed to encode attachment {path}: {e}")
     
-    # 🎯 INBOX DELIVERY: Use verified sender, Gmail as reply-to
     payload = {
         "sender": {"email": sender_email, "name": sender_name},
         "to": [{"email": to_email}],
