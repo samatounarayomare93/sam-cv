@@ -49,6 +49,28 @@ async def resource_watchdog():
         gc.collect()
         logging.info("🧹 [RESOURCE-WATCHDOG]: Memory cleared. Swarm health optimized.")
 
+async def health_monitor():
+    """🛡️ IMMORTALITY: Monitor system health and auto-restart on failure."""
+    last_heartbeat = {}
+    restart_count = 0
+    max_restarts = 10
+    
+    while True:
+        await asyncio.sleep(60)  # Check every minute
+        
+        try:
+            # Check if tasks are still alive
+            current_tasks = [t for t in asyncio.all_tasks() if not t.done()]
+            
+            if len(current_tasks) < 3:  # Should have at least 3 tasks running
+                logging.warning(f"⚠️ [HEALTH-MONITOR] Only {len(current_tasks)} tasks running. System may be degraded.")
+            
+            # Log heartbeat
+            logging.info(f"💓 [HEALTH-MONITOR] System alive. Active tasks: {len(current_tasks)}")
+            
+        except Exception as e:
+            logging.error(f"❌ [HEALTH-MONITOR] Error: {e}")
+
 async def main():
     print("""
     ================================================================================
@@ -56,6 +78,7 @@ async def main():
     --------------------------------------------------------------------------------
     Status: CONSOLIDATING INTELLIGENCE...
     Memory Mode: SLIM-PROCESS (OOM Protection Active)
+    🛡️ IMMORTALITY MODE: ENABLED (Auto-restart on crash)
     ================================================================================
     """)
 
@@ -65,34 +88,53 @@ async def main():
 
     # 2. Initialize Shared Swarm Intelligence (Saves massive RAM)
     logging.info("[SYSTEM] Initializing Shared Swarm Intelligence...")
-    try:
-        from core.db_client import RealityShapingDB
-        from core.ai_agent import OmniIntelligence
-        
-        shared_db = RealityShapingDB()
-        shared_ai = OmniIntelligence()
-        
-        engine = AlphaOrchestrator(db=shared_db, ai=shared_ai)
-        dashboard = SovereignDashboard(db=shared_db, ai=shared_ai)
+    
+    restart_count = 0
+    max_restarts = 100  # Allow 100 restarts before giving up
+    
+    while restart_count < max_restarts:
+        try:
+            from core.db_client import RealityShapingDB
+            from core.ai_agent import OmniIntelligence
+            
+            shared_db = RealityShapingDB()
+            shared_ai = OmniIntelligence()
+            
+            engine = AlphaOrchestrator(db=shared_db, ai=shared_ai)
+            dashboard = SovereignDashboard(db=shared_db, ai=shared_ai)
 
-        logging.info("[SYSTEM] Launching Unified Swarm Tasks...")
-        
-        # We run them as concurrent tasks in the SAME python process
-        swarm_tasks = [
-            asyncio.create_task(engine.execute_divine_loop()),
-            asyncio.create_task(dashboard.run_headless()),
-            asyncio.create_task(resource_watchdog())
-        ]
+            logging.info(f"[SYSTEM] Launching Unified Swarm Tasks... (Restart #{restart_count})")
+            
+            # We run them as concurrent tasks in the SAME python process
+            swarm_tasks = [
+                asyncio.create_task(engine.execute_divine_loop(), name="Engine"),
+                asyncio.create_task(dashboard.run_headless(), name="Dashboard"),
+                asyncio.create_task(resource_watchdog(), name="Watchdog"),
+                asyncio.create_task(health_monitor(), name="HealthMonitor")
+            ]
 
-        # Wait for all systems to finish (or run forever)
-        await asyncio.gather(*swarm_tasks)
+            # Wait for all systems to finish (or run forever)
+            await asyncio.gather(*swarm_tasks, return_exceptions=True)
+            
+            # If we reach here, a task finished unexpectedly
+            logging.warning("⚠️ [SYSTEM] A task finished unexpectedly. Restarting in 10 seconds...")
+            await asyncio.sleep(10)
+            restart_count += 1
 
-    except KeyboardInterrupt:
-        logging.info("[SHUTDOWN] Safely anchoring the Swarm...")
-    except Exception as e:
-        logging.error(f"⚠️ [FATAL] Swarm Collapse: {e}")
-        # Emergency restart logic (optional for Render since it restarts the dyno)
-        sys.exit(1)
+        except KeyboardInterrupt:
+            logging.info("[SHUTDOWN] Safely anchoring the Swarm...")
+            break
+        except Exception as e:
+            logging.error(f"⚠️ [FATAL] Swarm Collapse: {e}")
+            logging.error(f"⚠️ [FATAL] Traceback: {traceback.format_exc()}")
+            
+            restart_count += 1
+            if restart_count < max_restarts:
+                logging.info(f"🔄 [AUTO-RESTART] Restarting in 30 seconds... (Attempt {restart_count}/{max_restarts})")
+                await asyncio.sleep(30)
+            else:
+                logging.error(f"❌ [FATAL] Max restarts ({max_restarts}) reached. Giving up.")
+                sys.exit(1)
 
 if __name__ == "__main__":
     try:

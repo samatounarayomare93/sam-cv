@@ -122,18 +122,33 @@ def _self_ping_loop():
         url = "https://sam-job-automator.onrender.com"
     
     logging.info(f"🛰️ [SELF-PING] Target: {url}")
+    logging.info(f"🛡️ [IMMORTALITY] Bot will run FOREVER. Self-ping every 10 minutes.")
     
     # Wait for the server to start before first ping
     time.sleep(60)
+    
+    ping_count = 0
+    fail_count = 0
     
     while True:
         try:
             # Simple GET request to the root-path to keep it alive
             # We use a short timeout to avoid hanging
             r = requests.get(url, timeout=10)
-            logging.info(f"💓 [HEARTBEAT] Cloud Instance is alive. (Status: {r.status_code})")
+            ping_count += 1
+            fail_count = 0  # Reset fail count on success
+            
+            # Calculate uptime
+            uptime_hours = (ping_count * 10) / 60  # 10 minutes per ping
+            
+            logging.info(f"💓 [HEARTBEAT #{ping_count}] Cloud Instance is alive. Status: {r.status_code} | Uptime: {uptime_hours:.1f}h")
         except Exception as e:
-            logging.warning(f"⚠️ [HEARTBEAT] Ping failed: {e}")
+            fail_count += 1
+            logging.warning(f"⚠️ [HEARTBEAT] Ping failed ({fail_count} consecutive failures): {e}")
+            
+            # If too many consecutive failures, something is wrong
+            if fail_count > 5:
+                logging.error(f"❌ [HEARTBEAT] {fail_count} consecutive ping failures! System may be down.")
         
         # 10 minute interval is perfect for Render (sleep threshold is 15 mins)
         time.sleep(600)
