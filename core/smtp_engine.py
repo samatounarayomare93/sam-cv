@@ -363,6 +363,30 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             except Exception as e:
                 logging.warning(f"⚠️ Brevo HTTP failed: {e}")
 
+        # PRIORITY 3: MAILJET HTTP API (200/day free)
+        mailjet_pub = os.getenv("MAILJET_API_KEY", "").strip()
+        mailjet_priv = os.getenv("MAILJET_SECRET_KEY", "").strip()
+        if mailjet_pub and mailjet_priv:
+            try:
+                result = send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                if result:
+                    logging.info("✅ MAILJET SUCCESS!")
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ Mailjet failed: {e}")
+
+        # PRIORITY 4: SENDPULSE HTTP API (400/day free)
+        sendpulse_id = os.getenv("SENDPULSE_CLIENT_ID", "").strip()
+        sendpulse_secret = os.getenv("SENDPULSE_CLIENT_SECRET", "").strip()
+        if sendpulse_id and sendpulse_secret:
+            try:
+                result = send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                if result:
+                    logging.info("✅ SENDPULSE SUCCESS!")
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ SendPulse failed: {e}")
+
         # PRIORITY 3-12: ALL ZOHO ACCOUNTS (500/day each)
         # Supports ZOHO_SMTP_USER, ZOHO_SMTP_USER_2 ... ZOHO_SMTP_USER_10
         for i in range(1, 11):
@@ -775,6 +799,105 @@ def send_email_via_resend(to_email, company_name, job_title, custom_body, attach
 
     logging.error("❌ [RESEND] All Resend keys failed!")
     return False
+
+
+def send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
+    """[MAILJET API] 200 emails/day free. Uses HTTP API."""
+    api_key = os.getenv("MAILJET_API_KEY", "").strip()
+    secret_key = os.getenv("MAILJET_SECRET_KEY", "").strip()
+    sender_email = os.getenv("MAILJET_SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "sam.dev1@hotmail.com")).strip()
+    if not api_key or not secret_key:
+        return False
+
+    if not subject:
+        subject = f"Application: {job_title} - {company_name}"
+
+    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+
+    payload = {
+        "Messages": [{
+            "From": {"Email": sender_email, "Name": sender_name},
+            "To": [{"Email": to_email}],
+            "Subject": subject,
+            "HTMLPart": html_content,
+            "ReplyTo": {"Email": reply_to or sender_email}
+        }]
+    }
+
+    try:
+        logging.info(f"📧 [MAILJET] Sending to {to_email}...")
+        r = requests.post(
+            "https://api.mailjet.com/v3.1/send",
+            auth=(api_key, secret_key),
+            json=payload,
+            timeout=20
+        )
+        if r.status_code in (200, 201):
+            logging.info(f"✅ [MAILJET] Email sent! Status: {r.status_code}")
+            return True
+        else:
+            logging.error(f"❌ [MAILJET] Failed: {r.status_code} - {r.text[:200]}")
+            return False
+    except Exception as e:
+        logging.error(f"❌ [MAILJET] Exception: {e}")
+        return False
+
+
+def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
+    """[SENDPULSE API] 400 emails/day free. Uses HTTP API."""
+    client_id = os.getenv("SENDPULSE_CLIENT_ID", "").strip()
+    client_secret = os.getenv("SENDPULSE_CLIENT_SECRET", "").strip()
+    sender_email = os.getenv("SENDPULSE_SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "sam.dev1@hotmail.com")).strip()
+    if not client_id or not client_secret:
+        return False
+
+    if not subject:
+        subject = f"Application: {job_title} - {company_name}"
+
+    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+
+    try:
+        # Get access token
+        token_r = requests.post(
+            "https://api.sendpulse.com/oauth/access_token",
+            json={"grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret},
+            timeout=15
+        )
+        if token_r.status_code != 200:
+            logging.error(f"❌ [SENDPULSE] Token failed: {token_r.text[:100]}")
+            return False
+
+        token = token_r.json().get("access_token")
+        if not token:
+            return False
+
+        # Send email
+        payload = {
+            "email": {
+                "html": html_content,
+                "text": "Please view this email in HTML format.",
+                "subject": subject,
+                "from": {"name": sender_name, "email": sender_email},
+                "to": [{"name": to_email.split("@")[0], "email": to_email}]
+            }
+        }
+
+        logging.info(f"📧 [SENDPULSE] Sending to {to_email}...")
+        r = requests.post(
+            "https://api.sendpulse.com/smtp/emails",
+            headers={"Authorization": f"Bearer {token}"},
+            json=payload,
+            timeout=20
+        )
+        if r.status_code in (200, 201):
+            logging.info(f"✅ [SENDPULSE] Email sent!")
+            return True
+        else:
+            logging.error(f"❌ [SENDPULSE] Failed: {r.status_code} - {r.text[:200]}")
+            return False
+    except Exception as e:
+        logging.error(f"❌ [SENDPULSE] Exception: {e}")
+        return False
 
 
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):

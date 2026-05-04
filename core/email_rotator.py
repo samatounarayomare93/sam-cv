@@ -16,18 +16,22 @@ from pathlib import Path
 # DAILY LIMITS PER PROVIDER (FREE TIER)
 # ============================================================
 PROVIDER_LIMITS = {
-    "resend_1":  100,   # Resend account #1 (3000/month)
-    "resend_2":  100,   # Resend account #2 (3000/month)
-    "resend_3":  100,   # Resend account #3 (3000/month)
-    "brevo":     300,   # Brevo free tier
-    "zoho_1":    500,   # Zoho account #1
-    "zoho_2":    500,   # Zoho account #2
-    "gmail":     500,   # Gmail SMTP
-    "yahoo":     500,   # Yahoo SMTP
-    "outlook":   300,   # Outlook SMTP
+    "resend_1":  100,   # Resend #1 (3000/month free)
+    "resend_2":  100,   # Resend #2
+    "resend_3":  100,   # Resend #3
+    "brevo":     300,   # Brevo free
+    "mailjet":   200,   # Mailjet free (6000/month)
+    "sendpulse": 400,   # SendPulse free (12000/month)
+    "zoho_1":    500,   # Zoho #1 free
+    "zoho_2":    500,   # Zoho #2 free
+    "zoho_3":    500,   # Zoho #3 free
+    "gmail":     500,   # Gmail free
+    "yahoo":     500,   # Yahoo free
+    "outlook":   300,   # Outlook free
 }
-# TOTAL FREE: ~2,900/day with current accounts
-# Add more accounts to scale further
+# TOTAL with all providers: ~4,000/day FREE
+# Each extra Zoho account adds 500/day
+# 20 Zoho accounts = 10,000/day total
 
 USAGE_FILE = Path("cache/email_usage.json")
 USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -91,6 +95,16 @@ class EmailRotator:
         if os.getenv("BREVO_API_KEY"):
             providers.append({"name": "brevo", "display_name": "Brevo",
                                "limit": PROVIDER_LIMITS["brevo"], "priority": 4})
+
+        # Mailjet (200/day free)
+        if os.getenv("MAILJET_API_KEY") and os.getenv("MAILJET_SECRET_KEY"):
+            providers.append({"name": "mailjet", "display_name": "Mailjet",
+                               "limit": PROVIDER_LIMITS["mailjet"], "priority": 5})
+
+        # SendPulse (400/day free)
+        if os.getenv("SENDPULSE_CLIENT_ID") and os.getenv("SENDPULSE_CLIENT_SECRET"):
+            providers.append({"name": "sendpulse", "display_name": "SendPulse",
+                               "limit": PROVIDER_LIMITS["sendpulse"], "priority": 6})
 
         # Zoho #1
         if os.getenv("ZOHO_SMTP_USER") and os.getenv("ZOHO_APP_PASSWORD"):
