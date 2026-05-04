@@ -873,12 +873,10 @@ class AlphaOrchestrator:
                     except Exception as e:
                         logging.error(f"❌ CLOUD SYNC FAILURE: {e}")
 
-                # HUMAN FATIGUE MODELING: Random long breaks after intense activity
+                # SCALED MODE: No fatigue breaks - run continuously
                 strike_counter += 1
-                if strike_counter % 7 == 0:
-                    fatigue_time = random.randint(1800, 3600)
-                    logging.info(f"☕ HUMAN FATIGUE: Bot is 'getting lunch'... Sleeping for {fatigue_time/60:.1f} mins.")
-                    await asyncio.sleep(fatigue_time)
+                if strike_counter % 100 == 0:
+                    logging.info(f"🚀 STRIKE COUNTER: {strike_counter} applications sent this session!")
                 await self.check_kill_switch()
                 if not self.is_running:
                     break

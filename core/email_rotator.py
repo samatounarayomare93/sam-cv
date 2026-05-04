@@ -14,8 +14,9 @@ from pathlib import Path
 
 # Daily limits for each provider (FREE tier)
 PROVIDER_LIMITS = {
+    "resend": 100,     # Resend free tier (3000/month = ~100/day)
     "brevo": 300,      # Brevo free tier
-    "zoho": 500,       # Zoho free tier (with good reputation)
+    "zoho": 500,       # Zoho free tier
     "gmail_1": 500,    # Gmail account #1
     "gmail_2": 500,    # Gmail account #2 (if configured)
     "yahoo": 500,      # Yahoo free tier
