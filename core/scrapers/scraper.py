@@ -260,8 +260,8 @@ async def scrape_new_companies_async():
     logging.info("🌍 Initiating BATCHED Auto-Sourcing on Daleel Madani...")
     user_agents = EvasionRouter.USER_AGENTS
     base_url = "https://daleel-madani.org/jobs"
-    max_pages = 15  # Reduced to avoid hammering
-    batch_size = 3  # [👑 FIX: BATCH instead of 25 parallel to prevent 403 flood]
+    max_pages = 8  # [🛡️ STEALTH: Reduced from 15 to avoid 403 blocks]
+    batch_size = 2  # [🛡️ STEALTH: Reduced from 3 to be more human-like]
     
     site_patch = {}
     try:
@@ -283,7 +283,7 @@ async def scrape_new_companies_async():
                 all_jobs.extend(res)
         # Human-like delay between batches
         if i + batch_size < len(pages):
-            delay = random.uniform(3, 7)
+            delay = random.uniform(8, 15)  # [🛡️ STEALTH: Increased from 3-7 to 8-15 seconds]
             logging.info(f"⏳ Daleel batch {i//batch_size + 1} done ({len(all_jobs)} jobs so far). Waiting {delay:.1f}s...")
             await asyncio.sleep(delay)
     
