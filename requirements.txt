@@ -39,3 +39,6 @@ httpx>=0.24.0
 # Timezone Support
 pytz>=2023.3
 
+# Email Delivery (Best Gmail deliverability - FREE 3000/month)
+resend>=2.0.0
+

@@ -48,6 +48,9 @@ BREVO_SMTP_PASSWORD = os.getenv("BREVO_SMTP_PASSWORD", "")
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 USE_BREVO_HTTP_FALLBACK = _env_flag("USE_BREVO_HTTP_FALLBACK", True)
 
+# Resend (Best Gmail deliverability - FREE)
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+
 # Secondary: Gmail
 GMAIL_SMTP_SERVER = "smtp.gmail.com"
 GMAIL_SMTP_PORT = 587

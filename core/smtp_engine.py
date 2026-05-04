@@ -271,6 +271,55 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     logging.info(f"📧 EMAIL SUBJECT: {subject}")
 
     # ============================================================
+    # 🌟 ABSOLUTE PRIORITY 0: RESEND API (Best Gmail deliverability!)
+    # Free 3000/month, excellent inbox delivery, works on Render
+    # ============================================================
+    resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
+    if resend_api_key:
+        try:
+            import resend as resend_lib
+            resend_lib.api_key = resend_api_key
+            
+            html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+            
+            # Build attachments for Resend
+            resend_attachments = []
+            if attachment_paths:
+                for path in attachment_paths:
+                    if path and os.path.exists(path):
+                        with open(path, "rb") as f:
+                            content = base64.b64encode(f.read()).decode("utf-8")
+                            resend_attachments.append({
+                                "filename": os.path.basename(path),
+                                "content": content
+                            })
+            
+            params = {
+                "from": f"Sam Salameh <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+                "reply_to": reply_to or "samsalameh.cv@gmail.com"
+            }
+            if resend_attachments:
+                params["attachments"] = resend_attachments
+            
+            logging.info(f"📧 [RESEND] ⭐ PRIORITY 0: Sending to {to_email}...")
+            result = resend_lib.Emails.send(params)
+            
+            if result and result.get('id'):
+                logging.info(f"✅ [RESEND] SUCCESS! Email ID: {result['id']} → Delivered to INBOX!")
+                try:
+                    from core.email_rotator import record_email_sent
+                    record_email_sent("resend")
+                except: pass
+                return True
+            else:
+                logging.warning(f"⚠️ [RESEND] No ID returned: {result}")
+        except Exception as e:
+            logging.warning(f"⚠️ [RESEND] Failed: {e}")
+
+    # ============================================================
     # 🌟 CLOUD-OPTIMIZED PRIORITY
     # On Render: SMTP ports are blocked, only HTTP works
     # ============================================================
