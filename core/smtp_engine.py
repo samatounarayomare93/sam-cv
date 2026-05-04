@@ -1134,32 +1134,28 @@ def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, att
 
 
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
-    """[REST API] Bypasses ISP SMTP blocks. Uses sam.dev1@hotmail.com - the ONLY sender that delivers!"""
+    """[BREVO REST API] 300/day free. Best for corporate email domains."""
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
-    
-    # 🎯 CRITICAL: Based on Brevo delivery logs analysis:
-    # ✅ DELIVERED: sam.dev1@hotmail.com (Hotmail/Outlook sender)
-    # ❌ ERROR: a974ef001@smtp-brevo.com (Brevo sender - rejected by Gmail)
-    # ❌ ERROR: samsalameh.cv@zohomail.com (Zoho sender - rejected)
-    # ❌ ERROR: samsalameh.cv@gmail.com (Gmail sender - not verified in Brevo)
-    #
-    # SOLUTION: Use sam.dev1@hotmail.com as sender (verified + delivers!)
-    # Set Reply-To to samsalameh.cv@gmail.com so replies go to the right place
-    
-    sender_email = 'sam.dev1@hotmail.com'  # ✅ ONLY sender that delivers!
-    logging.info(f"📧 [BREVO-HTTP] Using Hotmail sender (proven to deliver): {sender_email}")
-    
-    # Reply-To goes to Gmail so recruiter responses reach Sam
+
+    # 🎯 SKIP Gmail recipients — Brevo can't deliver to Gmail
+    # Use Resend for Gmail, Brevo for corporate emails
+    if to_email and to_email.lower().endswith('@gmail.com'):
+        logging.info(f"⏭️ [BREVO] Skipping Gmail recipient {to_email} — use Resend instead")
+        return False
+
+    # Use verified Brevo sender
+    sender_email = 'sam.dev1@hotmail.com'
+
     if not reply_to:
         gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
         reply_to = gmail_user if gmail_user else sender_email
-    
+
     if not subject:
         subject = f"Application: {job_title} - {company_name}"
-        
+
     html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
-    
+
     attachment_list = []
     if attachment_paths:
         for path in attachment_paths:
@@ -1170,7 +1166,7 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
                         attachment_list.append({"content": content, "name": os.path.basename(path)})
                 except Exception as e:
                     logging.error(f"Failed to encode attachment {path}: {e}")
-    
+
     payload = {
         "sender": {"email": sender_email, "name": sender_name},
         "to": [{"email": to_email}],
@@ -1180,9 +1176,9 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     }
     if attachment_list:
         payload["attachment"] = attachment_list
-    
+
     try:
-        logging.info(f"📤 [BREVO-HTTP] Sending from {sender_email} (Reply-To: {reply_to}) to {to_email}")
+        logging.info(f"📤 [BREVO] Sending from {sender_email} to {to_email}...")
         response = requests.post(
             "https://api.brevo.com/v3/smtp/email",
             headers={"api-key": api_key, "Content-Type": "application/json", "Accept": "application/json"},
@@ -1190,13 +1186,13 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
             timeout=20
         )
         if response.status_code in (201, 200, 202):
-            logging.info(f"✅ [BREVO-HTTP] Email sent successfully! Status: {response.status_code}")
+            logging.info(f"✅ [BREVO] Email sent! Status: {response.status_code}")
             return True
         else:
-            logging.error(f"❌ [BREVO-HTTP] Failed with status {response.status_code}: {response.text}")
+            logging.error(f"❌ [BREVO] Failed: {response.status_code} - {response.text[:200]}")
             return False
     except Exception as e:
-        logging.error(f"❌ [BREVO-HTTP] Exception: {e}")
+        logging.error(f"❌ [BREVO] Exception: {e}")
         return False
 
 def _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=None, reply_to=None, sender_override=None):
