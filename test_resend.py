@@ -1,13 +1,20 @@
 import resend
-resend.api_key = "re_9hviZvvj_NHBwnZarfmnYfKszJaP4bivu"
+import os
+from dotenv import load_dotenv
 
-# Test send
-params = {
-    "from": "Sam Salameh <onboarding@resend.dev>",
-    "to": ["samsalameh.cv@gmail.com"],
-    "subject": "✅ Test Email - Resend Working!",
-    "html": "<h2 style='color:green'>✅ EMAIL DELIVERY WORKING!</h2><p>This email was sent via Resend API. If you see this in your inbox, everything is fixed!</p>"
-}
+load_dotenv()
 
-email = resend.Emails.send(params)
-print("Result:", email)
+resend.api_key = os.getenv('RESEND_API_KEY')
+
+print(f"API Key: {resend.api_key[:20]}...")
+
+try:
+    r = resend.Emails.send({
+        "from": "Sam Salameh <onboarding@resend.dev>",
+        "to": ["samsalameh.cv@gmail.com"],
+        "subject": "✅ Test Email - Resend Working!",
+        "html": "<h1>✅ Resend is working!</h1><p>This email was sent via Resend API. If you see this, emails will now arrive in your inbox!</p>"
+    })
+    print("SUCCESS:", r)
+except Exception as e:
+    print("FAILED:", e)

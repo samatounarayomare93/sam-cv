@@ -16,6 +16,11 @@ import re
 import threading
 from datetime import datetime
 try:
+    import resend as resend_lib
+    HAS_RESEND = True
+except ImportError:
+    HAS_RESEND = False
+try:
     from core.gmail_auth import get_gmail_service
 except ImportError:
     get_gmail_service = None
@@ -328,24 +333,33 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     if is_render:
         logging.info("☁️ [RENDER-MODE] SMTP ports blocked, using HTTP API only")
         
-        # PRIORITY 1 on Render: Brevo HTTP API (Port 443)
+        # ⭐ PRIORITY 1 on Render: RESEND API (Best Gmail deliverability!)
+        resend_key = os.getenv("RESEND_API_KEY", "").strip()
+        if resend_key and HAS_RESEND:
+            try:
+                logging.info("📧 [RESEND] ⭐ PRIORITY 1: Attempting Resend API (best inbox delivery)...")
+                result = send_email_via_resend(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                if result:
+                    logging.info("✅ RESEND SUCCESS — Email delivered to INBOX!")
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ Resend failed: {e}")
+        
+        # PRIORITY 2 on Render: Brevo HTTP API (Port 443)
         if getattr(config, 'BREVO_API_KEY', None):
             try:
-                logging.info("📧 [BREVO-HTTP] ⭐ PRIORITY 1 (Render): Attempting Brevo HTTP API...")
+                logging.info("📧 [BREVO-HTTP] PRIORITY 2 (Render): Attempting Brevo HTTP API...")
                 if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
                     logging.info("✅ BREVO HTTP SUCCESS — Delivered via Brevo API!")
-                    
-                    # 🚀 ZERO-COST: Record email sent
                     try:
                         from core.email_rotator import record_email_sent
                         record_email_sent("brevo")
                     except: pass
-                    
                     return True
             except Exception as e:
                 logging.warning(f"⚠️ Brevo HTTP failed: {e}")
         
-        # PRIORITY 2 on Render: Gmail API (Port 443)
+        # PRIORITY 3 on Render: Gmail API (Port 443)
         if get_gmail_service:
             try:
                 service = get_gmail_service()
@@ -666,6 +680,66 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
     except Exception as e:
         logging.error(f"FATAL GMAIL API ERROR: {e}")
         return False
+
+def send_email_via_resend(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
+    """[RESEND API] Best Gmail inbox delivery. Free 3000/month. Uses resend.com."""
+    if not HAS_RESEND:
+        logging.error("❌ [RESEND] resend package not installed!")
+        return False
+    
+    resend_key = os.getenv("RESEND_API_KEY", "").strip()
+    if not resend_key:
+        logging.error("❌ [RESEND] RESEND_API_KEY not configured!")
+        return False
+    
+    resend_lib.api_key = resend_key
+    
+    if not subject:
+        subject = f"Application: {job_title} - {company_name}"
+    
+    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+    
+    # Resend requires a verified domain for "from" address
+    # Using onboarding@resend.dev works for testing, or use verified domain
+    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    
+    # Build attachments list
+    attachments = []
+    if attachment_paths:
+        for path in attachment_paths:
+            if path and os.path.exists(path):
+                try:
+                    with open(path, "rb") as f:
+                        content = base64.b64encode(f.read()).decode("utf-8")
+                        filename = os.path.basename(path)
+                        attachments.append({"filename": filename, "content": content})
+                except Exception as e:
+                    logging.warning(f"⚠️ [RESEND] Failed to attach {path}: {e}")
+    
+    try:
+        params = {
+            "from": f"{sender_name} <onboarding@resend.dev>",
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content,
+            "reply_to": reply_to or gmail_user or to_email,
+        }
+        if attachments:
+            params["attachments"] = attachments
+        
+        logging.info(f"📤 [RESEND] Sending to {to_email}...")
+        r = resend_lib.Emails.send(params)
+        
+        if r and r.get('id'):
+            logging.info(f"✅ [RESEND] Email delivered! ID: {r.get('id')}")
+            return True
+        else:
+            logging.error(f"❌ [RESEND] Unexpected response: {r}")
+            return False
+    except Exception as e:
+        logging.error(f"❌ [RESEND] Failed: {e}")
+        return False
+
 
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
     """[REST API] Bypasses ISP SMTP blocks. Uses sam.dev1@hotmail.com - the ONLY sender that delivers!"""
