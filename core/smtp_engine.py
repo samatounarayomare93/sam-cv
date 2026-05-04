@@ -276,6 +276,11 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # ============================================================
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
     gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or '').strip()
+    
+    # 🔍 DEBUG: Log Gmail credentials status
+    logging.info(f"🔍 [GMAIL-CHECK] User: {'✅ SET' if gmail_user else '❌ MISSING'} ({gmail_user[:10]}... if set)")
+    logging.info(f"🔍 [GMAIL-CHECK] Pass: {'✅ SET' if gmail_pass else '❌ MISSING'} ({len(gmail_pass)} chars)")
+    
     if gmail_user and gmail_pass:
         gmail_provider = {
             'name': 'Gmail (SSL-465)',
@@ -286,10 +291,11 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             'use_ssl': True
         }
         try:
-            logging.info("📧 [GMAIL-SMTP] Attempting Gmail SMTP Delivery (App Password)...")
+            logging.info("📧 [GMAIL-SMTP] ⭐ PRIORITY 1: Attempting Gmail SMTP Delivery (App Password)...")
+            logging.info(f"📧 [GMAIL-SMTP] Connecting to {gmail_provider['server']}:{gmail_provider['port']} (SSL)")
             res = _send_via_provider(to_email, company_name, job_title, custom_body, gmail_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
             if res:
-                logging.info("✅ GMAIL SMTP SUCCESS — Delivered via Gmail directly!")
+                logging.info("✅ ⭐ GMAIL SMTP SUCCESS — Delivered via Gmail directly to INBOX!")
                 
                 # 🚀 ZERO-COST: Record email sent
                 try:
@@ -298,8 +304,14 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 except: pass
                 
                 return True
+            else:
+                logging.error("❌ [GMAIL-SMTP] _send_via_provider returned False (connection or auth failed)")
         except Exception as e:
-            logging.warning(f"⚠️ Gmail SMTP failed: {e}")
+            logging.error(f"❌ [GMAIL-SMTP] FAILED with exception: {e}")
+            import traceback
+            logging.error(f"❌ [GMAIL-SMTP] Traceback: {traceback.format_exc()}")
+    else:
+        logging.error("❌ [GMAIL-SMTP] SKIPPED - Credentials not configured!")
 
     # ============================================================
     # 🥈 PRIORITY 2: BREVO HTTP API (Port 443)
@@ -642,20 +654,47 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
         timeout = int(getattr(config, 'SMTP_CONNECT_TIMEOUT_SECONDS', 10) or 10)
         server = None
         try:
+            logging.info(f"🔌 [{provider['name']}] Connecting to {provider['server']}:{provider['port']} (SSL={provider.get('use_ssl', False)})...")
+            
             if provider.get('use_ssl', False):
                 server = smtplib.SMTP_SSL(host=provider['server'], port=provider['port'], timeout=timeout)
+                logging.info(f"✅ [{provider['name']}] SSL connection established")
             else:
                 server = smtplib.SMTP(host=provider['server'], port=provider['port'], timeout=timeout)
+                logging.info(f"✅ [{provider['name']}] SMTP connection established, starting TLS...")
                 server.ehlo()
                 server.starttls()
                 server.ehlo()
+                logging.info(f"✅ [{provider['name']}] TLS handshake complete")
             
+            logging.info(f"🔐 [{provider['name']}] Authenticating as {provider['email'][:15]}...")
             server.login(provider['email'], provider['password'])
+            logging.info(f"✅ [{provider['name']}] Authentication successful!")
+            
+            logging.info(f"📤 [{provider['name']}] Sending message to {to_email}...")
             server.send_message(msg)
+            logging.info(f"✅ [{provider['name']}] Message sent successfully!")
+            
             server.quit()
             return True
+        except smtplib.SMTPAuthenticationError as e:
+            logging.error(f"❌ [{provider['name']}] AUTHENTICATION FAILED: {e}")
+            logging.error(f"❌ [{provider['name']}] Check your email/password in .env file!")
+            if server:
+                try: server.close()
+                except: pass
+            return False
+        except smtplib.SMTPConnectError as e:
+            logging.error(f"❌ [{provider['name']}] CONNECTION FAILED: {e}")
+            logging.error(f"❌ [{provider['name']}] Port {provider['port']} may be blocked by firewall/ISP!")
+            if server:
+                try: server.close()
+                except: pass
+            return False
         except Exception as e:
-            logging.error(f"❌ SMTP Provider Error ({provider['name']}): {e}")
+            logging.error(f"❌ [{provider['name']}] SMTP ERROR: {type(e).__name__}: {e}")
+            import traceback
+            logging.error(f"❌ [{provider['name']}] Traceback: {traceback.format_exc()}")
             if server:
                 try: server.close()
                 except: pass
