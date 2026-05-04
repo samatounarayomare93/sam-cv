@@ -29,6 +29,17 @@ try:
 except ImportError:
     HAS_CURL_CFFI = False
 
+# Import EvasionRouter for user agents
+try:
+    from core.runtime_helpers import EvasionRouter
+except ImportError:
+    # Fallback if import fails
+    class EvasionRouter:
+        USER_AGENTS = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        ]
+
 TOTAL_DEEP_DIVES = 0
 SCRAPE_COOLDOWN = 0
 

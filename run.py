@@ -53,9 +53,12 @@ async def main():
     print("""
     ================================================================================
     PROJECT CHRONOS: OMEGA-SOVEREIGNTY UNIFIED SWARM
+    🛡️ BULLETPROOF MODE: IMMORTAL OPERATION ACTIVE
     --------------------------------------------------------------------------------
     Status: CONSOLIDATING INTELLIGENCE...
     Memory Mode: SLIM-PROCESS (OOM Protection Active)
+    Self-Healing: ENABLED
+    Auto-Recovery: ENABLED
     ================================================================================
     """)
 
@@ -68,19 +71,34 @@ async def main():
     try:
         from core.db_client import RealityShapingDB
         from core.ai_agent import OmniIntelligence
+        from core.bulletproof_system import get_bulletproof_system
         
         shared_db = RealityShapingDB()
         shared_ai = OmniIntelligence()
+        
+        # 🛡️ Initialize Bulletproof System
+        logging.info("[BULLETPROOF] Initializing immortal operation system...")
+        bulletproof = get_bulletproof_system(db=shared_db, ai=shared_ai)
+        await bulletproof.start_monitoring()
         
         engine = AlphaOrchestrator(db=shared_db, ai=shared_ai)
         dashboard = SovereignDashboard(db=shared_db, ai=shared_ai)
 
         logging.info("[SYSTEM] Launching Unified Swarm Tasks...")
         
+        # 🛡️ Run main tasks with immortal loop protection
+        async def run_engine_immortal():
+            """Engine with immortal loop protection"""
+            await bulletproof.immortal_loop.run_forever(engine.execute_divine_loop)
+        
+        async def run_dashboard_immortal():
+            """Dashboard with immortal loop protection"""
+            await bulletproof.immortal_loop.run_forever(dashboard.run_headless)
+        
         # We run them as concurrent tasks in the SAME python process
         swarm_tasks = [
-            asyncio.create_task(engine.execute_divine_loop()),
-            asyncio.create_task(dashboard.run_headless()),
+            asyncio.create_task(run_engine_immortal()),
+            asyncio.create_task(run_dashboard_immortal()),
             asyncio.create_task(resource_watchdog())
         ]
 
@@ -91,6 +109,7 @@ async def main():
         logging.info("[SHUTDOWN] Safely anchoring the Swarm...")
     except Exception as e:
         logging.error(f"⚠️ [FATAL] Swarm Collapse: {e}")
+        logging.error(f"Stack trace: {traceback.format_exc()}")
         # Emergency restart logic (optional for Render since it restarts the dyno)
         sys.exit(1)
 
