@@ -331,26 +331,30 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     is_render = os.getenv("RENDER") is not None
     
     if is_render:
-        logging.info("☁️ [RENDER-MODE] SMTP ports blocked, using HTTP API only")
+        logging.info("☁️ [RENDER-MODE] Using HTTP APIs + SMTP for maximum throughput")
         
-        # ⭐ PRIORITY 1 on Render: RESEND API (Best Gmail deliverability!)
-        resend_key = os.getenv("RESEND_API_KEY", "").strip()
-        if resend_key and HAS_RESEND:
-            try:
-                logging.info("📧 [RESEND] ⭐ PRIORITY 1: Attempting Resend API (best inbox delivery)...")
-                result = send_email_via_resend(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                if result:
-                    logging.info("✅ RESEND SUCCESS — Email delivered to INBOX!")
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ Resend failed: {e}")
-        
-        # PRIORITY 2 on Render: Brevo HTTP API (Port 443)
+        # ⭐ PRIORITY 1: RESEND (all configured accounts)
+        # Supports RESEND_API_KEY, RESEND_API_KEY_2 ... RESEND_API_KEY_10
+        if HAS_RESEND:
+            resend_keys = []
+            for i in range(1, 11):
+                env = "RESEND_API_KEY" if i == 1 else f"RESEND_API_KEY_{i}"
+                k = os.getenv(env, "").strip()
+                if k:
+                    resend_keys.append(k)
+            
+            if resend_keys:
+                try:
+                    result = send_email_via_resend(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                    if result:
+                        return True
+                except Exception as e:
+                    logging.warning(f"⚠️ Resend failed: {e}")
+
+        # PRIORITY 2: BREVO HTTP (300/day)
         if getattr(config, 'BREVO_API_KEY', None):
             try:
-                logging.info("📧 [BREVO-HTTP] PRIORITY 2 (Render): Attempting Brevo HTTP API...")
                 if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
-                    logging.info("✅ BREVO HTTP SUCCESS — Delivered via Brevo API!")
                     try:
                         from core.email_rotator import record_email_sent
                         record_email_sent("brevo")
@@ -358,62 +362,48 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                     return True
             except Exception as e:
                 logging.warning(f"⚠️ Brevo HTTP failed: {e}")
-        
-        # PRIORITY 3 on Render: Gmail API (Port 443)
+
+        # PRIORITY 3-12: ALL ZOHO ACCOUNTS (500/day each)
+        # Supports ZOHO_SMTP_USER, ZOHO_SMTP_USER_2 ... ZOHO_SMTP_USER_10
+        for i in range(1, 11):
+            u_env = "ZOHO_SMTP_USER" if i == 1 else f"ZOHO_SMTP_USER_{i}"
+            p_env = "ZOHO_APP_PASSWORD" if i == 1 else f"ZOHO_APP_PASSWORD_{i}"
+            z_user = os.getenv(u_env, "").strip()
+            z_pass = os.getenv(p_env, "").strip()
+            if not z_user or not z_pass:
+                continue
+            for z_port, z_ssl in [(465, True), (587, False)]:
+                z_provider = {
+                    'name': f'Zoho#{i} ({"SSL" if z_ssl else "TLS"}-{z_port})',
+                    'server': 'smtp.zoho.com', 'port': z_port,
+                    'email': z_user, 'password': z_pass, 'use_ssl': z_ssl
+                }
+                try:
+                    logging.info(f"📧 [ZOHO#{i}] Attempting port {z_port}...")
+                    res = _send_via_provider(to_email, company_name, job_title, custom_body, z_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                    if res:
+                        logging.info(f"✅ ZOHO #{i} PORT {z_port} SUCCESS!")
+                        try:
+                            from core.email_rotator import record_email_sent
+                            record_email_sent(f"zoho_{i}")
+                        except: pass
+                        return True
+                    break  # If port 465 fails, try 587
+                except Exception as e:
+                    logging.warning(f"⚠️ Zoho #{i} port {z_port} failed: {e}")
+
+        # PRIORITY 13: Gmail API (OAuth2 over HTTPS)
         if get_gmail_service:
             try:
                 service = get_gmail_service()
                 if service:
                     if send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
-                        logging.info("✅ GMAIL API SUCCESS — Bypassed Render firewall!")
+                        logging.info("✅ GMAIL API SUCCESS!")
                         return True
             except Exception as e:
                 logging.warning(f"⚠️ Gmail API failed: {e}")
 
-        # PRIORITY 4 on Render: Zoho SMTP port 465 (SSL - may work on Render)
-        zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
-        zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
-        if zoho_user and zoho_pass:
-            # Try port 465 first, then 587
-            for zoho_port, zoho_ssl in [(465, True), (587, False)]:
-                zoho_provider = {'name': f'Zoho ({"SSL" if zoho_ssl else "TLS"}-{zoho_port})',
-                                 'server': 'smtp.zoho.com', 'port': zoho_port,
-                                 'email': zoho_user, 'password': zoho_pass, 'use_ssl': zoho_ssl}
-                try:
-                    logging.info(f"📧 [ZOHO] PRIORITY 4: Attempting Zoho SMTP port {zoho_port}...")
-                    res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                    if res:
-                        logging.info(f"✅ ZOHO PORT {zoho_port} SUCCESS!")
-                        try:
-                            from core.email_rotator import record_email_sent
-                            record_email_sent("zoho_1")
-                        except: pass
-                        return True
-                except Exception as e:
-                    logging.warning(f"⚠️ Zoho port {zoho_port} failed: {e}")
-
-        # PRIORITY 5: Zoho account #2
-        zoho_user2 = os.getenv("ZOHO_SMTP_USER_2", "").strip()
-        zoho_pass2 = os.getenv("ZOHO_APP_PASSWORD_2", "").strip()
-        if zoho_user2 and zoho_pass2:
-            for zoho_port, zoho_ssl in [(465, True), (587, False)]:
-                zoho_provider2 = {'name': f'Zoho2 ({"SSL" if zoho_ssl else "TLS"}-{zoho_port})',
-                                  'server': 'smtp.zoho.com', 'port': zoho_port,
-                                  'email': zoho_user2, 'password': zoho_pass2, 'use_ssl': zoho_ssl}
-                try:
-                    logging.info(f"📧 [ZOHO2] PRIORITY 5: Attempting Zoho #2 port {zoho_port}...")
-                    res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider2, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                    if res:
-                        logging.info(f"✅ ZOHO #2 PORT {zoho_port} SUCCESS!")
-                        try:
-                            from core.email_rotator import record_email_sent
-                            record_email_sent("zoho_2")
-                        except: pass
-                        return True
-                except Exception as e:
-                    logging.warning(f"⚠️ Zoho #2 port {zoho_port} failed: {e}")
-        
-        logging.error("❌ ALL HTTP APIs FAILED on Render (SMTP ports are blocked)")
+        logging.error("❌ ALL PROVIDERS FAILED on Render")
         return False
 
     # ============================================================
