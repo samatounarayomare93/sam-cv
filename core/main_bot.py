@@ -419,20 +419,45 @@ class AlphaOrchestrator:
             'application', 'resume', 'cv', 'job opening', 'linkedin job',
             'youtube', 'wikipedia', 'google', 'microsoft', 'apple', 'amazon',
             'microsoft word', 'odoo dubai office', 'top startup investors', 'dubai office',
-            'search result', 'index of', 'parent directory'
+            'search result', 'index of', 'parent directory',
+            'new', 'word', 'my', 'it', 'top', 'best', 'list', 'well', 'future',
+            'common', 'venture', 'doing business', 'stack overflow', 'startup programs',
         }
         
-        JUNK_EMAILS = {
-            'noreply@', 'no-reply@', 'donotreply@', 'support@', 'info@', 'careers@',
-            'jobs@', 'hr@', 'recruitment@', 'admin@', 'office@', 'contact@', 'hello@',
-            'apply@', 'applicant@', 'talent@', 'people@', 'team@'
-        }
+        # [🛡️ FAKE DOMAIN FILTER]: Reject AI-generated fake email domains
+        # Real companies have short domain names. Fake ones are long sentences.
+        def _is_fake_domain(email_addr):
+            if not email_addr or '@' not in email_addr:
+                return True
+            domain = email_addr.split('@')[-1].lower()
+            # Reject domains that are clearly AI-generated sentences
+            if len(domain) > 40:  # Real domains are short
+                return True
+            # Reject domains with too many words (sentence-like)
+            domain_words = domain.replace('.com', '').replace('.org', '').replace('.net', '').replace('-', ' ').split()
+            if len(domain_words) > 4:  # Real domains have 1-3 words max
+                return True
+            # Reject obviously fake domains
+            fake_patterns = ['hr@new.com', 'hr@my.com', 'hr@it.com', 'hr@top.com', 
+                           'hr@word.com', 'hr@list.com', 'hr@well.com', 'hr@future.com',
+                           'hr@common.com', 'hr@venture.com', 'hr@best.com']
+            if email_addr.lower() in fake_patterns:
+                return True
+            return False
         
         if company_name.lower().strip() in JUNK_NAMES or len(company_name.strip()) < 2:
             logging.info(f"🗑️ JUNK FILTER: Rejected garbage lead '{company_name}'. Skipping.")
             # Also mark it as processed in the cloud to stop it from reappearing
             if self.db and job_url:
                 await self.db.update_lead_status(job_url, "rejected")
+            return
+        
+        # Check for fake/AI-generated email domains
+        if email and _is_fake_domain(email):
+            logging.info(f"🗑️ FAKE DOMAIN FILTER: Rejected fake email '{email}' for '{company_name}'. Skipping.")
+            if self.db and job_url:
+                await self.db.update_lead_status(job_url, "rejected")
+            return
             return
         
         # ✅ FIX: Early email check — no point running AI analysis on leads with no contact
