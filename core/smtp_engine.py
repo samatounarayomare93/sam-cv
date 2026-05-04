@@ -619,25 +619,28 @@ def send_email_via_gmail_api(to_email, company_name, job_title, custom_body, att
         return False
 
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
-    """[REST API] Bypasses ISP SMTP blocks. Uses Gmail address as sender for inbox delivery."""
+    """[REST API] Bypasses ISP SMTP blocks. Uses verified Brevo sender."""
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
     
-    # 🎯 INBOX DELIVERY FIX: Use Gmail address as sender (not Brevo)
-    # This makes emails appear to come from Gmail, avoiding spam filters
-    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
-    brevo_smtp_login = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
+    # 🎯 CRITICAL FIX: Use VERIFIED Brevo sender, not Gmail
+    # Brevo only allows sending from verified email addresses
+    # We'll use the verified Brevo sender but set Reply-To to Gmail
     
-    # Priority: Gmail > Brevo > Fallback
-    if gmail_user:
-        sender_email = gmail_user
-        logging.info(f"📧 [BREVO-HTTP] Using Gmail address as sender: {gmail_user}")
-    elif brevo_smtp_login:
+    brevo_smtp_login = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
+    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    
+    # Use verified Brevo sender (a974ef001@smtp-brevo.com or samatou683@gmail.com)
+    if brevo_smtp_login:
         sender_email = brevo_smtp_login
-        logging.info(f"📧 [BREVO-HTTP] Using Brevo address as sender: {brevo_smtp_login}")
+        logging.info(f"📧 [BREVO-HTTP] Using verified Brevo sender: {brevo_smtp_login}")
     else:
-        sender_email = 'sam.dev1@hotmail.com'
+        sender_email = 'sam.dev1@hotmail.com'  # Fallback to verified Hotmail
         logging.warning(f"⚠️ [BREVO-HTTP] Using fallback sender: {sender_email}")
+    
+    # Set Reply-To to Gmail so responses go to the right place
+    if not reply_to:
+        reply_to = gmail_user if gmail_user else sender_email
     
     if not subject:
         subject = f"Application: {job_title} - {company_name}"
@@ -655,20 +658,19 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
                 except Exception as e:
                     logging.error(f"Failed to encode attachment {path}: {e}")
     
-    # 🎯 INBOX DELIVERY: Use Gmail as sender, Gmail as reply-to
-    # This makes the email look like it's coming directly from Gmail
+    # 🎯 INBOX DELIVERY: Use verified sender, Gmail as reply-to
     payload = {
         "sender": {"email": sender_email, "name": sender_name},
         "to": [{"email": to_email}],
         "subject": subject,
         "htmlContent": html_content,
-        "replyTo": {"email": reply_to if reply_to else sender_email, "name": sender_name}
+        "replyTo": {"email": reply_to, "name": sender_name}
     }
     if attachment_list:
         payload["attachment"] = attachment_list
     
     try:
-        logging.info(f"📤 [BREVO-HTTP] Sending via Brevo API from {sender_email} to {to_email}")
+        logging.info(f"📤 [BREVO-HTTP] Sending from {sender_email} (Reply-To: {reply_to}) to {to_email}")
         response = requests.post(
             "https://api.brevo.com/v3/smtp/email",
             headers={"api-key": api_key, "Content-Type": "application/json", "Accept": "application/json"},
