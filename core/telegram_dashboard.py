@@ -794,7 +794,7 @@ class SovereignDashboard:
             [KeyboardButton("📋 Leads | الفرص"), KeyboardButton("🧬 Tasks | المهام")],
             [KeyboardButton("🛡️ Shield | الدرع"), KeyboardButton("📜 Pulse | النبض")],
             [KeyboardButton("🏢 Companies | الشركات"), KeyboardButton("📖 Guide | الدليل")],
-            [KeyboardButton("🛰️ Track | التتبع"), KeyboardButton("🔮 Oracle | السوق")],
+            [KeyboardButton("🛰️ Track | التتبع"), KeyboardButton("🎓 Prep | التحضير")],
             [KeyboardButton("⚙️ Settings | الإعدادات"), KeyboardButton("🔄 Reboot | إعادة تشغيل")],
             [KeyboardButton("⏸️ Pause | إيقاف مؤقت"), KeyboardButton("▶️ Resume | استئناف")],
             [KeyboardButton("🛑 Omega Halt | التوقف التام"), KeyboardButton("📜 Logs | السجلات")]
@@ -909,8 +909,32 @@ class SovereignDashboard:
             )
 
         elif key in ("stats", "status", "companies"):
-            # [👑 UNIFIED HUD]: Redirect to the same centralized HUD logic
-            await self._dispatch_command("/status", update, context)
+            # Each button should do its own thing, not redirect to status
+            if key == "stats":
+                # Show statistics only
+                stats = await self.db.get_stats() if self.db else {}
+                msg_text = (
+                    "📊 <b>STATISTICS REPORT</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    f"🚀 <b>Total Applications:</b> {stats.get('total_strikes', 0)}\n"
+                    f"🎯 <b>Total Leads:</b> {stats.get('recon_rows', 0)}\n"
+                    f"📧 <b>Emails Sent:</b> {stats.get('total_strikes', 0)}\n"
+                    f"🏢 <b>Companies Targeted:</b> {stats.get('recon_rows', 0)}\n"
+                    "━━━━━━━━━━━━━━━"
+                )
+                await msg.reply_text(msg_text, parse_mode='HTML')
+            elif key == "companies":
+                # Show companies list
+                leads = await self.db.get_pending_leads(limit=10) if self.db else []
+                if leads:
+                    company_list = "\n".join([f"🏢 {l['company_name']} - {l['job_title'][:20]}" for l in leads])
+                    msg_text = f"🏢 <b>COMPANIES LIST</b>\n━━━━━━━━━━━━━━━\n{company_list}\n━━━━━━━━━━━━━━━"
+                else:
+                    msg_text = "🏢 <b>COMPANIES LIST</b>\n━━━━━━━━━━━━━━━\nNo companies found. Bot is searching...\n━━━━━━━━━━━━━━━"
+                await msg.reply_text(msg_text, parse_mode='HTML')
+            else:
+                # status - show full status
+                await self._dispatch_command("/status", update, context)
             return
 
         elif key == "test_strike":
@@ -930,7 +954,7 @@ class SovereignDashboard:
         elif key in ("stats", "status"):
             await self._dispatch_command(f"/{key}", update, context)
 
-        elif key in ("menu", "guide", "reboot", "launch_single"):
+        elif key in ("menu", "guide", "reboot", "launch_single", "settings"):
             await self._dispatch_command(f"/{key}", update, context)
 
     async def handle_text_oracle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1050,7 +1074,7 @@ class SovereignDashboard:
             "campaign": "campaign", "حملة جديدة": "campaign",
             "follow up": "followup", "followup": "followup", "المتابعة": "followup",
             "companies": "companies", "الشركات": "companies",
-            "settings": "menu", "الإعدادات": "menu",
+            "settings": "settings", "الإعدادات": "settings",
             "pause": "pause", "إيقاف مؤقت": "pause",
             "resume": "resume", "استئناف": "resume",
             "track": "track", "التتبع": "track",
@@ -1059,7 +1083,7 @@ class SovereignDashboard:
             "repair": "repair", "الإصلاح": "repair",
             "hygiene": "hygiene", "التنظيف": "hygiene",
             "reboot": "reboot", "إعادة تشغيل": "reboot",
-            "menu": "menu", "oracle": "oracle", "guide": "guide",
+            "menu": "menu", "guide": "guide", "الدليل": "guide",
             "evolution": "evolution", "audit": "audit",
             "mock interview": "mock_interview", "ghost": "mock_interview",
             "test strike": "test_strike", "تجربة": "test_strike",
@@ -1089,8 +1113,8 @@ class SovereignDashboard:
 
         if mapped:
             slash_cmds = {"launch_single", "menu", "pause", "resume", "track", "kill",
-                          "lazarus", "repair", "hygiene", "reboot", "status", "stats",
-                          "guide", "evolution", "audit", "hud", "backup", "oracle", "mock_interview", "synapse", "logs"}
+                          "lazarus", "repair", "hygiene", "reboot", "status",
+                          "guide", "evolution", "audit", "hud", "backup", "oracle", "mock_interview", "synapse", "logs", "settings"}
             if mapped in slash_cmds:
                 return await self._dispatch_command(f"/{mapped}", update, context)
             else:
