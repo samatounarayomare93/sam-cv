@@ -118,6 +118,8 @@ class AlphaOrchestrator:
         self._failed_requests = 0
         self.db = db if db else (RealityShapingDB() if RealityShapingDB else None)
         self.ai = ai if ai else (OmniIntelligence() if OmniIntelligence else None)
+        # 🛡️ IN-MEMORY DEDUP: Prevents same lead being processed twice in same session
+        self._processed_this_session = set()
         self.follow_up = FollowUpEngine(self.db, self.ai)
         self.omni_crawler = OmniCrawler(self.ai) if OmniCrawler else None
         self.linkedin = NeuralLinkedIn(self.ai) if NeuralLinkedIn and self.ai else None
@@ -395,6 +397,16 @@ class AlphaOrchestrator:
         lead["job_url"] = job_url
         lead["company_name"] = company_name
         lead["job_title"] = job_title
+
+        # 🛡️ IN-MEMORY DEDUP: Prevent same lead being processed twice in same session
+        session_key = f"{company_name}_{email}_{job_url}"
+        if session_key in self._processed_this_session:
+            logging.info(f"⏭️ [SESSION-DEDUP] Already processed this session: {company_name}. Skipping.")
+            return
+        self._processed_this_session.add(session_key)
+        # Keep set size manageable (clear oldest entries if > 10000)
+        if len(self._processed_this_session) > 10000:
+            self._processed_this_session = set(list(self._processed_this_session)[-5000:])
 
         # 🛡️ ANTI-BAN PROTECTION: Check before processing
         from core.anti_ban_protection import get_protection
