@@ -271,49 +271,8 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     logging.info(f"📧 EMAIL SUBJECT: {subject}")
 
     # ============================================================
-    # 🌟 ABSOLUTE PRIORITY 1: BREVO HTTP API (Port 443)
-    # The MOST RELIABLE way to bypass ALL firewall issues!
-    # ============================================================
-    if getattr(config, 'BREVO_API_KEY', None):
-        try:
-            logging.info("📧 [BREVO-HTTP] Attempting Brevo HTTP API (MOST RELIABLE)...")
-            if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
-                logging.info("✅ BREVO HTTP SUCCESS — Delivered via Brevo API!")
-                
-                # 🚀 ZERO-COST: Record email sent
-                try:
-                    from core.email_rotator import record_email_sent
-                    record_email_sent("brevo")
-                except: pass
-                
-                return True
-        except Exception as e:
-            logging.warning(f"⚠️ Brevo HTTP failed: {e}")
-
-    # ============================================================
-    # 🥈 PRIORITY 2: GMAIL API (HTTP Port 443)
-    # ============================================================
-    if get_gmail_service:
-        try:
-            # [👑 CLOUD SHIELD]: Attempt to initialize the service
-            service = get_gmail_service()
-            if service:
-                if send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
-                    logging.info("✅ GMAIL API SUCCESS — Bypassed Render firewall and hit Inbox perfectly.")
-                    return True
-                else:
-                    logging.error("❌ GMAIL API FAILED structural delivery.")
-            else:
-                logging.warning("⚠️ Gmail API service initialization returned None.")
-        except PermissionError as pe:
-            logging.error(f"🚫 GMAIL AUTH BLOCKED ON CLOUD: {pe}. Falling back to SMTP...")
-        except Exception as e:
-            if "invalid_grant" in str(e):
-                logging.error("🚨 GMAIL TOKEN EXPIRED: You MUST run the bot LOCALLY on your computer once to refresh the token, then push the new token.json to GitHub.")
-            logging.warning(f"⚠️ Gmail API unexpected failure: {e}")
-
-    # ============================================================
-    # 🥉 PRIORITY 3: GMAIL SMTP (Port 465 SSL)
+    # 🌟 ABSOLUTE PRIORITY 1: GMAIL SMTP (Port 465 SSL)
+    # Best deliverability - Gmail trusts Gmail!
     # ============================================================
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
     gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or '').strip()
@@ -343,7 +302,52 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             logging.warning(f"⚠️ Gmail SMTP failed: {e}")
 
     # ============================================================
-    # 🥉 PRIORITY 3: ZOHO SMTP (DMARC Aligned)
+    # 🥈 PRIORITY 2: BREVO HTTP API (Port 443)
+    # Reliable but may go to spam
+    # ============================================================
+    if getattr(config, 'BREVO_API_KEY', None):
+        try:
+            logging.info("📧 [BREVO-HTTP] Attempting Brevo HTTP API...")
+            if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
+                logging.info("✅ BREVO HTTP SUCCESS — Delivered via Brevo API!")
+                
+                # 🚀 ZERO-COST: Record email sent
+                try:
+                    from core.email_rotator import record_email_sent
+                    record_email_sent("brevo")
+                except: pass
+                
+                return True
+        except Exception as e:
+            logging.warning(f"⚠️ Brevo HTTP failed: {e}")
+
+    # ============================================================
+    # 🥉 PRIORITY 3: GMAIL API (HTTP Port 443)
+    # ============================================================
+    # ============================================================
+    # 🥉 PRIORITY 3: GMAIL API (HTTP Port 443)
+    # ============================================================
+    if get_gmail_service:
+        try:
+            # [👑 CLOUD SHIELD]: Attempt to initialize the service
+            service = get_gmail_service()
+            if service:
+                if send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
+                    logging.info("✅ GMAIL API SUCCESS — Bypassed Render firewall and hit Inbox perfectly.")
+                    return True
+                else:
+                    logging.error("❌ GMAIL API FAILED structural delivery.")
+            else:
+                logging.warning("⚠️ Gmail API service initialization returned None.")
+        except PermissionError as pe:
+            logging.error(f"🚫 GMAIL AUTH BLOCKED ON CLOUD: {pe}. Falling back to SMTP...")
+        except Exception as e:
+            if "invalid_grant" in str(e):
+                logging.error("🚨 GMAIL TOKEN EXPIRED: You MUST run the bot LOCALLY on your computer once to refresh the token, then push the new token.json to GitHub.")
+            logging.warning(f"⚠️ Gmail API unexpected failure: {e}")
+
+    # ============================================================
+    # 🔰 PRIORITY 4: ZOHO SMTP (DMARC Aligned)
     # ============================================================
     zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
     zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
