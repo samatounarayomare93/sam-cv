@@ -1,0 +1,3 @@
+Deploy timestamp: 2026-05-04 14:25:00
+This file triggers a Render redeploy.
+Latest fix: Use verified Brevo sender instead of unverified Gmail address.

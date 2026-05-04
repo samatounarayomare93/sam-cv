@@ -1,0 +1,92 @@
+﻿================================================================================
+≡ƒöì CHECKING BREVO ACCOUNT STATUS
+================================================================================
+
+≡ƒôè Account Information:
+Γ£à Email: samatou683@gmail.com
+Γ£à Plan: free
+Γ£à Credits: 300
+
+≡ƒôº Recent Email Events (Last 24 hours):
+Γ£à Found 18 events:
+
+  ≡ƒô¿ Event: requests
+     To: samsalameh.cv@gmail.com
+     Subject: Application: Lead Automation Engineer - Future Tec...
+     Date: 2026-05-04T15:22:43.089+01:00
+     Message ID: N/A
+
+  ≡ƒô¿ Event: error
+     To: samsalameh.cv@gmail.com
+     Subject: Application: Lead Automation Engineer - Future Tec...
+     Date: 2026-05-04T15:22:43.089+01:00
+     Message ID: N/A
+
+  ≡ƒô¿ Event: error
+     To: samsalameh.cv@gmail.com
+     Subject: Application: Lead Automation Engineer - Future Tec...
+     Date: 2026-05-04T15:11:54.464+01:00
+     Message ID: N/A
+
+  ≡ƒô¿ Event: requests
+     To: samsalameh.cv@gmail.com
+     Subject: Application: Lead Automation Engineer - Future Tec...
+     Date: 2026-05-04T15:11:54.464+01:00
+     Message ID: N/A
+
+  ≡ƒô¿ Event: requests
+     To: samsalameh.cv@gmail.com
+     Subject: Application: Lead Automation Engineer - Future Tec...
+     Date: 2026-05-04T14:57:16.522+01:00
+     Message ID: N/A
+
+  ≡ƒô¿ Event: error
+     To: samsalameh.cv@gmail.com
+     Subject: Application: Lead Automation Engineer - Future Tec...
+     Date: 2026-05-04T14:57:16.522+01:00
+     Message ID: N/A
+
+  ≡ƒô¿ Event: requests
+     To: samsalameh.cv@gmail.com
+     Subject: Application: Lead Automation Engineer - Future Tec...
+     Date: 2026-05-04T14:41:22.943+01:00
+     Message ID: N/A
+
+  ≡ƒô¿ Event: error
+     To: samsalameh.cv@gmail.com
+     Subject: Application: Lead Automation Engineer - Future Tec...
+     Date: 2026-05-04T14:41:22.943+01:00
+     Message ID: N/A
+
+  ≡ƒô¿ Event: requests
+     To: samsalameh.cv@gmail.com
+     Subject: Application: Lead Automation Engineer - Future Tec...
+     Date: 2026-05-04T14:09:48.889+01:00
+     Message ID: N/A
+
+  ≡ƒô¿ Event: error
+     To: samsalameh.cv@gmail.com
+     Subject: Application: Lead Automation Engineer - Future Tec...
+     Date: 2026-05-04T14:09:48.889+01:00
+     Message ID: N/A
+
+≡ƒôñ Configured Senders:
+  Γ£à Aurora <samatou683@gmail.com>
+  Γ£à Sam Salameh <sam.dev1@hotmail.com>
+
+================================================================================
+≡ƒöì DIAGNOSIS:
+================================================================================
+
+If you see 'blocked' or 'hard_bounce' events:
+  ΓåÆ Brevo is blocking emails to Gmail
+  ΓåÆ Solution: Use a different sender address (not Gmail)
+
+If you see 'delivered' events but no email:
+  ΓåÆ Gmail is silently dropping emails
+  ΓåÆ Solution: Add SPF/DKIM records or use Gmail API
+
+If you see no events at all:
+  ΓåÆ Emails are not being sent to Brevo
+  ΓåÆ Check the bot logs for errors
+
