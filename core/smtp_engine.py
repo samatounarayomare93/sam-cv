@@ -237,7 +237,7 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
     return send_email(email, company, title, lead.get('custom_body', ''), "omni", lead.get('mission_type', 'global'), valid_attachments, sender_name=sender_name, highlights=highlights, strike_id=strike_id)
 
 def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None, reply_to=None, strike_id=None):
-    """High-reliability delivery engine with smart provider rotation. Priority: Zoho SMTP > Outlook SMTP > Brevo HTTP > Gmail API."""
+    """High-reliability delivery engine with smart provider rotation. Priority: Brevo HTTP > Gmail SMTP > Zoho SMTP."""
     
     # 🚀 ZERO-COST: Check email rotation system
     try:
@@ -256,10 +256,10 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     
     # [👑 VIP RECOVERY]: Robust fallback for reply-to
     if not reply_to:
-        reply_to = os.getenv("REPLY_TO_EMAIL", "sam.dev1@outlook.com")
+        reply_to = os.getenv("REPLY_TO_EMAIL", "samsalameh.cv@gmail.com")
 
-    if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com'):
-        to_email = getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com')
+    if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', 'samsalameh.cv@gmail.com'):
+        to_email = getattr(config, 'TEST_RECEIVER_EMAIL', 'samsalameh.cv@gmail.com')
     
     # [👑 CENTRALIZED METADATA]: Generate professional subject line with company and STRIKE-ID
     if strike_id:
@@ -271,8 +271,27 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     logging.info(f"📧 EMAIL SUBJECT: {subject}")
 
     # ============================================================
-    # 🌟 ABSOLUTE PRIORITY 1: GMAIL API (HTTP Port 443)
-    # The ONLY way to bypass Render's Free Tier firewall AND hit the Inbox.
+    # 🌟 ABSOLUTE PRIORITY 1: BREVO HTTP API (Port 443)
+    # The MOST RELIABLE way to bypass ALL firewall issues!
+    # ============================================================
+    if getattr(config, 'BREVO_API_KEY', None):
+        try:
+            logging.info("📧 [BREVO-HTTP] Attempting Brevo HTTP API (MOST RELIABLE)...")
+            if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
+                logging.info("✅ BREVO HTTP SUCCESS — Delivered via Brevo API!")
+                
+                # 🚀 ZERO-COST: Record email sent
+                try:
+                    from core.email_rotator import record_email_sent
+                    record_email_sent("brevo")
+                except: pass
+                
+                return True
+        except Exception as e:
+            logging.warning(f"⚠️ Brevo HTTP failed: {e}")
+
+    # ============================================================
+    # 🥈 PRIORITY 2: GMAIL API (HTTP Port 443)
     # ============================================================
     if get_gmail_service:
         try:
@@ -294,8 +313,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             logging.warning(f"⚠️ Gmail API unexpected failure: {e}")
 
     # ============================================================
-    # 🥈 PRIORITY 2: GMAIL SMTP (Port 465 SSL)
-    # Best deliverability with App Password
+    # 🥉 PRIORITY 3: GMAIL SMTP (Port 465 SSL)
     # ============================================================
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
     gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or '').strip()
