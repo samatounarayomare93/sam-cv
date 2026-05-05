@@ -1374,7 +1374,7 @@ class SovereignDashboard:
                     verified = await self.db.is_bot_leader()
 
                     if verified is None:
-                        logging.warning("⚠️ LEADERSHIP VERIFY FAILED: Network error. Falling back to claim.")
+                        logging.debug("⚠️ LEADERSHIP VERIFY FAILED: Network error. Falling back to claim.")
                         self.is_leader = claimed
                     elif claimed and not verified:
                         logging.warning("⚠️ LEADERSHIP RACED: Claimed but verify failed (another node won). Yielding.")

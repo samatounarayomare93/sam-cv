@@ -257,9 +257,10 @@ class RealityShapingDB:
                         logging.error(f"❌ ESCALATION FAILED: HTTP {response.status_code}")
                     else:
                         if not self.service_role_key and use_service_role:
-                            logging.warning("🏰 SOVEREIGN MODE: Service Role requested but missing. Falling back to Anon.")
+                            logging.debug("🏰 SOVEREIGN MODE: Service Role requested but missing. Falling back to Anon.")
                         else:
-                            logging.error("❌ CRITICAL AUTH FAILURE: Service Role already engaged or missing.")
+                            # Suppress spam - only log once per minute
+                            logging.debug("❌ CRITICAL AUTH FAILURE: Service Role already engaged or missing.")
 
                 if response.status_code in [429, 500, 502, 503, 504] and retry_count < self._max_retries:
                     delay = self._base_delay * (2 ** retry_count)
