@@ -45,9 +45,21 @@ logging.basicConfig(
 async def resource_watchdog():
     """Monitor memory and pressure-clean the system."""
     while True:
-        await asyncio.sleep(300) # Every 5 minutes
+        await asyncio.sleep(120) # Every 2 minutes (was 5 - too slow for 512MB)
         gc.collect()
-        logging.info("🧹 [RESOURCE-WATCHDOG]: Memory cleared. Swarm health optimized.")
+        # [🛡️ OOM-FIX]: Check actual memory usage and force aggressive cleanup
+        try:
+            import psutil
+            process = psutil.Process()
+            mem_mb = process.memory_info().rss / (1024 * 1024)
+            if mem_mb > 400:  # Approaching 512MB Render limit
+                logging.warning(f"⚠️ [RESOURCE-WATCHDOG]: HIGH MEMORY: {mem_mb:.0f}MB! Forcing aggressive cleanup...")
+                gc.collect(2)  # Full generation-2 collection
+                gc.collect()
+            else:
+                logging.info(f"🧹 [RESOURCE-WATCHDOG]: Memory: {mem_mb:.0f}MB. Swarm health optimized.")
+        except ImportError:
+            logging.info("🧹 [RESOURCE-WATCHDOG]: Memory cleared. Swarm health optimized.")
 
 async def health_monitor():
     """🛡️ IMMORTALITY: Monitor system health and auto-restart on failure."""

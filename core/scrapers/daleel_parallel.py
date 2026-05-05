@@ -61,7 +61,7 @@ async def daleel_parallel_scan(db=None, pages: int = 5) -> List[Dict]:
     seen_urls: set = set()
 
     # Pick a random subset of queries each cycle to vary the search pattern
-    queries_to_run = random.sample(DALEEL_QUERIES, min(len(DALEEL_QUERIES), 5))
+    queries_to_run = random.sample(DALEEL_QUERIES, min(len(DALEEL_QUERIES), 3))  # [🛡️ RATE-FIX]: Reduced from 5 to 3
 
     for i, query in enumerate(queries_to_run):
         try:
@@ -106,9 +106,9 @@ async def daleel_parallel_scan(db=None, pages: int = 5) -> List[Dict]:
 
         logging.info(f"⏳ Daleel batch {i + 1} done ({len(all_jobs)} jobs so far).")
 
-        # Polite delay between search queries to avoid rate-limiting
+        # [🛡️ RATE-FIX]: Longer delay between search queries to avoid 429 rate limiting
         if i < len(queries_to_run) - 1:
-            await asyncio.sleep(random.uniform(3, 7))
+            await asyncio.sleep(random.uniform(5, 12))
 
     logging.info(f"🏁 Daleel Batched Finished: {len(all_jobs)} jobs found")
     return all_jobs

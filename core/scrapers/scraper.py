@@ -586,6 +586,7 @@ def scrape_jobportals():
 
 def get_latest_jobs():
     """Aggregates MAXIMUM jobs from all sources"""
+    import gc
     global TOTAL_DEEP_DIVES
     _reset_deep_dive()  # Reset counter for new scrape cycle
     
@@ -602,31 +603,18 @@ def get_latest_jobs():
     except Exception as e:
         logging.error(f"LinkedIn Error: {e}")
 
-    try:
-        all_jobs += scrape_bayt_jobs()
-    except Exception as e:
-        logging.error(f"Bayt Error: {e}")
+    # [🛡️ 403-FIX]: Bayt, Indeed, Glassdoor, and job portals consistently return HTTP 403.
+    # They are already covered by OmniCrawler's search-engine bypass (site: queries via DDG).
+    # Disabling direct HTTP scrapers to save memory and prevent wasted connections.
+    logging.info("📋 Skipping direct Bayt/Indeed/Glassdoor scrapers (covered by OmniCrawler DDG bypass)")
 
     try:
         all_jobs += scrape_monster_jobs()
     except Exception as e:
         logging.error(f"Monster Error: {e}")
 
-    # Additional Sources
-    try:
-        all_jobs += scrape_indeed_jobs()
-    except Exception as e:
-        logging.error(f"Indeed Error: {e}")
-
-    try:
-        all_jobs += scrape_glassdoor_jobs()
-    except Exception as e:
-        logging.debug(f"Glassdoor Error: {e}")
-
-    try:
-        all_jobs += scrape_jobportals()
-    except Exception as e:
-        logging.error(f"Portals Error: {e}")
+    # [🧹 OOM-FIX]: Force garbage collection after heavy scraping
+    gc.collect()
 
     # Remove duplicates
     unique_jobs = []
@@ -643,6 +631,7 @@ def get_latest_jobs():
                 logging.debug(f"Failed to persist lead: {e}")
             
     logging.info(f"🏁 Total unique jobs: {len(unique_jobs)} (Deep dives: {TOTAL_DEEP_DIVES})")
+    gc.collect()  # Final cleanup
     return unique_jobs
 
 def scrape_linkedin_jobs(location="Lebanon", keyword="HR"):

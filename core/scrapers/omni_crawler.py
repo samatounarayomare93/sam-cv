@@ -527,7 +527,7 @@ class OmniCrawler:
         
         queries = queries + self.SOCIAL_QUERIES + MarketOracle.EXPANSION_QUERIES + DEEP_WEB_QUERIES
         
-        batch_queries = random.sample(queries, min(len(queries), 55)) # Increased batch size for Multiverse
+        batch_queries = random.sample(queries, min(len(queries), 20)) # [🛡️ OOM-FIX]: Reduced from 55 to 20 to prevent 512MB memory crash
         discovered_jobs = []
         user_agent = random.choice(USER_AGENTS)
         
@@ -536,8 +536,8 @@ class OmniCrawler:
                 logging.warning("DuckDuckGo search unavailable; OmniCrawler skipped.")
                 return []
             for search_query in batch_queries:
-                if _get_deep_dive_count() >= 500:
-                    logging.warning("🛑 Scrape cap reached.")
+                if _get_deep_dive_count() >= 200:
+                    logging.warning("🛑 Scrape cap reached (200 limit for memory safety).")
                     break
                     
                 logging.info(f"🔍 Ghost-Spider [{user_agent[:15]}...]: {search_query[:50]}...")
@@ -557,7 +557,7 @@ class OmniCrawler:
                         proxies_to_try = [primary_proxy] + failover_proxies
                         for proxy in proxies_to_try:
                             try:
-                                res = _safe_ddgs_search(search_query, max_results=15, proxy=proxy, headers={"User-Agent": user_agent}, region='wt-wt', timeout=20)
+                                res = _safe_ddgs_search(search_query, max_results=8, proxy=proxy, headers={"User-Agent": user_agent}, region='wt-wt', timeout=20)
                                 if res:
                                     return res
                             except Exception as e:
@@ -568,13 +568,16 @@ class OmniCrawler:
                 except Exception as ddg_err:
                     logging.warning(f"DDG Search Grid Collapse: {ddg_err}")
                     results = []
+                
+                # [🛡️ RATE-LIMIT FIX]: Delay between queries to avoid 429 from Brave/DDG
+                await asyncio.sleep(random.uniform(3, 7))
                 if not results:
                     continue
                 
                 logging.info(f"📊 Found {len(results)} potential targets")
                 
                 for res in results:
-                    if _get_deep_dive_count() >= 500:
+                    if _get_deep_dive_count() >= 200:
                         break
                     
                     url = res.get('href', '')
