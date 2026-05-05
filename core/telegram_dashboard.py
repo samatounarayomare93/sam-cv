@@ -89,7 +89,6 @@ class SovereignDashboard:
 
     def _build_polling_error_callback(self):
         """Create polling error callback that flags 409 conflict for controlled recovery."""
-        loop = asyncio.get_running_loop()
 
         async def _handle_error(error):
             if isinstance(error, Conflict):
@@ -98,7 +97,17 @@ class SovereignDashboard:
             logging.error(f"⚠️ POLLING ERROR: {error}")
 
         def _error_callback(error):
-            loop.create_task(_handle_error(error))
+            # [FIX] Don't capture the loop at build time — fetch it at call time to avoid
+            # "cannot schedule new futures after shutdown" when the loop restarts.
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(_handle_error(error))
+            except RuntimeError:
+                # No running loop (e.g. during shutdown) — just log directly
+                if isinstance(error, Conflict):
+                    logging.warning("⚠️ TELEGRAM 409 CONFLICT: Library will auto-retry. Ignoring...")
+                else:
+                    logging.error(f"⚠️ POLLING ERROR: {error}")
 
         return _error_callback
 

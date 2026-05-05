@@ -101,9 +101,8 @@ class AlphaOrchestrator:
         self._initialized = True
         
         self.concurrency_limit = concurrency_limit
-        self.semaphore = asyncio.Semaphore(concurrency_limit)
-        # 🔐 FIX #1: asyncio.Lock for thread-safe concurrent operations
-        self.rate_limit_lock = asyncio.Lock()
+        self.semaphore = None  # [FIX] Lazy-init: must be created inside running event loop
+        self.rate_limit_lock = None  # [FIX] Lazy-init: must be created inside running event loop
         self.orchestrator = self
         self.start_time = time.time()
         self.paused = False
@@ -125,6 +124,20 @@ class AlphaOrchestrator:
         self.linkedin = NeuralLinkedIn(self.ai) if NeuralLinkedIn and self.ai else None
         self.decoy_count = int(os.getenv("DECOY_FLEET_SIZE", "2"))
         self.emergency_strike_requested = False
+
+    @property
+    def _semaphore(self):
+        """Lazy-initialize Semaphore so it binds to the correct running event loop."""
+        if self.semaphore is None:
+            self.semaphore = asyncio.Semaphore(self.concurrency_limit)
+        return self.semaphore
+
+    @property
+    def _rate_lock(self):
+        """Lazy-initialize Lock so it binds to the correct running event loop."""
+        if self.rate_limit_lock is None:
+            self.rate_limit_lock = asyncio.Lock()
+        return self.rate_limit_lock
 
     async def poisson_jitter(self, target_mean: int):
         """100% STEALTH: Mimics human jitter behavior using Poisson distribution."""
@@ -253,7 +266,7 @@ class AlphaOrchestrator:
 
     async def _stealth_scrape_target(self, target_url: str) -> Optional[str]:
         """Execute stealth request with retry logic."""
-        async with self.semaphore:
+        async with self._semaphore:
             headers = self.evasion.get_stealth_headers()
             max_retries = 3
             
@@ -266,7 +279,7 @@ class AlphaOrchestrator:
                         follow_redirects=True
                     )
                     # 🔐 FIX #1: Thread-safe counter increment
-                    async with self.rate_limit_lock:
+                    async with self._rate_lock:
                         self._total_requests += 1
                         
                     if response.status_code == 200:
@@ -305,20 +318,20 @@ class AlphaOrchestrator:
                             
                 except asyncio.TimeoutError:
                     # 🔐 FIX #1: Thread-safe counter increment
-                    async with self.rate_limit_lock:
+                    async with self._rate_lock:
                         self._failed_requests += 1
                     logging.warning(f"⏳ Timeout on {target_url[:50]} (attempt {attempt + 1})")
                     await asyncio.sleep(2 ** attempt)
                     
                 except Exception as e:
                     # 🔐 FIX #1: Thread-safe counter increment
-                    async with self.rate_limit_lock:
+                    async with self._rate_lock:
                         self._failed_requests += 1
                     logging.error(f"💥 Connection error {target_url[:50]}: {str(e)[:50]}")
                     await asyncio.sleep(1)
                     
             # 🔐 FIX #1: Thread-safe counter increment
-            async with self.rate_limit_lock:
+            async with self._rate_lock:
                 self._failed_requests += 1
             return None
 
@@ -400,10 +413,13 @@ class AlphaOrchestrator:
 
         # 🛡️ IN-MEMORY DEDUP: Prevent same lead being processed twice in same session
         session_key = f"{company_name}_{email}_{job_url}"
-        if session_key in self._processed_this_session:
+        # Also dedup by company+email alone to prevent parallel tasks hitting same target
+        company_email_key = f"{company_name.lower().strip()}_{(email or '').lower().strip()}"
+        if session_key in self._processed_this_session or company_email_key in self._processed_this_session:
             logging.info(f"⏭️ [SESSION-DEDUP] Already processed this session: {company_name}. Skipping.")
             return
         self._processed_this_session.add(session_key)
+        self._processed_this_session.add(company_email_key)
         # Keep set size manageable (clear oldest entries if > 10000)
         if len(self._processed_this_session) > 10000:
             self._processed_this_session = set(list(self._processed_this_session)[-5000:])
@@ -434,6 +450,12 @@ class AlphaOrchestrator:
             'search result', 'index of', 'parent directory',
             'new', 'word', 'my', 'it', 'top', 'best', 'list', 'well', 'future',
             'common', 'venture', 'doing business', 'stack overflow', 'startup programs',
+            # New junk from logs
+            'newest questions', 'windows', 'tech', 'automatically', 'when',
+            'arizona', 'install', 'biggest companies to work for in chandler',
+            'murray company mechanical contractors', 'hensley beverage company',
+            'gulf digest', 'ex', 'linkedin recruiter', 'official travel',
+            'strategic interview questions cheat sheet',
         }
         
         # [🛡️ FAKE DOMAIN FILTER]: Reject AI-generated fake email domains
@@ -442,19 +464,60 @@ class AlphaOrchestrator:
             if not email_addr or '@' not in email_addr:
                 return True
             domain = email_addr.split('@')[-1].lower()
-            # Reject domains that are clearly AI-generated sentences
-            if len(domain) > 40:  # Real domains are short
+
+            # Reject domains that are clearly AI-generated sentences (too long)
+            if len(domain) > 35:
                 return True
-            # Reject domains with too many words (sentence-like)
-            domain_words = domain.replace('.com', '').replace('.org', '').replace('.net', '').replace('-', ' ').split()
-            if len(domain_words) > 4:  # Real domains have 1-3 words max
+
+            # Reject domains with too many words (sentence-like: "farmerbrotherssignslease.com")
+            base = domain.replace('.com', '').replace('.org', '').replace('.net', '').replace('.co', '').replace('-', '')
+            # Heuristic: real company domains are ≤ 25 chars in the base
+            if len(base) > 28:
                 return True
-            # Reject obviously fake domains
-            fake_patterns = ['hr@new.com', 'hr@my.com', 'hr@it.com', 'hr@top.com', 
-                           'hr@word.com', 'hr@list.com', 'hr@well.com', 'hr@future.com',
-                           'hr@common.com', 'hr@venture.com', 'hr@best.com']
-            if email_addr.lower() in fake_patterns:
+
+            # Reject single-word generic English words used as fake company names
+            GENERIC_WORDS = {
+                'new', 'my', 'it', 'top', 'word', 'list', 'well', 'future', 'common',
+                'venture', 'best', 'homepage', 'home', 'startup', 'company', 'business',
+                'office', 'work', 'job', 'jobs', 'career', 'careers', 'hire', 'hiring',
+                'recruit', 'talent', 'people', 'team', 'staff', 'hr', 'human', 'resources',
+                'global', 'world', 'international', 'group', 'corp', 'inc', 'llc', 'ltd',
+                'the', 'a', 'an', 'and', 'or', 'of', 'in', 'at', 'by', 'for', 'with',
+                'wight', 'airedale', 'heimdal', 'rhodeisland', 'doingbusiness',
+                'stravavaluationpowersupto', 'newofficelondon', 'dubaiinternationalfinancialcentreattracts',
+            }
+            # Extract the leftmost part of the domain (before first dot)
+            domain_root = domain.split('.')[0]
+            if domain_root in GENERIC_WORDS:
                 return True
+
+            # Reject known fake patterns explicitly
+            FAKE_EXACT = {
+                'hr@new.com', 'hr@my.com', 'hr@it.com', 'hr@top.com',
+                'hr@word.com', 'hr@list.com', 'hr@well.com', 'hr@future.com',
+                'hr@common.com', 'hr@venture.com', 'hr@best.com',
+                'hr@homepage.com', 'hr@home.com', 'hr@wight.com',
+                'hr@airedale.com', 'hr@heimdal.com', 'hr@rhodeisland.com',
+                'hr@doingbusiness.com', 'hr@stackoverflow.com',
+                'hr@windows.com', 'hr@newestquestions.com',
+                'hr@tech.com', 'hr@automatically.com', 'hr@when.com',
+                'hr@arizona.com', 'hr@install.com', 'hr@gulpdigest.com',
+                'careers@confidential.com', 'careers@ahiringcompany.com',
+            }
+            if email_addr.lower() in FAKE_EXACT:
+                return True
+
+            # Reject emails to well-known non-hiring domains
+            NON_HIRING_DOMAINS = {
+                'stackoverflow.com', 'windows.com', 'microsoft.com', 'google.com',
+                'apple.com', 'amazon.com', 'youtube.com', 'wikipedia.org',
+                'linkedin.com', 'facebook.com', 'twitter.com', 'instagram.com',
+                'reddit.com', 'github.com', 'zippia.com', 'glassdoor.com',
+                'indeed.com', 'crunchbase.com', 'techcrunch.com',
+            }
+            if domain in NON_HIRING_DOMAINS:
+                return True
+
             return False
         
         if company_name.lower().strip() in JUNK_NAMES or len(company_name.strip()) < 2:
@@ -831,12 +894,35 @@ class AlphaOrchestrator:
         try:
             # 1. PURGE JUNK LEADS: Mass-reject known garbage strings in the DB
             # This ensures that if the crawler finds junk, it's purged before it can block the queue.
-            junk_patterns = ['target node', 'unknown', 'none', 'microsoft word', 'odoo dubai office', 'top startup investors', 'dubai office']
+            junk_patterns = [
+                'target node', 'unknown', 'none', 'microsoft word', 'odoo dubai office',
+                'top startup investors', 'dubai office',
+                # New junk from logs
+                'newest questions', 'windows', 'tech', 'automatically', 'when',
+                'arizona', 'install', 'biggest companies to work for in chandler',
+                'hensley beverage company', 'gulf digest', 'linkedin recruiter',
+                'official travel', 'strategic interview questions cheat sheet',
+                'murray company mechanical contractors', 'ex',
+                'periodic labs hiring', 'google hiring', 'gulf recruitment',
+                'welcome to windows', 'stack overflow', 'newest questions',
+            ]
             for pattern in junk_patterns:
                 # Direct Hive-Mind scrub
                 await self.db._request_with_retry('PATCH', 
                     f"{self.db.url}/rest/v1/leads?company_name=eq.{pattern}&status=eq.pending", 
                     payload={"status": "rejected"})
+
+            # Also purge by junk job URLs (non-hiring domains)
+            junk_url_domains = [
+                'stackoverflow.com', 'windows.com', 'zippia.com', 'glassdoor.com',
+                'crunchbase.com', 'techcrunch.com', 'wikipedia.org',
+            ]
+            for domain in junk_url_domains:
+                try:
+                    await self.db._request_with_retry('PATCH',
+                        f"{self.db.url}/rest/v1/leads?job_url=like.*{domain}*&status=eq.pending",
+                        payload={"status": "rejected"})
+                except: pass
             
             # 2. STAGNATION PREVENTION: Mark leads older than 48h as expired
             from datetime import datetime, timedelta

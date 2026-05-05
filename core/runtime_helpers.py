@@ -145,11 +145,18 @@ class ProxyMesh:
         self._res_index = 0
         self._last_refresh = 0
         self._refresh_interval = 1800 # 30 mins
-        self._lock = asyncio.Lock()
+        self._lock = None  # [FIX] Lazy-init: Lock must be created inside the running event loop
+
+    @property
+    def _proxy_lock(self):
+        """Lazy-initialize the asyncio.Lock so it binds to the correct running event loop."""
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
 
     async def _refresh_proxies(self):
         """Scrapes free global proxies as a sovereign fallback grid with multi-source failover."""
-        async with self._lock:
+        async with self._proxy_lock:
             if time.time() - self._last_refresh < self._refresh_interval and len(self.proxies) > 1: 
                 return
             logging.info("🕸️ SHADOW GRID: Refreshing global proxy grid...")

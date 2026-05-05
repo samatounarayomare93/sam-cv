@@ -343,34 +343,48 @@ class OmniIntelligence:
         try:
             # 1. Primary Engine Attempt (Gemini)
             if self.primary_engine == "gemini":
-                response = await self.client.aio.models.generate_content(
-                    model=self.model_id,
-                    contents=system_prompt
-                )
-                data = self._extract_json_robustly(response.text)
-                
-                cover_letter = data.get("cover_letter_body", "")
-                score = data.get("lead_score", 0)
-                
-                if data.get("is_relevant") and cover_letter:
-                    # [🕵️ PHASE SINGULARITY: REGIONAL PARITY OVERRIDE]
-                    # If we have a specific regional persona (e.g. Phoenician), enforce it.
-                    persona = target_persona if target_persona != "Modern" else data.get("culture_persona", "Modern")
+                try:
+                    response = await self.client.aio.models.generate_content(
+                        model=self.model_id,
+                        contents=system_prompt
+                    )
+                except Exception as gemini_err:
+                    err_str = str(gemini_err)
+                    # Detect permanent key suspension — no point retrying, go straight to Groq
+                    if "CONSUMER_SUSPENDED" in err_str or "has been suspended" in err_str:
+                        logging.warning("⚠️ Gemini key suspended. Disabling Gemini for this session and falling back to Groq.")
+                        self.primary_engine = None  # Don't try again this session
+                    elif "PERMISSION_DENIED" in err_str or "403" in err_str:
+                        logging.warning(f"⚠️ Gemini permission error: {err_str[:120]}. Falling back to Groq.")
+                        self.primary_engine = None
+                    else:
+                        logging.error(f"⚡ Gemini failure: {err_str[:120]}. Falling back to Groq.")
+                    # Fall through to Groq below
+                else:
+                    data = self._extract_json_robustly(response.text)
                     
-                    # Sector Reflection Loop (If Groq is available)
-                    if self.groq_key and score > 85:
+                    cover_letter = data.get("cover_letter_body", "")
+                    score = data.get("lead_score", 0)
+                    
+                    if data.get("is_relevant") and cover_letter:
+                        # [🕵️ PHASE SINGULARITY: REGIONAL PARITY OVERRIDE]
+                        # If we have a specific regional persona (e.g. Phoenician), enforce it.
+                        persona = target_persona if target_persona != "Modern" else data.get("culture_persona", "Modern")
+                        
+                        # Sector Reflection Loop (If Groq is available)
+                        if self.groq_key and score > 85:
+                            try:
+                                logging.info("🧠 REFLECTION TRIGGERED: Groq is critiquing the draft...")
+                                cover_letter = await self.reflect_on_outreach(cover_letter, job_title)
+                            except: pass
+                    
+                    # --- PHASE MULTIVERSE: THE GHOST PASS ---
+                    if score >= 90:
                         try:
-                            logging.info("🧠 REFLECTION TRIGGERED: Groq is critiquing the draft...")
-                            cover_letter = await self.reflect_on_outreach(cover_letter, job_title)
+                            logging.info(f"🕵️ GHOST-PASS: Auditing high-value strike...")
+                            cover_letter = await self.ghost_pass(cover_letter, job_title)
                         except: pass
-                
-                # --- PHASE MULTIVERSE: THE GHOST PASS ---
-                if score >= 90:
-                    try:
-                        logging.info(f"🕵️ GHOST-PASS: Auditing high-value strike...")
-                        cover_letter = await self.ghost_pass(cover_letter, job_title)
-                    except: pass
-                
+                        
                     result = (
                         data.get("is_relevant", False),
                         data.get("reason", "Analyzed via Gemini-Flash"),
@@ -379,7 +393,7 @@ class OmniIntelligence:
                         score,
                         data.get("competitive_advantage", "Proven Operations expert."),
                         data.get("keywords", []),
-                        persona,
+                        target_persona if target_persona != "Modern" else data.get("culture_persona", "Modern"),
                         data.get("psychological_variant", target_variant),
                         data.get("personality_archetype", "VISIONARY_TECH"),
                         data.get("highlights", [])

@@ -257,44 +257,10 @@ async def get_job_email_and_desc_async(url, headers):
     return (valid[0], all_text[:1000]) if valid else (None, "")
 
 async def scrape_new_companies_async():
-    logging.info("🌍 Initiating BATCHED Auto-Sourcing on Daleel Madani...")
-    user_agents = EvasionRouter.USER_AGENTS
-    base_url = "https://daleel-madani.org/jobs"
-    max_pages = 8  # [🛡️ STEALTH: Reduced from 15 to avoid 403 blocks]
-    batch_size = 2  # [🛡️ STEALTH: Reduced from 3 to be more human-like]
-    
-    site_patch = {}
-    try:
-        from core.db_client import get_db
-        db = get_db()
-        site_patch = await db.get_site_patch("daleel-madani.org") or {}
-    except: pass
-
-    all_jobs = []
-    pages = list(range(0, max_pages))
-    
-    # Process in small batches with delays between each batch
-    for i in range(0, len(pages), batch_size):
-        batch = pages[i:i + batch_size]
-        tasks = [scrape_daleel_page(p, user_agents, base_url, site_patch) for p in batch]
-        try:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for j, res in enumerate(results):
-                if isinstance(res, Exception):
-                    logging.error(f"Daleel Page {batch[j]} failed: {res}")
-                elif isinstance(res, list):
-                    all_jobs.extend(res)
-        except Exception as e:
-            logging.error(f"Daleel batch {i//batch_size + 1} failed: {e}")
-        
-        # Human-like delay between batches
-        if i + batch_size < len(pages):
-            delay = random.uniform(8, 15)  # [🛡️ STEALTH: Increased from 3-7 to 8-15 seconds]
-            logging.info(f"⏳ Daleel batch {i//batch_size + 1} done ({len(all_jobs)} jobs so far). Waiting {delay:.1f}s...")
-            await asyncio.sleep(delay)
-    
-    logging.info(f"🏁 Daleel Batched Finished: {len(all_jobs)} jobs found")
-    return all_jobs
+    """[👑 BYPASS MODE] Delegates to daleel_parallel_scan which uses search-engine queries.
+    Direct HTTP to daleel-madani.org returns 403 on every request."""
+    from core.scrapers.daleel_parallel import daleel_parallel_scan
+    return await daleel_parallel_scan(db=None)
 
 def scrape_new_companies():
     # [🛡️ FIX]: Use get_event_loop() instead of asyncio.run() to avoid event loop conflicts

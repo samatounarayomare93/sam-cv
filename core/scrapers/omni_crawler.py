@@ -434,10 +434,11 @@ class OmniCrawler:
                     company_match = re.search(r'([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)', r['title'])
                     if company_match:
                         company = company_match.group(1)
+                        # Don't guess email — leads without real emails get filtered downstream
                         leads.append({
                             "company_name": company,
                             "job_title": "Strategic Operations Lead",
-                            "email": f"hr@{company.lower().replace(' ', '')}.com",
+                            "email": None,  # No guessed email — real contact must be found
                             "description": r['body'],
                             "link": r['href'],
                             "mission_type": "PRE_HIRING_SIGNAL",
@@ -770,7 +771,21 @@ class OmniCrawler:
         """
         [👑 UNIVERSAL HUNTER] Iterates through the registry and extracts jobs from ALL discovered platforms.
         """
-        platforms = await db_manager.client.get_active_platforms()
+        # Built-in platforms always available (no DB needed)
+        BUILTIN_PLATFORMS = [
+            {"name": "LinkedIn", "url": "https://www.linkedin.com/jobs"},
+            {"name": "Bayt", "url": "https://www.bayt.com"},
+            {"name": "GulfTalent", "url": "https://www.gulftalent.com"},
+            {"name": "Naukrigulf", "url": "https://www.naukrigulf.com"},
+            {"name": "Indeed Middle East", "url": "https://ae.indeed.com"},
+            {"name": "Dubizzle Jobs", "url": "https://dubai.dubizzle.com"},
+            {"name": "Daleel Madani", "url": "https://www.daleel-madani.org"},
+        ]
+        
+        # Also get any DB-registered platforms
+        db_platforms = await db_manager.client.get_active_platforms()
+        platforms = BUILTIN_PLATFORMS + (db_platforms or [])
+        
         all_leads = []
         if not platforms:
             logging.info("🛰️ No custom platforms registered yet. Sticking to deep-web hunting.")

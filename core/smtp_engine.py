@@ -283,9 +283,12 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # ============================================================
     # 🌟 ABSOLUTE PRIORITY 0: RESEND API (Best Gmail deliverability!)
     # Free 3000/month, excellent inbox delivery, works on Render
+    # Requires RESEND_FROM_EMAIL env var with a verified domain address.
+    # Without it, Resend only allows sending to the account owner's email.
     # ============================================================
     resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
-    if resend_api_key:
+    resend_from_email = os.getenv("RESEND_FROM_EMAIL", "").strip()  # e.g. sam@yourdomain.com
+    if resend_api_key and resend_from_email:
         try:
             import resend as resend_lib
             resend_lib.api_key = resend_api_key
@@ -305,7 +308,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                             })
             
             params = {
-                "from": f"Sam Salameh <onboarding@resend.dev>",
+                "from": f"{sender_name} <{resend_from_email}>",
                 "to": [to_email],
                 "subject": subject,
                 "html": html_content,
@@ -328,6 +331,8 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 logging.warning(f"⚠️ [RESEND] No ID returned: {result}")
         except Exception as e:
             logging.warning(f"⚠️ [RESEND] Failed: {e}")
+    elif resend_api_key and not resend_from_email:
+        logging.debug("⏭️ [RESEND] Skipped: RESEND_FROM_EMAIL not set (need verified domain). Falling through to Gmail.")
 
     # ============================================================
     # 🌟 CLOUD-OPTIMIZED PRIORITY
@@ -345,8 +350,13 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         # ============================================================
         
         def _try_resend():
-            """Try all Resend accounts in order"""
+            """Try all Resend accounts in order — requires RESEND_FROM_EMAIL (verified domain)"""
             if not HAS_RESEND:
+                return False
+            resend_from = os.getenv("RESEND_FROM_EMAIL", "").strip()
+            if not resend_from:
+                # No verified domain configured — skip entirely to avoid the
+                # "can only send testing emails to your own address" error
                 return False
             for i in range(1, 11):
                 env = "RESEND_API_KEY" if i == 1 else f"RESEND_API_KEY_{i}"
@@ -378,7 +388,82 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             return False
 
         def _try_zoho():
-            """Try all Zoho accounts in order"""
+            """Try Zoho — ZeptoMail first (simplest, works on Render), then REST API, then SMTP (local only)."""
+
+            # ── 1. ZOHO ZEPTOMAIL (simplest — just a token, works on Render) ──
+            # Setup: zeptomail.zoho.com → Mail Agent → SMTP/API tab → copy Send Mail Token
+            zepto_key = os.getenv("ZEPTO_API_KEY", "").strip()
+            zepto_from = os.getenv("ZEPTO_FROM_EMAIL", os.getenv("ZOHO_SMTP_USER", "")).strip()
+            if zepto_key and zepto_from:
+                try:
+                    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+                    resp = requests.post(
+                        "https://api.zeptomail.com/v1.1/email",
+                        json={
+                            "from": {"address": zepto_from, "name": sender_name},
+                            "to": [{"email_address": {"address": to_email}}],
+                            "subject": subject,
+                            "htmlbody": html_content,
+                            "reply_to": [{"address": reply_to or zepto_from}],
+                        },
+                        headers={
+                            "Authorization": f"Zoho-enczapikey {zepto_key}",
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                        },
+                        timeout=20
+                    )
+                    if resp.status_code in (200, 201, 202):
+                        logging.info("✅ [ZEPTO] Email sent via ZeptoMail!")
+                        try:
+                            from core.email_rotator import record_email_sent
+                            record_email_sent("zoho_1")
+                        except: pass
+                        return True
+                    else:
+                        logging.warning(f"⚠️ [ZEPTO] Failed: {resp.status_code} — {resp.text[:120]}")
+                except Exception as e:
+                    logging.warning(f"⚠️ [ZEPTO] Exception: {e}")
+
+            # ── 2. ZOHO MAIL REST API (OAuth token — works on Render) ───────────
+            zoho_api_key = os.getenv("ZOHO_API_KEY", "").strip()
+            zoho_from = os.getenv("ZOHO_SMTP_USER", "").strip()
+            if zoho_api_key and zoho_from:
+                try:
+                    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+                    resp = requests.post(
+                        "https://mail.zoho.com/api/accounts/me/messages",
+                        json={
+                            "fromAddress": zoho_from,
+                            "toAddress": to_email,
+                            "subject": subject,
+                            "htmlBody": html_content,
+                            "replyTo": reply_to or zoho_from,
+                        },
+                        headers={
+                            "Authorization": f"Zoho-oauthtoken {zoho_api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        timeout=20
+                    )
+                    if resp.status_code in (200, 201, 202):
+                        logging.info("✅ [ZOHO-API] Email sent via Zoho REST API!")
+                        try:
+                            from core.email_rotator import record_email_sent
+                            record_email_sent("zoho_1")
+                        except: pass
+                        return True
+                    else:
+                        logging.warning(f"⚠️ [ZOHO-API] Failed: {resp.status_code} — {resp.text[:100]}")
+                except Exception as e:
+                    logging.warning(f"⚠️ [ZOHO-API] Exception: {e}")
+
+            # ── 3. ZOHO SMTP (port 465/587 — blocked on Render, works locally) ─
+            is_render = bool(os.getenv("RENDER"))
+            if is_render:
+                logging.debug("⏭️ [ZOHO-SMTP] Skipped on Render. Add ZEPTO_API_KEY to enable Zoho on cloud.")
+                return False
+
             for i in range(1, 11):
                 u_env = "ZOHO_SMTP_USER" if i == 1 else f"ZOHO_SMTP_USER_{i}"
                 p_env = "ZOHO_APP_PASSWORD" if i == 1 else f"ZOHO_APP_PASSWORD_{i}"
@@ -386,7 +471,6 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 z_pass = os.getenv(p_env, "").strip()
                 if not z_user or not z_pass:
                     continue
-                # Check rotator limit
                 provider_name = f"zoho_{i}"
                 try:
                     from core.email_rotator import get_rotator
@@ -490,15 +574,27 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             return False
 
         # ============================================================
-        # ROTATION ORDER: Try each provider, auto-skip when limit hit
+        # ROTATION ORDER: HTTP providers first (work on Render), SMTP last
+        # Render blocks outbound SMTP ports — Brevo/Mailjet/SendPulse use HTTP API
         # ============================================================
-        rotation_order = [
-            ("Resend",     _try_resend),
-            ("Zoho",       _try_zoho),
-            ("Brevo",      _try_brevo),
-            ("SendPulse",  _try_sendpulse),
-            ("Mailjet",    _try_mailjet),
-        ]
+        is_render = bool(os.getenv("RENDER"))
+        if is_render:
+            rotation_order = [
+                ("Resend",     _try_resend),
+                ("Zoho",       _try_zoho),   # Zoho HTTP API works on Render
+                ("Brevo",      _try_brevo),
+                ("SendPulse",  _try_sendpulse),
+                ("Mailjet",    _try_mailjet),
+                # Zoho SMTP skipped on Render — port 465/587 always times out
+            ]
+        else:
+            rotation_order = [
+                ("Resend",     _try_resend),
+                ("Zoho",       _try_zoho),
+                ("Brevo",      _try_brevo),
+                ("SendPulse",  _try_sendpulse),
+                ("Mailjet",    _try_mailjet),
+            ]
 
         for provider_name, try_fn in rotation_order:
             try:
@@ -850,6 +946,15 @@ def send_email_via_resend(to_email, company_name, job_title, custom_body, attach
 
     html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    resend_from_email = os.getenv("RESEND_FROM_EMAIL", "").strip()
+
+    # Resend free plan only allows sending to the account owner's email without a verified domain.
+    # If RESEND_FROM_EMAIL is not set (a verified domain address), skip entirely.
+    if not resend_from_email:
+        logging.debug("⏭️ [RESEND] Skipped: RESEND_FROM_EMAIL not set (need verified domain).")
+        return False
+
+    from_addr = f"{sender_name} <{resend_from_email}>"
 
     # Build attachments
     attachments = []
@@ -868,7 +973,7 @@ def send_email_via_resend(to_email, company_name, job_title, custom_body, attach
         try:
             resend_lib.api_key = key
             params = {
-                "from": f"{sender_name} <onboarding@resend.dev>",
+                "from": from_addr,
                 "to": [to_email],
                 "subject": subject,
                 "html": html_content,
@@ -895,7 +1000,11 @@ def send_email_via_mailjet(to_email, company_name, job_title, custom_body, attac
     """[MAILJET API] 200 emails/day free. Uses HTTP API."""
     api_key = os.getenv("MAILJET_API_KEY", "").strip()
     secret_key = os.getenv("MAILJET_SECRET_KEY", "").strip()
-    sender_email = os.getenv("MAILJET_SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "sam.dev1@hotmail.com")).strip()
+    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    brevo_sender = os.getenv("BREVO_SENDER_EMAIL", "").strip()
+    sender_email = os.getenv("MAILJET_SENDER_EMAIL", gmail_user or brevo_sender).strip()
+    if not sender_email:
+        return False  # No verified sender configured
     if not api_key or not secret_key:
         return False
 
@@ -937,7 +1046,11 @@ def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, att
     """[SENDPULSE API] 400 emails/day free. Uses HTTP API."""
     client_id = os.getenv("SENDPULSE_CLIENT_ID", "").strip()
     client_secret = os.getenv("SENDPULSE_CLIENT_SECRET", "").strip()
-    sender_email = os.getenv("SENDPULSE_SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "sam.dev1@hotmail.com")).strip()
+    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    brevo_sender = os.getenv("BREVO_SENDER_EMAIL", "").strip()
+    sender_email = os.getenv("SENDPULSE_SENDER_EMAIL", gmail_user or brevo_sender).strip()
+    if not sender_email:
+        return False  # No verified sender configured
     if not client_id or not client_secret:
         return False
 
@@ -1002,7 +1115,10 @@ def send_email_via_mailjet(to_email, company_name, job_title, custom_body, attac
 
     html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
-    sender_email = gmail_user or "sam.dev1@hotmail.com"
+    brevo_sender = os.getenv("BREVO_SENDER_EMAIL", "").strip()
+    sender_email = gmail_user or brevo_sender
+    if not sender_email:
+        return False  # No verified sender — skip rather than use Hotmail
 
     # Build attachments
     attachment_list = []
@@ -1144,12 +1260,22 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
         logging.info(f"⏭️ [BREVO] Skipping Gmail recipient {to_email} — use Resend instead")
         return False
 
-    # Use verified Brevo sender
-    sender_email = 'sam.dev1@hotmail.com'
+    # [👑 FIX] Use a verified sender address — priority:
+    # 1. BREVO_SENDER_EMAIL env var (explicitly verified on Brevo)
+    # 2. GMAIL_SMTP_USER (usually verified)
+    # 3. BREVO_SMTP_LOGIN (the Brevo account login itself — always verified)
+    # Never use Hotmail/Outlook as sender — causes soft bounces
+    brevo_sender = os.getenv("BREVO_SENDER_EMAIL", "").strip()
+    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    brevo_login = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
+
+    sender_email = brevo_sender or gmail_user or brevo_login
+    if not sender_email:
+        logging.warning("⚠️ [BREVO] No verified sender email configured. Set BREVO_SENDER_EMAIL in env.")
+        return False
 
     if not reply_to:
-        gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
-        reply_to = gmail_user if gmail_user else sender_email
+        reply_to = gmail_user or sender_email
 
     if not subject:
         subject = f"Application: {job_title} - {company_name}"

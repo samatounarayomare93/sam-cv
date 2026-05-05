@@ -75,61 +75,63 @@ class EmailRotator:
 
     def _get_available_providers(self) -> List[Dict]:
         providers = []
+        is_render = bool(os.getenv("RENDER"))
+        resend_from = os.getenv("RESEND_FROM_EMAIL", "").strip()
 
-        # Resend account #1
-        if os.getenv("RESEND_API_KEY"):
-            providers.append({"name": "resend_1", "display_name": "Resend #1",
-                               "limit": PROVIDER_LIMITS["resend_1"], "priority": 1})
+        # Resend: only include if RESEND_FROM_EMAIL is set (verified domain required)
+        if resend_from:
+            if os.getenv("RESEND_API_KEY"):
+                providers.append({"name": "resend_1", "display_name": "Resend #1",
+                                   "limit": PROVIDER_LIMITS["resend_1"], "priority": 1})
+            if os.getenv("RESEND_API_KEY_2"):
+                providers.append({"name": "resend_2", "display_name": "Resend #2",
+                                   "limit": PROVIDER_LIMITS["resend_2"], "priority": 2})
+            if os.getenv("RESEND_API_KEY_3"):
+                providers.append({"name": "resend_3", "display_name": "Resend #3",
+                                   "limit": PROVIDER_LIMITS["resend_3"], "priority": 3})
 
-        # Resend account #2
-        if os.getenv("RESEND_API_KEY_2"):
-            providers.append({"name": "resend_2", "display_name": "Resend #2",
-                               "limit": PROVIDER_LIMITS["resend_2"], "priority": 2})
-
-        # Resend account #3
-        if os.getenv("RESEND_API_KEY_3"):
-            providers.append({"name": "resend_3", "display_name": "Resend #3",
-                               "limit": PROVIDER_LIMITS["resend_3"], "priority": 3})
-
-        # Brevo
+        # Brevo HTTP API — works on Render (no SMTP port needed), always first HTTP provider
         if os.getenv("BREVO_API_KEY"):
             providers.append({"name": "brevo", "display_name": "Brevo",
                                "limit": PROVIDER_LIMITS["brevo"], "priority": 4})
 
-        # Mailjet (200/day free)
+        # Zoho Transactional API — works on Render when ZOHO_API_KEY is set
+        if os.getenv("ZOHO_API_KEY") and os.getenv("ZOHO_SMTP_USER"):
+            providers.append({"name": "zoho_1", "display_name": "Zoho API",
+                               "limit": PROVIDER_LIMITS.get("zoho_1", 500), "priority": 5})
+
+        # Mailjet HTTP API — works on Render
         if os.getenv("MAILJET_API_KEY") and os.getenv("MAILJET_SECRET_KEY"):
             providers.append({"name": "mailjet", "display_name": "Mailjet",
                                "limit": PROVIDER_LIMITS["mailjet"], "priority": 5})
 
-        # SendPulse (400/day free)
+        # SendPulse HTTP API — works on Render
         if os.getenv("SENDPULSE_CLIENT_ID") and os.getenv("SENDPULSE_CLIENT_SECRET"):
             providers.append({"name": "sendpulse", "display_name": "SendPulse",
                                "limit": PROVIDER_LIMITS["sendpulse"], "priority": 6})
 
-        # Zoho #1
-        if os.getenv("ZOHO_SMTP_USER") and os.getenv("ZOHO_APP_PASSWORD"):
-            providers.append({"name": "zoho_1", "display_name": "Zoho #1",
-                               "limit": PROVIDER_LIMITS["zoho_1"], "priority": 5})
-
-        # Zoho #2
-        if os.getenv("ZOHO_SMTP_USER_2") and os.getenv("ZOHO_APP_PASSWORD_2"):
-            providers.append({"name": "zoho_2", "display_name": "Zoho #2",
-                               "limit": PROVIDER_LIMITS["zoho_2"], "priority": 6})
-
-        # Gmail
-        if os.getenv("GMAIL_SMTP_USER") and os.getenv("GMAIL_APP_PASSWORD"):
-            providers.append({"name": "gmail", "display_name": "Gmail",
-                               "limit": PROVIDER_LIMITS["gmail"], "priority": 7})
-
-        # Yahoo
-        if os.getenv("YAHOO_SMTP_USER") and os.getenv("YAHOO_APP_PASSWORD"):
-            providers.append({"name": "yahoo", "display_name": "Yahoo",
-                               "limit": PROVIDER_LIMITS["yahoo"], "priority": 8})
-
-        # Outlook
-        if os.getenv("OUTLOOK_USER") and os.getenv("OUTLOOK_PASSWORD"):
-            providers.append({"name": "outlook", "display_name": "Outlook",
-                               "limit": PROVIDER_LIMITS["outlook"], "priority": 9})
+        # SMTP providers — Render blocks outbound SMTP ports (465/587), skip on cloud
+        if not is_render:
+            if os.getenv("ZOHO_SMTP_USER") and os.getenv("ZOHO_APP_PASSWORD"):
+                providers.append({"name": "zoho_1", "display_name": "Zoho #1",
+                                   "limit": PROVIDER_LIMITS["zoho_1"], "priority": 7})
+            if os.getenv("ZOHO_SMTP_USER_2") and os.getenv("ZOHO_APP_PASSWORD_2"):
+                providers.append({"name": "zoho_2", "display_name": "Zoho #2",
+                                   "limit": PROVIDER_LIMITS["zoho_2"], "priority": 8})
+            if os.getenv("GMAIL_SMTP_USER") and os.getenv("GMAIL_APP_PASSWORD"):
+                providers.append({"name": "gmail", "display_name": "Gmail",
+                                   "limit": PROVIDER_LIMITS["gmail"], "priority": 9})
+            if os.getenv("YAHOO_SMTP_USER") and os.getenv("YAHOO_APP_PASSWORD"):
+                providers.append({"name": "yahoo", "display_name": "Yahoo",
+                                   "limit": PROVIDER_LIMITS["yahoo"], "priority": 10})
+            if os.getenv("OUTLOOK_USER") and os.getenv("OUTLOOK_PASSWORD"):
+                providers.append({"name": "outlook", "display_name": "Outlook",
+                                   "limit": PROVIDER_LIMITS["outlook"], "priority": 11})
+        else:
+            # On Render: Gmail API (OAuth, not SMTP) still works
+            if os.getenv("GMAIL_SMTP_USER") and os.getenv("GMAIL_APP_PASSWORD"):
+                providers.append({"name": "gmail", "display_name": "Gmail",
+                                   "limit": PROVIDER_LIMITS["gmail"], "priority": 9})
 
         return sorted(providers, key=lambda x: x["priority"])
 
