@@ -78,8 +78,11 @@ class EmailRotator:
         is_render = bool(os.getenv("RENDER"))
         resend_from = os.getenv("RESEND_FROM_EMAIL", "").strip()
 
-        # Resend: only include if RESEND_FROM_EMAIL is set (verified domain required)
-        if resend_from:
+        # Resend: only include if RESEND_FROM_EMAIL is set AND is a custom domain (not gmail/yahoo/etc.)
+        FREE_EMAIL_DOMAINS = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
+        resend_domain = resend_from.split('@')[-1].lower() if '@' in resend_from else ''
+        resend_domain_ok = resend_from and resend_domain not in FREE_EMAIL_DOMAINS
+        if resend_domain_ok:
             if os.getenv("RESEND_API_KEY"):
                 providers.append({"name": "resend_1", "display_name": "Resend #1",
                                    "limit": PROVIDER_LIMITS["resend_1"], "priority": 1})

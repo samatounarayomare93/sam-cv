@@ -93,7 +93,7 @@ class OmniIntelligence:
         """Graceful cleanup"""
         if self._session:
             try:
-                await self._session.close()
+                await self._session.aclose()
             except:
                 pass
             self._session = None
@@ -639,7 +639,7 @@ class OmniIntelligence:
         
         return {}
 
-    async def _fallback_groq(self, prompt: str, job_title: str, news_headline: str = None, company_values: str = None, competitor_fail: str = None, internal_lingo: str = None, executive_names: str = None, peer_inspiration: str = None) -> Tuple[bool, str, str, str, int, str, list, str, str, str]:
+    async def _fallback_groq(self, prompt: str, job_title: str, news_headline: str = None, company_values: str = None, competitor_fail: str = None, internal_lingo: str = None, executive_names: str = None, peer_inspiration: str = None) -> Tuple[bool, str, str, str, int, str, list, str, str, str, list]:
         """Exponential backoff Groq with full JSON support and session reuse"""
         headers = {
             "Authorization": f"Bearer {self.groq_key}",
@@ -677,7 +677,8 @@ class OmniIntelligence:
                         parsed.get("keywords", []),
                         parsed.get("culture_persona", "Modern"),
                         parsed.get("psychological_variant", "EMPATHETIC"),
-                        parsed.get("personality_archetype", "VISIONARY_TECH")
+                        parsed.get("personality_archetype", "VISIONARY_TECH"),
+                        parsed.get("highlights", [])  # 11th value — required by analyze_job caller
                     )
                 elif response.status_code == 429:
                     delay = base_delay * (2 ** attempt)

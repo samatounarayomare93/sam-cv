@@ -6,6 +6,7 @@ Makes the bot look like a real human to avoid detection and bans
 import logging
 import random
 import asyncio
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Set
 import hashlib
@@ -34,11 +35,15 @@ class AntiBanProtection:
         # Track failed applications
         self.failed_applications: Dict[str, int] = {}
         
-        # Honeypot indicators
+        # Honeypot indicators — use exact word patterns (checked with \b boundaries)
         self.honeypot_keywords = {
-            'test', 'fake', 'honeypot', 'trap', 'bot', 'automated',
+            'test', 'fake', 'honeypot', 'trap', 'automated',
             'spam', 'scam', 'phishing', 'verification', 'validate',
             'check', 'monitor', 'detect', 'crawler', 'scraper'
+        }
+        # Keywords that must match as whole words only (not substrings)
+        self.honeypot_whole_word_keywords = {
+            'bot',  # "bot" alone, not "bothell", "robot", etc.
         }
         
         # Suspicious patterns
@@ -83,6 +88,13 @@ class AntiBanProtection:
         # Check for honeypot keywords
         for keyword in self.honeypot_keywords:
             if keyword in company_lower or keyword in title_lower:
+                logging.warning(f"🚨 HONEYPOT DETECTED: Keyword '{keyword}' in {company_name}")
+                return True
+
+        # Check whole-word-only keywords (e.g. "bot" should not match "bothell")
+        for keyword in self.honeypot_whole_word_keywords:
+            pattern = r'\b' + re.escape(keyword) + r'\b'
+            if re.search(pattern, company_lower) or re.search(pattern, title_lower):
                 logging.warning(f"🚨 HONEYPOT DETECTED: Keyword '{keyword}' in {company_name}")
                 return True
         

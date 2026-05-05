@@ -119,7 +119,7 @@ def _self_ping_loop():
     url = os.environ.get("RENDER_EXTERNAL_URL")
     if not url:
         # Fallback to the standard project URL if env var is missing
-        url = "https://sam-job-automator.onrender.com"
+        url = "https://sam-cv-bot.onrender.com"
     
     logging.info(f"🛰️ [SELF-PING] Target: {url}")
     logging.info(f"🛡️ [IMMORTALITY] Bot will run FOREVER. Self-ping every 10 minutes.")

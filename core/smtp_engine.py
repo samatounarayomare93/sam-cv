@@ -146,7 +146,10 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
                 else:
                     raise Exception("Playwright PDF generation failed")
             except Exception as e:
-                logging.warning(f"⚠️ Playwright failed: {e}, falling back to FPDF")
+                if "No module named" in str(e) or cv_pdf_path is None:
+                    logging.debug("⏭️ Playwright not available, using FPDF")
+                else:
+                    logging.warning(f"⚠️ Playwright failed: {e}, falling back to FPDF")
                 # Fallback to FPDF if Playwright fails
                 from core.cv_pdf_full import generate_full_cv_pdf
                 cv_pdf_path = generate_full_cv_pdf()
@@ -217,7 +220,10 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
             else:
                 raise Exception("Playwright PDF generation failed")
         except Exception as e:
-            logging.warning(f"⚠️ Playwright failed: {e}, falling back to FPDF")
+            if "No module named" in str(e) or cv_pdf_path is None:
+                logging.debug("⏭️ Playwright not available, using FPDF")
+            else:
+                logging.warning(f"⚠️ Playwright failed: {e}, falling back to FPDF")
             # Fallback to FPDF
             from core.cv_pdf_full import generate_full_cv_pdf
             cv_pdf_path = generate_full_cv_pdf()
@@ -288,7 +294,10 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # ============================================================
     resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
     resend_from_email = os.getenv("RESEND_FROM_EMAIL", "").strip()  # e.g. sam@yourdomain.com
-    if resend_api_key and resend_from_email:
+    _FREE_DOMAINS = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
+    _resend_domain = resend_from_email.split('@')[-1].lower() if '@' in resend_from_email else ''
+    _resend_domain_ok = resend_from_email and _resend_domain not in _FREE_DOMAINS
+    if resend_api_key and _resend_domain_ok:
         try:
             import resend as resend_lib
             resend_lib.api_key = resend_api_key
@@ -331,8 +340,8 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 logging.warning(f"⚠️ [RESEND] No ID returned: {result}")
         except Exception as e:
             logging.warning(f"⚠️ [RESEND] Failed: {e}")
-    elif resend_api_key and not resend_from_email:
-        logging.debug("⏭️ [RESEND] Skipped: RESEND_FROM_EMAIL not set (need verified domain). Falling through to Gmail.")
+    elif resend_api_key and not _resend_domain_ok:
+        logging.debug("⏭️ [RESEND] Skipped: RESEND_FROM_EMAIL not set or uses free email domain (need verified custom domain). Falling through to Gmail.")
 
     # ============================================================
     # 🌟 CLOUD-OPTIMIZED PRIORITY
@@ -350,13 +359,14 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         # ============================================================
         
         def _try_resend():
-            """Try all Resend accounts in order — requires RESEND_FROM_EMAIL (verified domain)"""
+            """Try all Resend accounts in order — requires RESEND_FROM_EMAIL (verified custom domain)"""
             if not HAS_RESEND:
                 return False
             resend_from = os.getenv("RESEND_FROM_EMAIL", "").strip()
-            if not resend_from:
-                # No verified domain configured — skip entirely to avoid the
-                # "can only send testing emails to your own address" error
+            _FREE = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
+            _domain = resend_from.split('@')[-1].lower() if '@' in resend_from else ''
+            if not resend_from or _domain in _FREE:
+                # No verified custom domain configured — skip entirely
                 return False
             for i in range(1, 11):
                 env = "RESEND_API_KEY" if i == 1 else f"RESEND_API_KEY_{i}"

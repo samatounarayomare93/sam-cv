@@ -43,6 +43,30 @@ except ImportError:
 TOTAL_DEEP_DIVES = 0
 SCRAPE_COOLDOWN = 0
 
+# 🛡️ BLOCKED DOMAIN TRACKER: Stop retrying domains that consistently return 403
+# Maps domain -> consecutive 403 count. Once >= threshold, skip silently.
+_blocked_domain_counts: dict = {}
+_BLOCKED_DOMAIN_THRESHOLD = 3  # After 3 consecutive 403s, stop logging and skip
+
+def _record_domain_block(url: str):
+    """Track 403 hits per domain. Returns True if domain is now considered permanently blocked."""
+    try:
+        from urllib.parse import urlparse
+        domain = urlparse(url).netloc
+    except Exception:
+        domain = url
+    _blocked_domain_counts[domain] = _blocked_domain_counts.get(domain, 0) + 1
+    return _blocked_domain_counts[domain] >= _BLOCKED_DOMAIN_THRESHOLD
+
+def _is_domain_blocked(url: str) -> bool:
+    """Returns True if this domain has been blocked too many times."""
+    try:
+        from urllib.parse import urlparse
+        domain = urlparse(url).netloc
+    except Exception:
+        domain = url
+    return _blocked_domain_counts.get(domain, 0) >= _BLOCKED_DOMAIN_THRESHOLD
+
 def _get_deep_dive_count():
     return TOTAL_DEEP_DIVES
 
@@ -85,9 +109,11 @@ async def fetch_page_async(url, headers=None, timeout=15, retry_count=0):
             async with AsyncSession(impersonate=impersonate, proxies={"http": proxy, "https": proxy} if proxy else None) as s:
                 response = await s.get(url, headers=stealth_headers, timeout=timeout, follow_redirects=True)
                 if response.status_code == 403 or response.status_code == 429:
-                    logging.warning(f"⚠️ [CURL-CFFI] Blocked (HTTP {response.status_code}) on {url}")
+                    permanently_blocked = _record_domain_block(url)
+                    if not permanently_blocked:
+                        logging.warning(f"⚠️ [CURL-CFFI] Blocked (HTTP {response.status_code}) on {url}")
                     _evasion.rotate_ua()
-                    if retry_count < 2:
+                    if retry_count < 2 and not permanently_blocked:
                         await asyncio.sleep(random.uniform(2, 5))
                         return await fetch_page_async(url, headers, timeout, retry_count + 1)
                 return response
@@ -104,10 +130,14 @@ async def fetch_page_async(url, headers=None, timeout=15, retry_count=0):
         ) as client:
             response = await client.get(url, headers=stealth_headers)
             if response.status_code == 403 or response.status_code == 429:
-                logging.warning(f"⚠️ [HTTPX] Blocked (HTTP {response.status_code}) on {url}")
+                permanently_blocked = _record_domain_block(url)
+                if not permanently_blocked:
+                    logging.warning(f"⚠️ [HTTPX] Blocked (HTTP {response.status_code}) on {url}")
+                else:
+                    logging.debug(f"🚫 [HTTPX] Domain persistently blocked, skipping silently: {url[:60]}")
                 _evasion.rotate_ua()
                 await asyncio.sleep(random.uniform(2, 5))
-                if retry_count < 2:
+                if retry_count < 2 and not permanently_blocked:
                     return await fetch_page_async(url, headers, timeout, retry_count + 1)
             return response
     except Exception as e:

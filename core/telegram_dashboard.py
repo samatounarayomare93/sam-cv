@@ -92,7 +92,7 @@ class SovereignDashboard:
 
         async def _handle_error(error):
             if isinstance(error, Conflict):
-                logging.warning("⚠️ TELEGRAM 409 CONFLICT: Library will auto-retry. Ignoring...")
+                logging.debug("🔄 TELEGRAM 409 CONFLICT: Library will auto-retry.")
                 return
             logging.error(f"⚠️ POLLING ERROR: {error}")
 
@@ -105,7 +105,7 @@ class SovereignDashboard:
             except RuntimeError:
                 # No running loop (e.g. during shutdown) — just log directly
                 if isinstance(error, Conflict):
-                    logging.warning("⚠️ TELEGRAM 409 CONFLICT: Library will auto-retry. Ignoring...")
+                    logging.debug("🔄 TELEGRAM 409 CONFLICT: Library will auto-retry.")
                 else:
                     logging.error(f"⚠️ POLLING ERROR: {error}")
 

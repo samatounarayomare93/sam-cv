@@ -7,15 +7,15 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python run.py
     envVars:
-      # Core Services
+      # ── Core Database ──────────────────────────────────────────────────────
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      
-      # AI Services
+
+      # ── AI Services ────────────────────────────────────────────────────────
       - key: GROQ_API_KEY
         sync: false
       - key: GEMINI_API_KEY
@@ -26,32 +26,68 @@ services:
         sync: false
       - key: PERPLEXITY_API_KEY
         sync: false
-      
-      # Email Services
+
+      # ── Email: Brevo (primary HTTP API — works on Render) ──────────────────
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_SMTP_LOGIN
         sync: false
       - key: BREVO_SMTP_PASSWORD
         sync: false
+
+      # ── Email: Resend (requires verified custom domain) ────────────────────
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_API_KEY_2
+        sync: false
+      - key: RESEND_API_KEY_3
+        sync: false
+      # RESEND_FROM_EMAIL must be a verified custom-domain address (NOT gmail.com)
+      # Leave blank/unset if you don't have a verified domain — Brevo will be used instead
+      - key: RESEND_FROM_EMAIL
+        sync: false
+
+      # ── Email: Zoho (SMTP blocked on Render; Zoho API works) ──────────────
       - key: ZOHO_SMTP_USER
         sync: false
       - key: ZOHO_APP_PASSWORD
         sync: false
-      - key: YAHOO_SMTP_USER
+      - key: ZOHO_SMTP_USER_2
         sync: false
-      - key: YAHOO_APP_PASSWORD
+      - key: ZOHO_APP_PASSWORD_2
         sync: false
+      - key: ZOHO_API_KEY
+        sync: false
+
+      # ── Email: Mailjet HTTP API ────────────────────────────────────────────
+      - key: MAILJET_API_KEY
+        sync: false
+      - key: MAILJET_SECRET_KEY
+        sync: false
+
+      # ── Email: SendPulse HTTP API ──────────────────────────────────────────
+      - key: SENDPULSE_CLIENT_ID
+        sync: false
+      - key: SENDPULSE_CLIENT_SECRET
+        sync: false
+
+      # ── Email: Gmail (SMTP blocked on Render; Gmail API works) ────────────
       - key: GMAIL_SMTP_USER
         sync: false
       - key: GMAIL_APP_PASSWORD
+        sync: false
+
+      # ── Email: Yahoo / Outlook (SMTP — local only) ────────────────────────
+      - key: YAHOO_SMTP_USER
+        sync: false
+      - key: YAHOO_APP_PASSWORD
         sync: false
       - key: OUTLOOK_USER
         sync: false
       - key: OUTLOOK_PASSWORD
         sync: false
-      
-      # Telegram
+
+      # ── Telegram ───────────────────────────────────────────────────────────
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_CHAT_ID
@@ -62,30 +98,43 @@ services:
         sync: false
       - key: TELEGRAM_SESSION_STRING
         sync: false
-      
-      # System Config
-      - key: CV_FILE_PATH
-        value: Sam_Salameh_CV.html
-      - key: USE_AI_ANALYSIS
-        value: "true"
-      - key: VERBOSE_LOGGING
-        value: "true"
-      - key: TEST_RECEIVER_EMAIL
+      # AUTHORIZED_CHATS: comma-separated list of allowed Telegram chat IDs
+      - key: AUTHORIZED_CHATS
         sync: false
+
+      # ── Render self-deploy API ─────────────────────────────────────────────
+      - key: RENDER_API_KEY
+        sync: false
+      - key: RENDER_SERVICE_ID
+        sync: false
+      - key: RENDER_EXTERNAL_URL
+        value: https://sam-cv-bot.onrender.com
+
+      # ── Candidate Identity ─────────────────────────────────────────────────
       - key: SENDER_NAME
         value: Sam Salameh
       - key: CANDIDATE_NAME
         value: Sam Salameh
       - key: SENDER_EMAIL
         sync: false
+      - key: TEST_RECEIVER_EMAIL
+        sync: false
       - key: CANDIDATE_PHONE
-        value: +961 70 841 1009
+        value: "+961 70 841 1009"
       - key: LINKEDIN_URL
         value: https://www.linkedin.com/in/sam-salameh
       - key: CANDIDATE_PROFESSION
-        value: Senior Network Engineer
-      
-      # Optimization Settings
+        value: HR & Operations Manager
+
+      # ── System Config ──────────────────────────────────────────────────────
+      - key: CV_FILE_PATH
+        value: Sam_Salameh_CV.html
+      - key: USE_AI_ANALYSIS
+        value: "true"
+      - key: VERBOSE_LOGGING
+        value: "true"
+
+      # ── Throughput Controls ────────────────────────────────────────────────
       - key: MAX_EMAILS_PER_DAY
         value: "800"
       - key: MAX_EMAILS_PER_HOUR
@@ -94,20 +143,24 @@ services:
         value: "300"
       - key: ZOHO_DAILY_LIMIT
         value: "500"
-      - key: AI_CACHE_ENABLED
-        value: "true"
-      - key: AI_CACHE_DURATION_HOURS
-        value: "24"
       - key: MAX_PARALLEL_STRIKES
         value: "3"
       - key: MAX_QUALIFIED_LEADS_PER_CYCLE
         value: "100"
+
+      # ── Keep-Alive (prevents Render free-tier sleep) ───────────────────────
       - key: KEEP_ALIVE_ENABLED
         value: "true"
       - key: KEEP_ALIVE_INTERVAL
         value: "600"
-      
-      # Advanced Features
+
+      # ── AI Cache ───────────────────────────────────────────────────────────
+      - key: AI_CACHE_ENABLED
+        value: "true"
+      - key: AI_CACHE_DURATION_HOURS
+        value: "24"
+
+      # ── Advanced Features ──────────────────────────────────────────────────
       - key: EMAIL_WARMUP_ENABLED
         value: "true"
       - key: FOLLOWUP_ENABLED

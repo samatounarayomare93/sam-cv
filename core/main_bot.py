@@ -119,6 +119,9 @@ class AlphaOrchestrator:
         self.ai = ai if ai else (OmniIntelligence() if OmniIntelligence else None)
         # 🛡️ IN-MEMORY DEDUP: Prevents same lead being processed twice in same session
         self._processed_this_session = set()
+        # 🛡️ PERMANENT DEDUP: company+email pairs that were successfully sent this run
+        # (never reset — survives cycle resets to prevent duplicate sends)
+        self._sent_company_email: set = set()
         self.follow_up = FollowUpEngine(self.db, self.ai)
         self.omni_crawler = OmniCrawler(self.ai) if OmniCrawler else None
         self.linkedin = NeuralLinkedIn(self.ai) if NeuralLinkedIn and self.ai else None
@@ -244,7 +247,10 @@ class AlphaOrchestrator:
         # Check for session expiration
         if time.time() - getattr(self, '_session_created_at', 0) > getattr(self, '_session_ttl', 0):
             logging.info("🌌 NETWORK GHOST: Session expired. Refreshing host identity...")
-            await self._session.close()
+            try:
+                await self._session.aclose()
+            except Exception:
+                pass
             self._session = None
             return await self._get_session(target_location)
             
@@ -253,7 +259,7 @@ class AlphaOrchestrator:
     async def close(self):
         """Graceful cleanup"""
         if self._session and not self._session.is_closed:
-            await self._session.close()
+            await self._session.aclose()
         self._session = None
 
     async def check_kill_switch(self) -> bool:
@@ -304,7 +310,10 @@ class AlphaOrchestrator:
                         # FORCE IDENTITY ROTATION
                         self.evasion.rotate_identity()
                         if self._session:
-                            await self._session.close()
+                            try:
+                                await self._session.aclose()
+                            except Exception:
+                                pass
                             self._session = None # Force new session/proxy on retry
                             
                         await asyncio.sleep(wait_time)
@@ -417,6 +426,10 @@ class AlphaOrchestrator:
         company_email_key = f"{company_name.lower().strip()}_{(email or '').lower().strip()}"
         if session_key in self._processed_this_session or company_email_key in self._processed_this_session:
             logging.info(f"⏭️ [SESSION-DEDUP] Already processed this session: {company_name}. Skipping.")
+            return
+        # 🛡️ PERMANENT DEDUP: check against successfully-sent set (survives cycle resets)
+        if company_email_key in self._sent_company_email:
+            logging.info(f"⏭️ [PERM-DEDUP] Already sent to {company_name} this run. Skipping.")
             return
         self._processed_this_session.add(session_key)
         self._processed_this_session.add(company_email_key)
@@ -552,6 +565,13 @@ class AlphaOrchestrator:
             if is_dup:
                 logging.info(f"⏭️ Skipping duplicate target: {company_name}")
                 return
+
+            # 🛡️ PRE-CLAIM: Mark as 'processing' immediately to prevent parallel tasks
+            # from sending duplicate emails to the same company
+            try:
+                await self.db.update_lead_status(identifier, 'processing')
+            except Exception:
+                pass
             
             # 🛡️ OMNISCIENT: Global Blacklist Check
             domain = identifier.split("@")[-1] if "@" in identifier else ""
@@ -779,6 +799,9 @@ class AlphaOrchestrator:
                     from core.anti_ban_protection import get_protection
                     protection = get_protection()
                     protection.record_application(company_name, success=True)
+
+                    # 🛡️ PERMANENT DEDUP: Mark company+email as sent so no duplicate in future cycles
+                    self._sent_company_email.add(company_email_key)
                     
                     # 🧬 GHOST HUB: Pre-generate tactical cheat sheet for zero-latency prep
                     if score >= 85:
@@ -895,11 +918,9 @@ class AlphaOrchestrator:
         
         try:
             # 1. PURGE JUNK LEADS: Mass-reject known garbage strings in the DB
-            # This ensures that if the crawler finds junk, it's purged before it can block the queue.
             junk_patterns = [
                 'target node', 'unknown', 'none', 'microsoft word', 'odoo dubai office',
                 'top startup investors', 'dubai office',
-                # New junk from logs
                 'newest questions', 'windows', 'tech', 'automatically', 'when',
                 'arizona', 'install', 'biggest companies to work for in chandler',
                 'hensley beverage company', 'gulf digest', 'linkedin recruiter',
@@ -907,9 +928,13 @@ class AlphaOrchestrator:
                 'murray company mechanical contractors', 'ex',
                 'periodic labs hiring', 'google hiring', 'gulf recruitment',
                 'welcome to windows', 'stack overflow', 'newest questions',
+                # New junk from logs
+                'kaito', 'kaito radios', 'kaito voyager', 'travel', 'right',
+                'understanding companies', 'new', 'word', 'my', 'it', 'top',
+                'best', 'list', 'well', 'future', 'common', 'venture',
+                'doing business', 'startup programs', 'www', 'http', 'https',
             ]
             for pattern in junk_patterns:
-                # Direct Hive-Mind scrub
                 await self.db._request_with_retry('PATCH', 
                     f"{self.db.url}/rest/v1/leads?company_name=eq.{pattern}&status=eq.pending", 
                     payload={"status": "rejected"})
@@ -926,9 +951,9 @@ class AlphaOrchestrator:
                         payload={"status": "rejected"})
                 except: pass
             
-            # 2. STAGNATION PREVENTION: Mark leads older than 48h as expired
+            # 2. STAGNATION PREVENTION: Mark leads older than 7 days as expired (was 48h - too aggressive)
             from datetime import datetime, timedelta
-            stale_threshold = (datetime.now() - timedelta(hours=48)).isoformat()
+            stale_threshold = (datetime.now() - timedelta(hours=168)).isoformat()  # 7 days
             await self.db._request_with_retry('PATCH', 
                 f"{self.db.url}/rest/v1/leads?status=eq.pending&created_at=lt.{stale_threshold}", 
                 payload={"status": "stale_expired"})
