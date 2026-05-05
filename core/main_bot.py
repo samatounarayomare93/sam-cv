@@ -456,6 +456,8 @@ class AlphaOrchestrator:
             'murray company mechanical contractors', 'hensley beverage company',
             'gulf digest', 'ex', 'linkedin recruiter', 'official travel',
             'strategic interview questions cheat sheet',
+            # URL fragments that get parsed as company names
+            'www', 'http', 'https', 'com', 'org', 'net', 'co', 'io',
         }
         
         # [🛡️ FAKE DOMAIN FILTER]: Reject AI-generated fake email domains
@@ -1074,9 +1076,15 @@ class AlphaOrchestrator:
                     await asyncio.gather(*tasks, return_exceptions=True)
 
                 logging.info("💤 Cycle concluded. Entering 100% Heartbeat cooldown.")
+                
+                # 🔄 RESET SESSION DEDUP: Clear processed set each cycle
+                # This allows leads to be retried in the next cycle if they failed
+                old_size = len(self._processed_this_session)
+                self._processed_this_session = set()
+                if old_size > 0:
+                    logging.info(f"🔄 Session dedup reset: cleared {old_size} entries for next cycle")
+                
                 # 100% SOVEREIGN STEALTH: Adaptive Heartbeat
-                # If there are still pending leads in the hive-mind, move faster (30s wait)
-                # Otherwise, enter deep human-like sleep (5-10 mins)
                 pending_count = await self.db.get_pending_leads_count() if self.db else 0
                 
                 if pending_count > 0 and not self.emergency_strike_requested:
