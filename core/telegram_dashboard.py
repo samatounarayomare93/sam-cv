@@ -1362,14 +1362,13 @@ class SovereignDashboard:
             # Single infinite loop - ALL recovery happens here, no outer retry
             while True:
                 try:
-                    await asyncio.sleep(2) # Faster heartbeat for rapid takeover
+                    await asyncio.sleep(15)  # Check leadership every 15s (was 2s - too aggressive)
                     # Removed backoff logic
 
                     claimed = await self.db.claim_bot_leadership()
                     
-                    # [👑 ANTI-RACE DELAY]: Wait 2 seconds to allow concurrent cloud writes
-                    # from other instances to settle before verifying.
-                    await asyncio.sleep(2)
+                    # Brief settle time before verifying
+                    await asyncio.sleep(1)
                     
                     verified = await self.db.is_bot_leader()
 
