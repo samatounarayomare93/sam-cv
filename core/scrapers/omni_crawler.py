@@ -32,21 +32,60 @@ from urllib.parse import urlparse
 
 
 def _safe_ddgs_search(query: str, max_results: int = 5, proxy: str = None, headers: dict = None, region: str = 'wt-wt', timeout: int = 20) -> list:
-    """[👑 FIX] Thread-safe DDGS search with warning suppression.
-    warnings.filterwarnings doesn't propagate to worker threads,
-    so we must suppress inside the function that runs in the thread."""
+    """[👑 FIX] Thread-safe DDGS search with warning suppression and auto-evasion."""
     import warnings
     warnings.filterwarnings('ignore')
+    
+    from core.runtime_helpers import get_evasion, get_proxy_mesh
+    import logging
+    import time
+    
+    evasion = None
+    proxy_mesh = None
     try:
-        kwargs = {"timeout": timeout}
-        if proxy:
-            kwargs['proxy'] = proxy
-        if headers:
-            kwargs['headers'] = headers
-        with DDGS(**kwargs) as ddgs:
-            return list(ddgs.text(query, max_results=max_results, region=region))
+        evasion = get_evasion()
+        proxy_mesh = get_proxy_mesh()
     except Exception:
-        return []
+        pass
+
+    for attempt in range(3):
+        current_proxy = proxy
+        current_headers = headers
+        
+        if not current_headers and evasion:
+            try:
+                evasion.rotate_identity()
+                current_headers = evasion.get_stealth_headers()
+            except:
+                pass
+                
+        if not current_proxy and proxy_mesh:
+            try:
+                current_proxy = proxy_mesh.get_next_sync()
+            except:
+                pass
+                
+        try:
+            kwargs = {"timeout": timeout}
+            if current_proxy:
+                kwargs['proxy'] = current_proxy
+            if current_headers:
+                kwargs['headers'] = current_headers
+                
+            with DDGS(**kwargs) as ddgs:
+                results = list(ddgs.text(query, max_results=max_results, region=region))
+                if results:
+                    return results
+                return []
+        except Exception as e:
+            err_str = str(e).lower()
+            if "403" in err_str or "rate limit" in err_str or "202" in err_str:
+                logging.debug(f"DDGS Rate Limited (attempt {attempt+1}): {e}")
+                time.sleep(1 + attempt)
+                continue
+            return []
+            
+    return []
 
 class PatternRecon:
     """Russian-style Pattern Discovery: Deduces hidden HR emails from domain intelligence."""
