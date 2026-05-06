@@ -1,4 +1,4 @@
-""
+"""
 ENHANCED SCRAPER - MAXIMUM JOB SOURCES v2
 ======================================
 Multiplied job sources for maximum job discovery
@@ -43,7 +43,7 @@ except ImportError:
 TOTAL_DEEP_DIVES = 0
 SCRAPE_COOLDOWN = 0
 
-# ðŸ›¡ï¸ BLOCKED DOMAIN TRACKER: Stop retrying domains that consistently return 403
+# [shield] BLOCKED DOMAIN TRACKER: Stop retrying domains that consistently return 403
 # Maps domain -> consecutive 403 count. Once >= threshold, skip silently.
 _blocked_domain_counts: dict = {}
 _BLOCKED_DOMAIN_THRESHOLD = 3  # After 3 consecutive 403s, stop logging and skip
@@ -91,18 +91,18 @@ import httpx
 _async_session: Optional[httpx.AsyncClient] = None
 
 async def _get_proxy():
-    """[ðŸ'' SOVEREIGN PROXY]: Select the best available proxy from the shared mesh."""
+    """[[crown] SOVEREIGN PROXY]: Select the best available proxy from the shared mesh."""
     return await _proxy_mesh.get_next()
 
 async def fetch_page_async(url, headers=None, timeout=15, retry_count=0):
-    """[ðŸ'' OMEGA FETCH]: Dual-Engine (curl_cffi + httpx) for absolute WAF penetration."""
+    """[[crown] OMEGA FETCH]: Dual-Engine (curl_cffi + httpx) for absolute WAF penetration."""
     headers = headers or {}
     stealth_headers = _evasion.get_stealth_headers()
     stealth_headers.update(headers)
     
     proxy = await _get_proxy()
     
-    # [ðŸ'' ENGINE 1: curl_cffi] - Best for Cloudflare/TLS Fingerprinting
+    # [[crown] ENGINE 1: curl_cffi] - Best for Cloudflare/TLS Fingerprinting
     if HAS_CURL_CFFI:
         try:
             impersonate = _evasion.get_impersonation_mode()
@@ -111,7 +111,7 @@ async def fetch_page_async(url, headers=None, timeout=15, retry_count=0):
                 if response.status_code == 403 or response.status_code == 429:
                     permanently_blocked = _record_domain_block(url)
                     if not permanently_blocked:
-                        logging.warning(f"âš ï¸ [CURL-CFFI] Blocked (HTTP {response.status_code}) on {url}")
+                        logging.warning(f"âš ï¸ [CURL-CFFI] Blocked (HTTP {response.status_code}) on {url}")
                     _evasion.rotate_ua()
                     if retry_count < 2 and not permanently_blocked:
                         await asyncio.sleep(random.uniform(2, 5))
@@ -121,7 +121,7 @@ async def fetch_page_async(url, headers=None, timeout=15, retry_count=0):
             logging.debug(f"curl_cffi engine failed for {url}: {e}. Falling back to httpx.")
             # Continue to Engine 2
 
-    # [ðŸ'' ENGINE 2: httpx] - Secondary/Fallback Engine
+    # [[crown] ENGINE 2: httpx] - Secondary/Fallback Engine
     try:
         async with httpx.AsyncClient(
             timeout=timeout,
@@ -132,9 +132,9 @@ async def fetch_page_async(url, headers=None, timeout=15, retry_count=0):
             if response.status_code == 403 or response.status_code == 429:
                 permanently_blocked = _record_domain_block(url)
                 if not permanently_blocked:
-                    logging.warning(f"âš ï¸ [HTTPX] Blocked (HTTP {response.status_code}) on {url}")
+                    logging.warning(f"âš ï¸ [HTTPX] Blocked (HTTP {response.status_code}) on {url}")
                 else:
-                    logging.debug(f"ðŸš« [HTTPX] Domain persistently blocked, skipping silently: {url[:60]}")
+                    logging.debug(f" [HTTPX] Domain persistently blocked, skipping silently: {url[:60]}")
                 _evasion.rotate_ua()
                 await asyncio.sleep(random.uniform(2, 5))
                 if retry_count < 2 and not permanently_blocked:
@@ -287,13 +287,13 @@ async def get_job_email_and_desc_async(url, headers):
     return (valid[0], all_text[:1000]) if valid else (None, "")
 
 async def scrape_new_companies_async():
-    """[ðŸ'' BYPASS MODE] Delegates to daleel_parallel_scan which uses search-engine queries.
+    """BYPASS MODE: Delegates to daleel_parallel_scan (search-engine queries).
     Direct HTTP to daleel-madani.org returns 403 on every request."""
     from core.scrapers.daleel_parallel import daleel_parallel_scan
     return await daleel_parallel_scan(db=None)
 
 def scrape_new_companies():
-    # [ðŸ›¡ï¸ FIX]: Use get_event_loop() instead of asyncio.run() to avoid event loop conflicts
+    # [[shield] FIX]: Use get_event_loop() instead of asyncio.run() to avoid event loop conflicts
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
@@ -349,7 +349,7 @@ def scrape_glassdoor_jobs():
                                     safe_company = "".join(c for c in company if c.isalnum() or c in ' -').strip()
                                     jobs.append({
                                         "company_name": company,
-                                        "email": "",  # No guessing - recon surge finds real email
+                                        "email": "",
                                         "location": loc,
                                         "salary": "0",
                                         "job_title": job_title,
@@ -402,7 +402,7 @@ def scrape_indeed_jobs(location="Lebanon"):
                                 safe_company = "".join(c for c in company if c.isalnum() or c in ' -').strip()
                                 jobs.append({
                                     "company_name": company,
-                                    "email": ""  # No guessing — recon surge finds real email,
+                                    "email": "",
                                     "location": location,
                                     "salary": salary.replace('$', '').replace(',', ''),
                                     "job_title": job_title,
@@ -450,7 +450,7 @@ def scrape_careerbuilder_jobs():
                                 safe_company = "".join(c for c in company if c.isalnum() or c in ' -').strip()
                                 jobs.append({
                                     "company_name": company,
-                                    "email": ""  # No guessing — recon surge finds real email,
+                                    "email": "",
                                     "location": "Lebanon",
                                     "salary": "0",
                                     "job_title": job_title,
@@ -527,7 +527,7 @@ def scrape_jobportals():
                 
                 # BLIND EXTRACTION OVERRIDE
                 if not cards:
-                    logging.warning(f"âš ï¸ {portal['name']} HTML structure changed or blocked! Executing RAW BLIND EXTRACT...")
+                    logging.warning(f"âš ï¸ {portal['name']} HTML structure changed or blocked! Executing RAW BLIND EXTRACT...")
                     raw_text = response.text
                     # Email extraction regex
                     email_regex = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
@@ -538,7 +538,7 @@ def scrape_jobportals():
 
                     if not valid_emails:
                         domain = urllib.parse.urlparse(portal["url"]).netloc.replace("www.", "")
-                        # Skip fake domain email — recon surge will find real contact
+                        # Skip fake domain email - recon surge will find real contact
 
                     for email in valid_emails:
                         jobs.append({
@@ -553,7 +553,7 @@ def scrape_jobportals():
                         })
                     continue
 
-                logging.info(f"ðŸŒ {portal['name']}: {len(cards)} structured jobs")
+                logging.info(f" {portal['name']}: {len(cards)} structured jobs")
                 
                 for card in cards[:15]:
                     try:
@@ -568,7 +568,7 @@ def scrape_jobportals():
                                 safe_company = "".join(c for c in company if c.isalnum() or c in ' -').strip()
                                 jobs.append({
                                     "company_name": company,
-                                    "email": ""  # No guessing — recon surge finds real email,
+                                    "email": "",
                                     "location": "Gulf",
                                     "salary": "0",
                                     "job_title": job_title,
@@ -603,17 +603,17 @@ def get_latest_jobs():
     except Exception as e:
         logging.error(f"LinkedIn Error: {e}")
 
-    # [ðŸ›¡ï¸ 403-FIX]: Bayt, Indeed, Glassdoor, and job portals consistently return HTTP 403.
+    # [[shield] 403-FIX]: Bayt, Indeed, Glassdoor, and job portals consistently return HTTP 403.
     # They are already covered by OmniCrawler's search-engine bypass (site: queries via DDG).
     # Disabling direct HTTP scrapers to save memory and prevent wasted connections.
-    logging.info("ðŸ"‹ Skipping direct Bayt/Indeed/Glassdoor scrapers (covered by OmniCrawler DDG bypass)")
+    logging.info("Skipping direct Bayt/Indeed/Glassdoor scrapers (covered by OmniCrawler DDG bypass)")
 
     try:
         all_jobs += scrape_monster_jobs()
     except Exception as e:
         logging.error(f"Monster Error: {e}")
 
-    # [ðŸ§¹ OOM-FIX]: Force garbage collection after heavy scraping
+    # [ OOM-FIX]: Force garbage collection after heavy scraping
     gc.collect()
 
     # Remove duplicates
@@ -630,13 +630,13 @@ def get_latest_jobs():
             except Exception as e:
                 logging.debug(f"Failed to persist lead: {e}")
             
-    logging.info(f"ðŸ Total unique jobs: {len(unique_jobs)} (Deep dives: {TOTAL_DEEP_DIVES})")
+    logging.info(f" Total unique jobs: {len(unique_jobs)} (Deep dives: {TOTAL_DEEP_DIVES})")
     gc.collect()  # Final cleanup
     return unique_jobs
 
 def scrape_linkedin_jobs(location="Lebanon", keyword="HR"):
     """Enhanced LinkedIn scraper"""
-    logging.info(f"ðŸŒ LinkedIn: {keyword} in {location}")
+    logging.info(f" LinkedIn: {keyword} in {location}")
     
     jobs = []
     keywords = ["HR", "Human Resources", "Operations Manager", "Admin", "Recruiter", "Office Manager"]
@@ -678,7 +678,7 @@ def scrape_linkedin_jobs(location="Lebanon", keyword="HR"):
                                     safe_company = "".join(c for c in company if c.isalnum() or c in ' -').strip()
                                     jobs.append({
                                         "company_name": company,
-                                        "email": ""  # No guessing — recon surge finds real email,
+                                        "email": "",
                                         "location": loc,
                                         "salary": "0",
                                         "job_title": job_title,
@@ -695,7 +695,7 @@ def scrape_linkedin_jobs(location="Lebanon", keyword="HR"):
 
 def scrape_hirelebanese_jobs():
     """Enhanced HireLebanese scraper"""
-    logging.info("ðŸŒ HireLebanese...")
+    logging.info(" HireLebanese...")
     jobs = []
     keywords = ["HR", "Human Resources", "Administration", "Operations", "Assistant", "Coordinator", "Manager"]
     
@@ -730,7 +730,7 @@ def scrape_hirelebanese_jobs():
                                 safe_company = "".join(c for c in company if c.isalnum() or c in ' -').strip()
                                 jobs.append({
                                     "company_name": company,
-                                    "email": email or ""  # No guessing — recon surge finds real email,
+                                    "email": email or "",
                                     "location": "Lebanon",
                                     "salary": "0",
                                     "job_title": job_title,
@@ -747,7 +747,7 @@ def scrape_hirelebanese_jobs():
 
 def scrape_bayt_jobs(location="lebanon", keyword="hr"):
     """Enhanced Bayt scraper"""
-    logging.info(f"ðŸŒ Bayt: {keyword}")
+    logging.info(f" Bayt: {keyword}")
     jobs = []
     
     keywords = ["hr", "human resources", "operations", "admin", "recruiter", "office manager"]
@@ -782,7 +782,7 @@ def scrape_bayt_jobs(location="lebanon", keyword="hr"):
                             if not db_manager.sync_is_duplicate(job_link or company + job_title):
                                 jobs.append({
                                     "company_name": company,
-                                    "email": ""  # No guessing — recon surge finds real email,
+                                    "email": "",
                                     "location": location,
                                     "salary": "0",
                                     "job_title": job_title,
@@ -799,7 +799,7 @@ def scrape_bayt_jobs(location="lebanon", keyword="hr"):
 
 def scrape_monster_jobs(location="Lebanon", keyword="HR"):
     """Enhanced Monster scraper"""
-    logging.info(f"ðŸŒ Monster/Foundit...")
+    logging.info(f" Monster/Foundit...")
     jobs = []
     
     keywords = ["HR", "Operations", "Admin", "Recruiter"]
@@ -832,7 +832,7 @@ def scrape_monster_jobs(location="Lebanon", keyword="HR"):
                             if not db_manager.sync_is_duplicate(job_link or company + job_title):
                                 jobs.append({
                                     "company_name": company,
-                                    "email": ""  # No guessing — recon surge finds real email,
+                                    "email": "",
                                     "location": location,
                                     "salary": "0",
                                     "job_title": job_title,
