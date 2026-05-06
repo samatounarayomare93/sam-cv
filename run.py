@@ -115,8 +115,19 @@ async def main():
             engine = AlphaOrchestrator(db=shared_db, ai=shared_ai)
             dashboard = SovereignDashboard(db=shared_db, ai=shared_ai)
 
+            # [👑 SUPABASE-VAULT]: Bootstrap secrets before starting
+            await shared_db.bootstrap()
+            
             logging.info(f"[SYSTEM] Launching Unified Swarm Tasks... (Restart #{restart_count})")
             
+            # [🧹 HYGIENE]: Truncate logs and clear cache if too big
+            try:
+                log_file = "logs/orchestrator.log"
+                if os.path.exists(log_file) and os.path.getsize(log_file) > 10 * 1024 * 1024: # 10MB
+                    with open(log_file, "w") as f: f.truncate(0)
+                    logging.info("🧹 [HYGIENE]: Truncated massive log file.")
+            except: pass
+
             # We run them as concurrent tasks in the SAME python process
             swarm_tasks = [
                 asyncio.create_task(engine.execute_divine_loop(), name="Engine"),

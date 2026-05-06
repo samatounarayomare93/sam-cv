@@ -697,162 +697,128 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     else:
         logging.error("❌ [GMAIL-SMTP] SKIPPED - Credentials not configured!")
 
-    # ============================================================
-    # 🥈 PRIORITY 2: BREVO HTTP API (Port 443)
-    # Reliable but may go to spam
-    # ============================================================
-    if getattr(config, 'BREVO_API_KEY', None):
+    # [👑 RENDER-SHIELD]: Detection of Render Cloud Environment
+    is_render = os.getenv("RENDER") is not None
+    
+    # [👑 CLOUD ROUTING]: Define rotation based on environment
+    # On Render, we prioritize HTTP APIs to bypass port blocks.
+    if is_render:
+        rotation_order = [
+            ("Resend",     _try_resend),
+            ("Brevo",      _try_brevo_http),
+            ("Mailjet",    _try_mailjet),
+            ("SendPulse",  _try_sendpulse),
+            ("Gmail API",  _try_gmail_api),
+            ("Brevo-2525", _try_brevo_smtp_2525), # Port 2525 is often open on Render
+        ]
+        logging.info("🚀 [SMTP-ENGINE] Cloud Mode: Prioritizing HTTP APIs to bypass ISP blocks.")
+    else:
+        rotation_order = [
+            ("Gmail API",  _try_gmail_api),
+            ("Zoho",       _try_zoho),
+            ("Brevo",      _try_brevo_http),
+            ("Gmail SMTP", _try_gmail_smtp),
+            ("Resend",     _try_resend),
+            ("Yahoo",      _try_yahoo),
+            ("Outlook",    _try_outlook),
+        ]
+
+    for provider_name, attempt_func in rotation_order:
         try:
-            logging.info("📧 [BREVO-HTTP] Attempting Brevo HTTP API...")
-            if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
-                logging.info("✅ BREVO HTTP SUCCESS — Delivered via Brevo API!")
-                
-                # 🚀 ZERO-COST: Record email sent
-                try:
-                    from core.email_rotator import record_email_sent
-                    record_email_sent("brevo")
-                except: pass
-                
+            if attempt_func():
                 return True
         except Exception as e:
-            logging.warning(f"⚠️ Brevo HTTP failed: {e}")
+            logging.debug(f"⏭️ {provider_name} skipped: {e}")
+            continue
 
-    # ============================================================
-    # 🥉 PRIORITY 3: GMAIL API (HTTP Port 443)
-    # ============================================================
-    # ============================================================
-    # 🥉 PRIORITY 3: GMAIL API (HTTP Port 443)
-    # ============================================================
-    if get_gmail_service:
-        try:
-            # [👑 CLOUD SHIELD]: Attempt to initialize the service
-            service = get_gmail_service()
-            if service:
-                if send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
-                    logging.info("✅ GMAIL API SUCCESS — Bypassed Render firewall and hit Inbox perfectly.")
-                    return True
-                else:
-                    logging.error("❌ GMAIL API FAILED structural delivery.")
-            else:
-                logging.warning("⚠️ Gmail API service initialization returned None.")
-        except PermissionError as pe:
-            logging.error(f"🚫 GMAIL AUTH BLOCKED ON CLOUD: {pe}. Falling back to SMTP...")
-        except Exception as e:
-            if "invalid_grant" in str(e):
-                logging.error("🚨 GMAIL TOKEN EXPIRED: You MUST run the bot LOCALLY on your computer once to refresh the token, then push the new token.json to GitHub.")
-            logging.warning(f"⚠️ Gmail API unexpected failure: {e}")
+    logging.error("❌ ALL STRIKE PATHS FAILED: No providers could deliver the payload.")
+    return False
 
-    # ============================================================
-    # 🔰 PRIORITY 4: ZOHO SMTP (DMARC Aligned)
-    # ============================================================
+# --- ATTEMPT WRAPPERS FOR ROTATION ---
+
+def _try_brevo_http():
+    if not getattr(config, 'BREVO_API_KEY', None): return False
+    # Check rotator (unified name "brevo")
+    try:
+        from core.email_rotator import record_email_sent, get_rotator
+        if get_rotator().usage.get("brevo", {}).get("count", 0) >= 300:
+            logging.info("⏭️ Brevo HTTP limit reached.")
+            return False
+        if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
+            record_email_sent("brevo")
+            return True
+    except: pass
+    return False
+
+def _try_resend():
+    # resend_1, resend_2, resend_3 are handled inside send_email_via_resend
+    return send_email_via_resend(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+
+def _try_gmail_api():
+    return send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+
+def _try_zoho():
     zoho_user = (getattr(config, 'ZOHO_SMTP_USER', '') or '').strip()
     zoho_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or '').strip()
-    if zoho_user and zoho_pass:
-        zoho_provider = {
-            'name': 'Zoho (STARTTLS-587)',
-            'server': 'smtp.zoho.com',
-            'port': 587,
-            'email': zoho_user,
-            'password': zoho_pass,
-            'use_ssl': False
-        }
+    if not zoho_user or not zoho_pass: return False
+    
+    provider = {'name': 'Zoho (587)', 'server': 'smtp.zoho.com', 'port': 587, 'email': zoho_user, 'password': zoho_pass, 'use_ssl': False}
+    if _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
         try:
-            logging.info("📧 [ZOHO-SMTP] Attempting Native Zoho Delivery (DMARC Aligned)...")
-            res = _send_via_provider(to_email, company_name, job_title, custom_body, zoho_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-            if res:
-                logging.info("✅ ZOHO SMTP SUCCESS — Delivered to Inbox natively.")
-                
-                # 🚀 ZERO-COST: Record email sent
-                try:
-                    from core.email_rotator import record_email_sent
-                    record_email_sent("zoho")
-                except: pass
-                
-                return True
-        except Exception as e:
-            logging.warning(f"⚠️ Zoho SMTP failed: {e}")
+            from core.email_rotator import record_email_sent
+            record_email_sent("zoho_1")
+        except: pass
+        return True
+    return False
 
-    # ============================================================
-    # 🚀 RENDER OPTIMIZATION: Prioritize Port 2525
-    # Render blocks 587/465 but allows 2525.
-    # ============================================================
-    is_render = os.getenv("RENDER") is not None
-    if is_render:
-        brevo_smtp_user = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
-        brevo_smtp_pass = (getattr(config, 'BREVO_SMTP_PASSWORD', '') or '').strip()
-        if brevo_smtp_user and brevo_smtp_pass:
-            brevo_smtp_provider = {
-                'name': 'Brevo SMTP (2525)',
-                'server': 'smtp-relay.brevo.com',
-                'port': 2525,
-                'email': brevo_smtp_user,
-                'password': brevo_smtp_pass,
-                'use_ssl': False
-            }
-            try:
-                # [👑 CLOUD DELIVERABILITY FIX]: If we use Hotmail via Brevo, Outlook blackholes it.
-                # We use the Zoho address as the VISIBLE sender, but the Brevo Login for AUTH.
-                neutral_sender = (getattr(config, 'ZOHO_SMTP_USER', '') or brevo_smtp_user).strip()
-                
-                logging.info(f"📧 [RENDER-BOOST] Using Neutral Identity: {neutral_sender} (Auth: {brevo_smtp_user})")
-                res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to, sender_override=neutral_sender)
-                if res:
-                    logging.info("✅ RENDER-BOOST SUCCESS — Port 2525 bypassed Render block!")
-                    
-                    # 🚀 ZERO-COST: Record email sent
-                    try:
-                        from core.email_rotator import record_email_sent
-                        record_email_sent("brevo")
-                    except: pass
-                    
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ Render-Boost failed: {e}")
+def _try_gmail_smtp():
+    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or '').strip()
+    if not gmail_user or not gmail_pass: return False
+    
+    provider = {'name': 'Gmail (587)', 'server': 'smtp.gmail.com', 'port': 587, 'email': gmail_user, 'password': gmail_pass, 'use_ssl': False}
+    if _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
+        try:
+            from core.email_rotator import record_email_sent
+            record_email_sent("gmail")
+        except: pass
+        return True
+    return False
 
-    # ============================================================
-    # 🥈 PRIORITY 2: BREVO SMTP PORT 2525
-    # ============================================================
+def _try_brevo_smtp_2525():
     brevo_smtp_user = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
     brevo_smtp_pass = (getattr(config, 'BREVO_SMTP_PASSWORD', '') or '').strip()
-    if brevo_smtp_user and brevo_smtp_pass:
-        brevo_smtp_provider = {
-            'name': 'Brevo SMTP (2525)',
-            'server': 'smtp-relay.brevo.com',
-            'port': 2525,
-            'email': brevo_smtp_user,
-            'password': brevo_smtp_pass,
-            'use_ssl': False
-        }
+    if not brevo_smtp_user or not brevo_smtp_pass: return False
+    
+    provider = {'name': 'Brevo (2525)', 'server': 'smtp-relay.brevo.com', 'port': 2525, 'email': brevo_smtp_user, 'password': brevo_smtp_pass, 'use_ssl': False}
+    if _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
         try:
-            logging.info("📧 [BREVO-SMTP] Attempting Brevo SMTP port 2525...")
-            res = _send_via_provider(to_email, company_name, job_title, custom_body, brevo_smtp_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-            if res:
-                logging.info("✅ BREVO SMTP-2525 SUCCESS")
-                
-                # 🚀 ZERO-COST: Record email sent
-                try:
-                    from core.email_rotator import record_email_sent
-                    record_email_sent("brevo")
-                except: pass
-                
-                return True
-        except Exception as e:
-            logging.warning(f"⚠️ Brevo SMTP-2525 failed: {e}")
+            from core.email_rotator import record_email_sent
+            record_email_sent("brevo")
+        except: pass
+        return True
+    return False
 
-    # ============================================================
-    # 🥉 PRIORITY 3: YAHOO SMTP
-    # ============================================================
-    yahoo_user = (getattr(config, 'YAHOO_SMTP_USER', '') or '').strip()
-    yahoo_pass = (getattr(config, 'YAHOO_APP_PASSWORD', '') or '').strip()
-    if yahoo_user and yahoo_pass:
-        yahoo_provider = {
-            'name': 'Yahoo (STARTTLS-587)',
-            'server': 'smtp.mail.yahoo.com',
-            'port': 587,
-            'email': yahoo_user,
-            'password': yahoo_pass,
-            'use_ssl': False
-        }
+def _try_yahoo():
+    user = (getattr(config, 'YAHOO_SMTP_USER', '') or '').strip()
+    pwd = (getattr(config, 'YAHOO_APP_PASSWORD', '') or '').strip()
+    if not user or not pwd: return False
+    provider = {'name': 'Yahoo (587)', 'server': 'smtp.mail.yahoo.com', 'port': 587, 'email': user, 'password': pwd, 'use_ssl': False}
+    return _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+
+def _try_outlook():
+    user = (getattr(config, 'OUTLOOK_USER', '') or '').strip()
+    pwd = (getattr(config, 'OUTLOOK_PASSWORD', '') or '').strip()
+    if not user or not pwd: return False
+    provider = {'name': 'Outlook (587)', 'server': 'smtp.office365.com', 'port': 587, 'email': user, 'password': pwd, 'use_ssl': False}
+    return _send_via_provider(to_email, company_name, job_title, custom_body, provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+
+def _try_mailjet():
+    return send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+
+def _try_sendpulse():
+    return send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+
         try:
             res = _send_via_provider(to_email, company_name, job_title, custom_body, yahoo_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
             if res:
