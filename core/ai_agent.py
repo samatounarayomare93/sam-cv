@@ -94,7 +94,7 @@ class OmniIntelligence:
         if self._session:
             try:
                 await self._session.aclose()
-            except:
+            except Exception:
                 pass
             self._session = None
 
@@ -455,7 +455,7 @@ class OmniIntelligence:
             if response.status_code == 200:
                 res = response.json()
                 return res['choices'][0]['message']['content'].strip()
-        except:
+        except Exception:
             pass
         return letter
 
@@ -734,7 +734,7 @@ class OmniIntelligence:
                     contents=prompt
                 )
                 return self._extract_json_robustly(response.text)
-        except:
+        except Exception:
             pass
             
         return {
@@ -760,7 +760,7 @@ class OmniIntelligence:
                     contents=prompt
                 )
                 return response.text
-        except:
+        except Exception:
             pass
         return f"Dear Hiring Manager, I am {persona['name']} and I want this job at {company}."
 

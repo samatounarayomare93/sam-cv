@@ -146,7 +146,7 @@ def deploy_to_render():
             name_input.clear()
             name_input.send_keys(SERVICE_NAME)
             print(f"✅ Name: {SERVICE_NAME}")
-        except:
+        except Exception:
             print(f"⚠️  Please enter Name: {SERVICE_NAME}")
         
         # Select Region
@@ -157,7 +157,7 @@ def deploy_to_render():
             frankfurt = driver.find_element(By.XPATH, f"//option[contains(text(), '{REGION}')]")
             frankfurt.click()
             print(f"✅ Region: {REGION}")
-        except:
+        except Exception:
             print(f"⚠️  Please select Region: {REGION}")
         
         # Fill Build Command
@@ -166,7 +166,7 @@ def deploy_to_render():
             build_input.clear()
             build_input.send_keys(BUILD_COMMAND)
             print(f"✅ Build Command: {BUILD_COMMAND}")
-        except:
+        except Exception:
             print(f"⚠️  Please enter Build Command: {BUILD_COMMAND}")
         
         # Fill Start Command
@@ -175,7 +175,7 @@ def deploy_to_render():
             start_input.clear()
             start_input.send_keys(START_COMMAND)
             print(f"✅ Start Command: {START_COMMAND}")
-        except:
+        except Exception:
             print(f"⚠️  Please enter Start Command: {START_COMMAND}")
         
         # Select Free instance
@@ -183,7 +183,7 @@ def deploy_to_render():
             free_option = driver.find_element(By.XPATH, "//input[@value='free']")
             free_option.click()
             print("✅ Instance Type: Free")
-        except:
+        except Exception:
             print("⚠️  Please select Instance Type: Free")
         
         print("\n   Press ENTER when form is filled...")

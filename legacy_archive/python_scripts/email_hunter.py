@@ -89,7 +89,7 @@ def verify_email(email):
             import dns.resolver
             mx_records = dns.resolver.resolve(domain, 'MX')
             return True
-        except:
+        except Exception:
             pass
         
         # Try connecting to common SMTP ports
@@ -101,11 +101,11 @@ def verify_email(email):
                 sock.close()
                 if result == 0:
                     return True
-            except:
+            except Exception:
                 pass
         
         return False
-    except:
+    except Exception:
         return False
 
 def find_email_on_website(company_name, website=None):
@@ -139,7 +139,7 @@ def find_email_on_website(company_name, website=None):
                 if filtered:
                     return filtered[0]
                     
-        except:
+        except Exception:
             pass
     
     return None
@@ -178,7 +178,7 @@ def find_careers_page(company_name, website=None):
                     if not any(x in email.lower() for x in ['facebook', 'twitter', 'linkedin', 'noreply']):
                         return email
                         
-        except:
+        except Exception:
             pass
     
     return None

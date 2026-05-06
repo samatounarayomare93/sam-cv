@@ -93,7 +93,7 @@ class LinkedInMax:
                                 """, (name, title, company))
                                 self.db.commit()
                                 
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(3, 6))
@@ -223,7 +223,7 @@ class LinkedInMax:
                                 
                                 time.sleep(random.uniform(2, 4))
                                 
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(5, 10))

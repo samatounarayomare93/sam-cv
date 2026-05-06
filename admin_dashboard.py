@@ -139,7 +139,7 @@ class AdminDashboard:
             for file in py_files:
                 compile(file.read_text(), str(file), 'exec')
             return True
-        except:
+        except Exception:
             return False
     
     def check_dependencies(self) -> bool:
@@ -147,7 +147,7 @@ class AdminDashboard:
         try:
             import telegram, google.generativeai, groq, fpdf, bs4, aiohttp, supabase
             return True
-        except:
+        except Exception:
             return False
     
     def check_configuration(self) -> bool:
@@ -169,7 +169,7 @@ class AdminDashboard:
                 timeout=5
             )
             return result.stdout.strip() == ""
-        except:
+        except Exception:
             return False
     
     def check_env_not_committed(self) -> bool:
@@ -183,7 +183,7 @@ class AdminDashboard:
                 timeout=5
             )
             return result.stdout.strip() == ""
-        except:
+        except Exception:
             return True
     
     def check_no_secrets(self) -> bool:
@@ -197,7 +197,7 @@ class AdminDashboard:
                 if any(p in content.lower() and "os.getenv" not in content for p in secret_patterns):
                     return False
             return True
-        except:
+        except Exception:
             return True
     
     def exit_menu(self):

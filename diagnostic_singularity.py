@@ -81,7 +81,7 @@ async def run_audit():
                 print(f"  ✅ Ready to strike: {email}")
             else:
                 print("  ⚠️ SMTP Configuration: INCOMPLETE (Using fallback mechanisms)")
-        except:
+        except Exception:
              print("  ⚠️ SMTP Engine: Config Error.")
     else:
         print("  ⚠️ Strike Target Email: NOT CONFIGURED")

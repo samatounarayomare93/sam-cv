@@ -115,12 +115,12 @@ class SingleInstanceLock:
                             # Process not running, stale lock - delete it
                             try:
                                 os.remove(self.lock_path)
-                            except:
+                            except Exception:
                                 pass
-                    except:
+                    except Exception:
                         try:
                             os.remove(self.lock_path)
-                        except:
+                        except Exception:
                             pass
 
                 self._fh = open(self.lock_path, 'a+', encoding='utf-8')
@@ -311,7 +311,7 @@ def fast_filter(lead, current_phase=None):
                 min_allowed = int(getattr(config, 'MIN_SALARY_GLOBAL', 0) or 0)
             if salary > 0 and salary < min_allowed:
                 return False
-        except:
+        except Exception:
             pass
         
         # 3. Keyword blacklist (skip internal candidates, interns, etc)

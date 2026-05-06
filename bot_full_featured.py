@@ -143,7 +143,7 @@ async def qualify(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if score > 70:
                     db.update_lead_status(lead['url'], 'qualified')
                     qualified_count += 1
-            except:
+            except Exception:
                 continue
         
         await update.message.reply_text(f"✅ Qualified {qualified_count} leads!")
@@ -168,7 +168,7 @@ async def strike(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if result:
                     db.update_lead_status(lead['url'], 'sent')
                     sent_count += 1
-            except:
+            except Exception:
                 continue
         
         await update.message.reply_text(f"✅ Sent {sent_count} applications!")
@@ -311,7 +311,7 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if score > 70:
                         db.update_lead_status(lead['url'], 'qualified')
                         qualified_count += 1
-                except:
+                except Exception:
                     continue
             await query.edit_message_text(f"✅ Qualified {qualified_count} leads!")
         except Exception as e:
@@ -332,7 +332,7 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if result:
                         db.update_lead_status(lead['url'], 'sent')
                         sent_count += 1
-                except:
+                except Exception:
                     continue
             await query.edit_message_text(f"✅ Sent {sent_count} applications!")
         except Exception as e:

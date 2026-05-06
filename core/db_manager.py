@@ -61,7 +61,7 @@ class DatabaseManager:
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     return asyncio.run_coroutine_threadsafe(self.is_duplicate(identifier), loop).result()
             return asyncio.run(self.is_duplicate(identifier))
-        except:
+        except Exception:
             # Absolute fallback to local SQLite
             return self.client._is_dup_locally(identifier)
 

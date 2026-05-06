@@ -357,7 +357,7 @@ def scrape_glassdoor_jobs():
                                         "link": "",
                                         "source_board": "glassdoor"
                                     })
-                        except:
+                        except Exception:
                             continue
             except Exception as e:
                 logging.debug(f"Glassdoor scrape failed: {e}")
@@ -410,7 +410,7 @@ def scrape_indeed_jobs(location="Lebanon"):
                                     "link": job_link,
                                     "source_board": "indeed"
                                 })
-                    except:
+                    except Exception:
                         continue
         except Exception as e:
             logging.debug(f"Indeed scrape failed: {e}")
@@ -458,7 +458,7 @@ def scrape_careerbuilder_jobs():
                                     "link": "",
                                     "source_board": "careerbuilder"
                                 })
-                    except:
+                    except Exception:
                         continue
     except Exception as e:
         logging.debug(f"CareerBuilder scrape failed: {e}")
@@ -576,7 +576,7 @@ def scrape_jobportals():
                                     "link": "",
                                     "source_board": portal["name"].lower()
                                 })
-                    except:
+                    except Exception:
                         continue
         except Exception as e:
             logging.debug(f"{portal['name']} failed: {e}")
@@ -686,7 +686,7 @@ def scrape_linkedin_jobs(location="Lebanon", keyword="HR"):
                                         "link": job_link,
                                         "source_board": "linkedin"
                                     })
-                        except:
+                        except Exception:
                             continue
             except Exception as e:
                 continue
@@ -738,7 +738,7 @@ def scrape_hirelebanese_jobs():
                                     "link": job_link,
                                     "source_board": "hirelebanese"
                                 })
-                    except:
+                    except Exception:
                         continue
         except Exception as e:
             continue
@@ -790,7 +790,7 @@ def scrape_bayt_jobs(location="lebanon", keyword="hr"):
                                     "link": "https://www.bayt.com" + title_elem['href'],
                                     "source_board": "bayt"
                                 })
-                    except:
+                    except Exception:
                         continue
         except Exception as e:
             continue
@@ -840,7 +840,7 @@ def scrape_monster_jobs(location="Lebanon", keyword="HR"):
                                     "link": "",
                                     "source_board": "monster"
                                 })
-                    except:
+                    except Exception:
                         continue
         except Exception as e:
             continue

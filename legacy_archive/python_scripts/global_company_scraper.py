@@ -111,7 +111,7 @@ class GlobalCompanyScraper:
                     soup = BeautifulSoup(response.content, 'html.parser')
                     # Extract company names
                     # This is a template - specific selectors vary by site
-                except:
+                except Exception:
                     continue
             
             logging.info(f"🌍 Found {len(companies)} companies on Gulf boards")
@@ -138,7 +138,7 @@ class GlobalCompanyScraper:
                         company = item.get_text().strip()
                         if company:
                             companies.add(company)
-                except:
+                except Exception:
                     continue
             
             logging.info(f"🌍 Found {len(companies)} companies on Indeed")

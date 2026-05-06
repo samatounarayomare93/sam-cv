@@ -660,7 +660,7 @@ class SelfHealer:
             if len(errors) > 10:
                 logger.warning("⚠️ High error count detected, system may need attention")
                 return False
-        except:
+        except Exception:
             pass
         
         return True

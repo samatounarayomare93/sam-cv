@@ -458,7 +458,7 @@ def render_settings():
         )
         
         st.info("To modify settings, edit config.py directly.")
-    except:
+    except Exception:
         st.error("Could not read config.py")
     
     st.divider()

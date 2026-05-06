@@ -31,7 +31,7 @@ def load_tracker():
         try:
             with open("tracker.json", 'r') as f:
                 return json.load(f)
-        except:
+        except Exception:
             return {"applications": []}
     return {"applications": []}
 

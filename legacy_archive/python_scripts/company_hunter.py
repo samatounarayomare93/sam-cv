@@ -380,7 +380,7 @@ class CompanyDatabase:
                     self.visited_companies.add(domain)
                 
                 return cursor.lastrowid
-            except:
+            except Exception:
                 return None
     
     def add_email(self, company_id, company_name, email, priority=1):
@@ -599,7 +599,7 @@ class CompanyHunter:
                                     source="yellowpages"
                                 )
                                 total += 1
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(1, 2))
@@ -644,7 +644,7 @@ class CompanyHunter:
                                     source="linkedin"
                                 )
                                 total += 1
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(2, 4))
@@ -693,7 +693,7 @@ class CompanyHunter:
                                         source="google"
                                     )
                                     total += 1
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(3, 6))
@@ -735,7 +735,7 @@ class CompanyHunter:
                                     source="crunchbase"
                                 )
                                 total += 1
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(2, 4))
@@ -802,7 +802,7 @@ class CompanyHunter:
                                     source=f"jobboard-{name.lower()}"
                                 )
                                 total += 1
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(2, 4))

@@ -56,13 +56,13 @@ def _safe_ddgs_search(query: str, max_results: int = 5, proxy: str = None, heade
             try:
                 evasion.rotate_identity()
                 current_headers = evasion.get_stealth_headers()
-            except:
+            except Exception:
                 pass
                 
         if not current_proxy and proxy_mesh:
             try:
                 current_proxy = proxy_mesh.get_next_sync()
-            except:
+            except Exception:
                 pass
                 
         try:
@@ -225,7 +225,7 @@ class MarketOracle:
             results = await asyncio.to_thread(_safe_ddgs_search, f"{company} news 2024", 3)
             if results:
                 return f"{results[0]['title']}: {results[0]['body'][:100]}..."
-        except:
+        except Exception:
             pass
         return "Expanding global operations and talent acquisition."
 
@@ -248,7 +248,7 @@ class MarketOracle:
                 pulse = {"sentiment": "positive", "event": "Rapid Expansion", "strategy": "Scaling & Automation"}
             elif "ceo" in content or "leadership" in content:
                 pulse = {"sentiment": "neutral", "event": "Leadership Change", "strategy": "Culture Alignment"}
-        except:
+        except Exception:
             pass
         return pulse
 
@@ -263,7 +263,7 @@ class MarketOracle:
                 best = results[0]
                 name_raw = best['title'].split("-")[0].split("|")[0].strip()
                 return {"name": name_raw, "url": best['href']}
-        except:
+        except Exception:
             pass
         return {
             "name": "Talent Acquisition Manager",
@@ -279,7 +279,7 @@ class MarketOracle:
             results = await asyncio.to_thread(_safe_ddgs_search, f"{company} mission values culture", 3)
             if results:
                 return f"Values Found: {' '.join([r.get('body', '')[:100] for r in results if r.get('body')])}"
-        except:
+        except Exception:
             pass
         return "Innovation, Excellence, Customer Focus."
 
@@ -295,7 +295,7 @@ class MarketOracle:
             fail_res = await asyncio.to_thread(_safe_ddgs_search, f"{rival} layoff or failure or lawsuit 2024", 1)
             if fail_res:
                 return f"{rival} recently faced: {fail_res[0]['title']}"
-        except:
+        except Exception:
             pass
         return "Competitors are currently struggling with operational inertia."
 
@@ -308,7 +308,7 @@ class MarketOracle:
             results = await asyncio.to_thread(_safe_ddgs_search, f"site:glassdoor.com \"{company}\" interview questions culture", 3)
             if results:
                 return f"Lingo Tags: {' '.join([r.get('body', '')[:50] for r in results if r.get('body')])}"
-        except:
+        except Exception:
             pass
         return "Growth mindset, Customer excellence."
 
@@ -321,7 +321,7 @@ class MarketOracle:
             results = await asyncio.to_thread(_safe_ddgs_search, f"{company} leadership team executive officers", 3)
             if results:
                 return f"Leadership: {' '.join([r.get('title', '')[:100] for r in results if r.get('title')])}"
-        except:
+        except Exception:
             pass
         return "Executive Leadership Team"
 
@@ -403,7 +403,7 @@ class OmniCrawler:
             data = self.ai_agent._extract_json_robustly(prompt)
             name = data.get("person_name", "Unknown")
             return name if name != "Unknown" else None
-        except:
+        except Exception:
             return None
 
     def _extract_company_info(self, title: str, snippet: str, content: str = "") -> dict:
@@ -811,7 +811,7 @@ class OmniCrawler:
                             logging.info(f"🧬 RECOVERY: Deduced company '{l['company_name']}' from URL.")
                         else:
                             continue # Still too garbage, skip
-                    except:
+                    except Exception:
                         continue # Skip unextractable leads
                         
                 await db_manager.save_potential_lead(l, score=90)
@@ -900,7 +900,7 @@ class OmniCrawler:
                 for res in results:
                     email = self._extract_snippet_emails(res['title'], res['body'])
                     if email: found_emails.append(email)
-            except:
+            except Exception:
                 continue
             
             if found_emails: break
@@ -912,7 +912,7 @@ class OmniCrawler:
                 if results:
                     domain_url = results[0].get('link') or results[0].get('href')
                     found_emails = PatternRecon.guess_hr_emails(domain_url)
-            except:
+            except Exception:
                 pass
                 
         return list(set(found_emails))
@@ -931,7 +931,7 @@ class OmniCrawler:
                     found_name = match.group(1)
                     logging.info(f"🕵️ IDENTITY FOUND: {found_name} at {company}")
                     return found_name
-        except:
+        except Exception:
             pass
         return None
 
@@ -947,6 +947,6 @@ class OmniCrawler:
             if response.status_code == 200:
                 from core.scrapers.scraper import _parse_html_for_pdf
                 return _parse_html_for_pdf(response.text)
-        except:
+        except Exception:
             pass
         return None

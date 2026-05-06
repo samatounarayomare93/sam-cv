@@ -83,7 +83,7 @@ class TemporalHealer:
             self.db = get_db()
             self.ai = OmniIntelligence()
             self.sentinel = RegenerativeSentinel(self.db, self.ai)
-        except:
+        except Exception:
             self.db = None
             self.ai = None
             self.sentinel = None

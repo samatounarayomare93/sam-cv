@@ -28,7 +28,7 @@ class FollowUpSystem:
             try:
                 with open(self.tracker_file, 'r') as f:
                     return json.load(f)
-            except:
+            except Exception:
                 return {"applications": []}
         return {"applications": []}
     
@@ -64,7 +64,7 @@ class FollowUpSystem:
             try:
                 app_date = datetime.fromisoformat(applied_date.replace('Z', '+00:00'))
                 days_since = (now - app_date).days
-            except:
+            except Exception:
                 continue
             
             # If it's been more than followup_days and no recent followup
@@ -76,7 +76,7 @@ class FollowUpSystem:
                         days_since_followup = (now - last_date).days
                         if days_since_followup < self.followup_days:
                             continue
-                    except:
+                    except Exception:
                         pass
                 
                 targets.append({

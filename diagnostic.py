@@ -47,7 +47,7 @@ async def run_diagnostic():
     try:
         if hasattr(sys.stdout, 'reconfigure'):
             sys.stdout.reconfigure(encoding='utf-8')
-    except:
+    except Exception:
         pass
 
     print(f"\n{Colors.BOLD}{Colors.HEADER}--- PROJECT CHRONOS: MILLION-PERCENT PRE-FLIGHT AUDIT ---{Colors.ENDC}\n")

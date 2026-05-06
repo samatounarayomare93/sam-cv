@@ -25,7 +25,7 @@ def safe_print(text):
     """Print without emoji issues on Windows"""
     try:
         print(text)
-    except:
+    except Exception:
         print(text.encode('utf-8', errors='replace').decode('utf-8', errors='replace'))
 
 print("\n" + "="*70)
@@ -46,7 +46,7 @@ for root, dirs, files in os.walk("."):
             try:
                 size = os.path.getsize(path)
                 project_files.append({"path": path, "size": size})
-            except:
+            except Exception:
                 pass
 
 print(f"   Found {len(project_files)} files in project")
@@ -107,7 +107,7 @@ if os.path.exists(".env"):
     try:
         with open(".env", 'r', encoding='utf-8') as f:
             content = f.read()
-    except:
+    except Exception:
         with open(".env", 'r', encoding='latin-1') as f:
             content = f.read()
     if "TELEGRAM_BOT_TOKEN=" in content and "your-" not in content:
@@ -214,7 +214,7 @@ try:
                 "source": source,
                 "website": website
             })
-        except:
+        except Exception:
             company_emails.append({
                 "company": name,
                 "email": f"hr@{name.lower().replace(' ', '')}.com",
@@ -258,7 +258,7 @@ if os.path.exists("tracker.json"):
     try:
         with open("tracker.json", 'r') as f:
             tracker = json.load(f)
-    except:
+    except Exception:
         pass
 
 existing_companies = set(a.get('company_name', '').lower() for a in tracker.get('applications', []))

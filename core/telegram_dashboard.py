@@ -70,7 +70,7 @@ class SovereignDashboard:
                 if not part: continue
                 try:
                     self.authorized_users.append(int(part))
-                except:
+                except Exception:
                     self.authorized_users.append(part)
         
         # Primary chat ID for administrative tasks
@@ -499,7 +499,7 @@ class SovereignDashboard:
             stats = {}
             try:
                 stats = await self.db.get_stats()
-            except:
+            except Exception:
                 pass
             
             # 🛡️ ULTIMATE FAILOVER: Check all systems
@@ -905,7 +905,7 @@ class SovereignDashboard:
                 tips = data.get('tips', ["Be bold.", "Know metrics.", "Lead the room."])
                 tip_str = "\n".join([f"💡 {tip}" for tip in tips])
                 await msg.reply_text(f"🎓 <b>ORACLE PREP: {latest['company_name']}</b>\n━━━━━━━━━━━━━━━\n{tip_str}\n━━━━━━━━━━━━━━━", parse_mode='HTML')
-            except:
+            except Exception:
                 await msg.reply_text("🎓 <b>Oracle Busy.</b> Tips: Focus on metrics & culture.", parse_mode='HTML')
 
         elif key == "campaign":

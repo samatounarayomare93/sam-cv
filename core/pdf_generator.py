@@ -433,7 +433,7 @@ def _safe_text_for_pdf(text, is_unicode=False):
         if code < 0x10000 and code > 31:  # Keep printable basic unicode
             try:
                 clean.append(char.encode('latin-1', 'ignore').decode('latin-1'))
-            except:
+            except Exception:
                 clean.append('?')
         elif code == 10 or code == 13:  # Keep newlines
             clean.append(char)
@@ -456,7 +456,7 @@ def _parse_html_for_pdf(html_content):
         clean_body = soup.get_text(separator=' ')
         clean_body = re.sub(r'\n\s*\n', '\n\n', clean_body).strip()
         return clean_body
-    except:
+    except Exception:
         return None
 
 def generate_dynamic_cover_letter(company_name, job_title, custom_body, persona='Modern', custom_keywords=None, strike_id=None):
@@ -501,7 +501,7 @@ def generate_dynamic_cover_letter(company_name, job_title, custom_body, persona=
     
     try:
         pdf.set_text_shaping(True)
-    except:
+    except Exception:
         logging.warning("⚠️ Text shaping disabled.")
 
     pdf.add_page()

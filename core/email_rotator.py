@@ -51,7 +51,7 @@ class EmailRotator:
                 if data.get("date") == datetime.now().strftime("%Y-%m-%d"):
                     return data.get("usage", {})
             return {}
-        except:
+        except Exception:
             return {}
 
     def _save_usage(self):
@@ -63,7 +63,7 @@ class EmailRotator:
             }
             with open(USAGE_FILE, 'w') as f:
                 json.dump(data, f, indent=2)
-        except:
+        except Exception:
             pass
 
     def _cleanup_old_usage(self):

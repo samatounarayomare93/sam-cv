@@ -45,7 +45,7 @@ def check_bot_health():
                         print(f"      • Emails Sent: {stats.get('strikes', 'N/A')}")
                         print(f"      • Leads Found: {stats.get('intel', 'N/A')}")
                         print(f"      • Uptime: {stats.get('uptime', 'N/A')}")
-                except:
+                except Exception:
                     pass
                 
                 print()

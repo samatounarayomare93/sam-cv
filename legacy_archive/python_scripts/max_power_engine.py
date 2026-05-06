@@ -481,7 +481,7 @@ class LinkedInAutomator:
                             })
                             
                             time.sleep(random.uniform(3, 8))
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(5, 10))
@@ -676,7 +676,7 @@ class MaxJobScraper:
                                     "company": company.get_text(strip=True) if company else "Unknown",
                                     "platform": "linkedin"
                                 })
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(3, 6))
@@ -713,7 +713,7 @@ class MaxJobScraper:
                                     "company": company.get_text(strip=True) if company else "Unknown",
                                     "platform": "indeed"
                                 })
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(2, 5))
@@ -750,7 +750,7 @@ class MaxJobScraper:
                                     "company": company.get_text(strip=True) if company else "Unknown",
                                     "platform": "glassdoor"
                                 })
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(2, 5))
@@ -819,7 +819,7 @@ class MaxCompanyScraper:
                                 
                                 companies.append(company)
                                 
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(1, 3))
@@ -874,7 +874,7 @@ class MaxCompanyScraper:
                                     
                                     companies.append(company)
                                     
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(5, 10))

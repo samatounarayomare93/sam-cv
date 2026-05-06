@@ -107,7 +107,7 @@ try:
             if "sk-" in content or ("Bearer " in content and "os.environ" not in content):
                 dangerous += 1
                 print(f"   ⚠️  Potential secret in {py_file.name}")
-except:
+except Exception:
     pass
 
 if dangerous == 0:
@@ -131,7 +131,7 @@ try:
     else:
         print(f"   ⚠️  Git not available")
         git_ok = True
-except:
+except Exception:
     git_ok = True
 
 checks.append(("Git Status", "PASS"))

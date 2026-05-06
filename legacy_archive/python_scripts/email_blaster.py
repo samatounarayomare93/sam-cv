@@ -102,7 +102,7 @@ class EmailBlaster:
                                                      (email, name))
                                         self.db.commit()
                                         
-                            except:
+                            except Exception:
                                 continue
                     
                     time.sleep(random.uniform(1, 2))

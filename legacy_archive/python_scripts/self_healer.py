@@ -309,7 +309,7 @@ class FileSystemHealer:
                 backup_path = filepath + f".corrupted.{int(time.time())}"
                 shutil.copy2(filepath, backup_path)
                 logger.info(f"📦 BACKED UP: Corrupted file to {backup_path}")
-            except:
+            except Exception:
                 pass
             
             return False
@@ -577,7 +577,7 @@ class UltraHealingEngine:
                     reachable.append(url)
                 else:
                     unreachable.append(url)
-            except:
+            except Exception:
                 unreachable.append(url)
         
         results["network"]["reachable"] = [u.split("//")[1] if "//" in u else u for u in reachable]

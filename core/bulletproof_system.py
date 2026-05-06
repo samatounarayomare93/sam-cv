@@ -232,7 +232,7 @@ class ResourceMonitor:
         try:
             import httpx
             # Force close any lingering sessions
-        except:
+        except Exception:
             pass
     
     def _trigger_disk_cleanup(self):
@@ -411,7 +411,7 @@ class HealthMonitor:
                 if orchestrator._session:
                     await orchestrator._session.aclose()
                     orchestrator._session = None
-            except:
+            except Exception:
                 pass
         
         # Disk cleanup
@@ -425,7 +425,7 @@ class HealthMonitor:
             try:
                 if self.db:
                     await self.db.send_heartbeat()
-            except:
+            except Exception:
                 pass
         
         # Reset circuit breakers if they've been open too long
@@ -486,7 +486,7 @@ class ImmortalLoop:
                 # Send alert
                 try:
                     await self._send_crash_alert(e, error_trace)
-                except:
+                except Exception:
                     pass
                 
                 # Wait before restart
@@ -498,7 +498,7 @@ class ImmortalLoop:
                 try:
                     health = await self.health_monitor.check_all_systems()
                     logging.info(f"🏥 Health status: {health['overall_status']}")
-                except:
+                except Exception:
                     pass
                 
                 logging.info("🔄 IMMORTAL LOOP: Restarting main function...")
@@ -519,7 +519,7 @@ class ImmortalLoop:
                     "Explain the cause in simple terms and suggest a fix. Keep it brief."
                 )
                 diagnosis = result.get('answer', str(error))
-            except:
+            except Exception:
                 diagnosis = str(error)
             
             message = (

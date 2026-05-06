@@ -415,7 +415,7 @@ class UltimateScraperEngine:
                                     'location': location,
                                     'url': job_url
                                 })
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(1, 3))
@@ -470,7 +470,7 @@ class UltimateScraperEngine:
                                     'company': company,
                                     'location': location
                                 })
-                        except:
+                        except Exception:
                             continue
                 
                 time.sleep(random.uniform(2, 4))
@@ -692,11 +692,11 @@ class UltimateEmailFinder:
                 try:
                     socket.gethostbyname(domain)
                     return True
-                except:
+                except Exception:
                     return False
             
             return False
-        except:
+        except Exception:
             return False
     
     def find_on_linkedin(self, company_name):

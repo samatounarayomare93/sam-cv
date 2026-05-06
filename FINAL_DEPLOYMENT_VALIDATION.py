@@ -277,7 +277,7 @@ for py_file in Path("core").glob("*.py"):
             for pattern in dangerous_patterns:
                 if pattern in content and "os.environ" not in content and "getenv" not in content:
                     security_issues.append(f"{py_file.name}: contains '{pattern}'")
-    except:
+    except Exception:
         pass
 
 if security_issues:
