@@ -471,6 +471,11 @@ class AlphaOrchestrator:
             'strategic interview questions cheat sheet',
             # URL fragments that get parsed as company names
             'www', 'http', 'https', 'com', 'org', 'net', 'co', 'io',
+            # Job boards scraped as fake "companies"
+            'indeed', 'linkedin', 'glassdoor', 'monster', 'ziprecruiter',
+            'bayt', 'naukrigulf', 'gulftalent', 'dubizzle', 'daleel madani',
+            'akhtaboot', 'wuzzuf', 'crunchbase', 'builtin', 'wellfound',
+            'angel.co', 'lever', 'greenhouse', 'workable', 'bamboohr',
         }
         
         # [🛡️ FAKE DOMAIN FILTER]: Reject AI-generated fake email domains
@@ -524,11 +529,22 @@ class AlphaOrchestrator:
 
             # Reject emails to well-known non-hiring domains
             NON_HIRING_DOMAINS = {
+                # Tech giants
                 'stackoverflow.com', 'windows.com', 'microsoft.com', 'google.com',
                 'apple.com', 'amazon.com', 'youtube.com', 'wikipedia.org',
-                'linkedin.com', 'facebook.com', 'twitter.com', 'instagram.com',
-                'reddit.com', 'github.com', 'zippia.com', 'glassdoor.com',
-                'indeed.com', 'crunchbase.com', 'techcrunch.com',
+                'facebook.com', 'twitter.com', 'instagram.com', 'tiktok.com',
+                'reddit.com', 'github.com', 'zippia.com',
+                # Job boards — we scrape FROM them, we don't apply TO them
+                'linkedin.com', 'lv.linkedin.com', 'ae.linkedin.com', 'uk.linkedin.com',
+                'glassdoor.com', 'indeed.com', 'uk.indeed.com', 'ae.indeed.com',
+                'monster.com', 'ziprecruiter.com', 'simplyhired.com',
+                'bayt.com', 'naukrigulf.com', 'gulftalent.com', 'naukri.com',
+                'dubizzle.com', 'daleel-madani.org', 'akhtaboot.com',
+                'wuzzuf.net', 'forasna.com', 'tanqeeb.com',
+                'crunchbase.com', 'techcrunch.com', 'builtin.com',
+                'wellfound.com', 'angel.co', 'lever.co', 'greenhouse.io',
+                'workable.com', 'bamboohr.com', 'smartrecruiters.com',
+                'jobvite.com', 'icims.com', 'taleo.net',
             }
             if domain in NON_HIRING_DOMAINS:
                 return True
@@ -548,7 +564,19 @@ class AlphaOrchestrator:
             if self.db and job_url:
                 await self.db.update_lead_status(job_url, "rejected")
             return
-            return
+
+        # 🛡️ MX RECORD CHECK: Verify domain actually accepts emails (prevents bounces)
+        if email and '@' in email:
+            domain = email.split('@')[-1].lower()
+            try:
+                import socket
+                # Quick DNS check — if domain doesn't resolve, it's fake
+                socket.getaddrinfo(domain, None, socket.AF_INET, socket.SOCK_STREAM)
+            except (socket.gaierror, OSError):
+                logging.info(f"🗑️ DNS FAIL: Domain '{domain}' doesn't exist — rejecting '{email}'")
+                if self.db and job_url:
+                    await self.db.update_lead_status(job_url, "rejected")
+                return
         
         # ✅ FIX: Early email check — no point running AI analysis on leads with no contact
         if not email:
