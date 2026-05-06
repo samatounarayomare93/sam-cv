@@ -471,7 +471,31 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             # ── 3. ZOHO SMTP (port 465/587 — blocked on Render, works locally) ─
             is_render = bool(os.getenv("RENDER"))
             if is_render:
-                logging.debug("⏭️ [ZOHO-SMTP] Skipped on Render. Add ZEPTO_API_KEY to enable Zoho on cloud.")
+                # [👑 HIJACK FIX]: Render blocks SMTP 465/587, but allows Port 2525. 
+                # Brevo allows sending on behalf of verified domains. We hijack Brevo SMTP.
+                brevo_user = os.getenv("BREVO_SMTP_LOGIN", "").strip()
+                brevo_pass = os.getenv("BREVO_SMTP_PASSWORD", "").strip()
+                zoho_user = os.getenv("ZOHO_SMTP_USER", "").strip()
+                
+                if brevo_user and brevo_pass and zoho_user:
+                    logging.info("🚀 [ZOHO-HIJACK] Hijacking Brevo Port 2525 to deliver Zoho email...")
+                    z_provider = {
+                        'name': 'Zoho-via-Brevo(2525)', 'server': 'smtp-relay.brevo.com',
+                        'port': 2525, 'email': brevo_user, 'password': brevo_pass, 'use_ssl': False
+                    }
+                    try:
+                        res = _send_via_provider(to_email, company_name, job_title, custom_body, z_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to, sender_override=zoho_user)
+                        if res:
+                            logging.info("✅ [ZOHO-HIJACK] SUCCESS! Zoho email delivered via Brevo tunnel!")
+                            try:
+                                from core.email_rotator import record_email_sent
+                                record_email_sent("zoho_1")
+                            except: pass
+                            return True
+                    except Exception as e:
+                        logging.warning(f"⚠️ [ZOHO-HIJACK] Failed: {e}")
+                else:
+                    logging.debug("⏭️ [ZOHO-SMTP] Skipped on Render. Brevo credentials missing.")
                 return False
 
             for i in range(1, 11):
