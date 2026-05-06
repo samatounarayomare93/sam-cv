@@ -113,28 +113,33 @@ class EmailRotator:
             providers.append({"name": "sendpulse", "display_name": "SendPulse",
                                "limit": PROVIDER_LIMITS["sendpulse"], "priority": 6})
 
+        # [👑 HIJACK FIX]: Zoho accounts are now tunneled via Brevo on Port 2525, so they DO work on Render!
+        if os.getenv("ZOHO_SMTP_USER") and os.getenv("ZOHO_APP_PASSWORD"):
+            providers.append({"name": "zoho_1", "display_name": "Zoho #1 (Tunneled)",
+                               "limit": PROVIDER_LIMITS["zoho_1"], "priority": 7})
+        if os.getenv("ZOHO_SMTP_USER_2") and os.getenv("ZOHO_APP_PASSWORD_2"):
+            providers.append({"name": "zoho_2", "display_name": "Zoho #2 (Tunneled)",
+                               "limit": PROVIDER_LIMITS["zoho_2"], "priority": 8})
+        if os.getenv("ZOHO_SMTP_USER_3") and os.getenv("ZOHO_APP_PASSWORD_3"):
+            providers.append({"name": "zoho_3", "display_name": "Zoho #3 (Tunneled)",
+                               "limit": PROVIDER_LIMITS.get("zoho_3", 500), "priority": 9})
+
         # SMTP providers — Render blocks outbound SMTP ports (465/587), skip on cloud
         if not is_render:
-            if os.getenv("ZOHO_SMTP_USER") and os.getenv("ZOHO_APP_PASSWORD"):
-                providers.append({"name": "zoho_1", "display_name": "Zoho #1",
-                                   "limit": PROVIDER_LIMITS["zoho_1"], "priority": 7})
-            if os.getenv("ZOHO_SMTP_USER_2") and os.getenv("ZOHO_APP_PASSWORD_2"):
-                providers.append({"name": "zoho_2", "display_name": "Zoho #2",
-                                   "limit": PROVIDER_LIMITS["zoho_2"], "priority": 8})
             if os.getenv("GMAIL_SMTP_USER") and os.getenv("GMAIL_APP_PASSWORD"):
                 providers.append({"name": "gmail", "display_name": "Gmail",
-                                   "limit": PROVIDER_LIMITS["gmail"], "priority": 9})
+                                   "limit": PROVIDER_LIMITS["gmail"], "priority": 10})
             if os.getenv("YAHOO_SMTP_USER") and os.getenv("YAHOO_APP_PASSWORD"):
                 providers.append({"name": "yahoo", "display_name": "Yahoo",
-                                   "limit": PROVIDER_LIMITS["yahoo"], "priority": 10})
+                                   "limit": PROVIDER_LIMITS["yahoo"], "priority": 11})
             if os.getenv("OUTLOOK_USER") and os.getenv("OUTLOOK_PASSWORD"):
                 providers.append({"name": "outlook", "display_name": "Outlook",
-                                   "limit": PROVIDER_LIMITS["outlook"], "priority": 11})
+                                   "limit": PROVIDER_LIMITS["outlook"], "priority": 12})
         else:
             # On Render: Gmail API (OAuth, not SMTP) still works
             if os.getenv("GMAIL_SMTP_USER") and os.getenv("GMAIL_APP_PASSWORD"):
-                providers.append({"name": "gmail", "display_name": "Gmail",
-                                   "limit": PROVIDER_LIMITS["gmail"], "priority": 9})
+                providers.append({"name": "gmail", "display_name": "Gmail (API)",
+                                   "limit": PROVIDER_LIMITS["gmail"], "priority": 10})
 
         return sorted(providers, key=lambda x: x["priority"])
 

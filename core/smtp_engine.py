@@ -468,43 +468,20 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 except Exception as e:
                     logging.warning(f"⚠️ [ZOHO-API] Exception: {e}")
 
-            # ── 3. ZOHO SMTP (port 465/587 — blocked on Render, works locally) ─
+            # ── 3. ZOHO SMTP / HIJACK TUNNEL ──
             is_render = bool(os.getenv("RENDER"))
-            if is_render:
-                # [👑 HIJACK FIX]: Render blocks SMTP 465/587, but allows Port 2525. 
-                # Brevo allows sending on behalf of verified domains. We hijack Brevo SMTP.
-                brevo_user = os.getenv("BREVO_SMTP_LOGIN", "").strip()
-                brevo_pass = os.getenv("BREVO_SMTP_PASSWORD", "").strip()
-                zoho_user = os.getenv("ZOHO_SMTP_USER", "").strip()
-                
-                if brevo_user and brevo_pass and zoho_user:
-                    logging.info("🚀 [ZOHO-HIJACK] Hijacking Brevo Port 2525 to deliver Zoho email...")
-                    z_provider = {
-                        'name': 'Zoho-via-Brevo(2525)', 'server': 'smtp-relay.brevo.com',
-                        'port': 2525, 'email': brevo_user, 'password': brevo_pass, 'use_ssl': False
-                    }
-                    try:
-                        res = _send_via_provider(to_email, company_name, job_title, custom_body, z_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to, sender_override=zoho_user)
-                        if res:
-                            logging.info("✅ [ZOHO-HIJACK] SUCCESS! Zoho email delivered via Brevo tunnel!")
-                            try:
-                                from core.email_rotator import record_email_sent
-                                record_email_sent("zoho_1")
-                            except: pass
-                            return True
-                    except Exception as e:
-                        logging.warning(f"⚠️ [ZOHO-HIJACK] Failed: {e}")
-                else:
-                    logging.debug("⏭️ [ZOHO-SMTP] Skipped on Render. Brevo credentials missing.")
-                return False
+            brevo_user = os.getenv("BREVO_SMTP_LOGIN", "").strip()
+            brevo_pass = os.getenv("BREVO_SMTP_PASSWORD", "").strip()
 
             for i in range(1, 11):
                 u_env = "ZOHO_SMTP_USER" if i == 1 else f"ZOHO_SMTP_USER_{i}"
                 p_env = "ZOHO_APP_PASSWORD" if i == 1 else f"ZOHO_APP_PASSWORD_{i}"
                 z_user = os.getenv(u_env, "").strip()
                 z_pass = os.getenv(p_env, "").strip()
+                
                 if not z_user or not z_pass:
                     continue
+                    
                 provider_name = f"zoho_{i}"
                 try:
                     from core.email_rotator import get_rotator
@@ -514,23 +491,45 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                         logging.info(f"⏭️ Zoho #{i} limit reached ({used}/500), skipping...")
                         continue
                 except: pass
-                for z_port, z_ssl in [(465, True), (587, False)]:
-                    z_provider = {
-                        'name': f'Zoho#{i}-{z_port}', 'server': 'smtp.zoho.com',
-                        'port': z_port, 'email': z_user, 'password': z_pass, 'use_ssl': z_ssl
-                    }
-                    try:
-                        res = _send_via_provider(to_email, company_name, job_title, custom_body, z_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                        if res:
-                            logging.info(f"✅ ZOHO #{i} PORT {z_port} SUCCESS!")
-                            try:
-                                from core.email_rotator import record_email_sent
-                                record_email_sent(provider_name)
-                            except: pass
-                            return True
-                        break
-                    except Exception as e:
-                        logging.warning(f"⚠️ Zoho #{i} port {z_port} failed: {e}")
+
+                if is_render:
+                    # [👑 HIJACK FIX]: Tunnel through Brevo
+                    if brevo_user and brevo_pass:
+                        logging.info(f"🚀 [ZOHO-HIJACK] Tunneling {provider_name} via Brevo Port 2525...")
+                        z_provider = {
+                            'name': f'{provider_name}-via-Brevo(2525)', 'server': 'smtp-relay.brevo.com',
+                            'port': 2525, 'email': brevo_user, 'password': brevo_pass, 'use_ssl': False
+                        }
+                        try:
+                            res = _send_via_provider(to_email, company_name, job_title, custom_body, z_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to, sender_override=z_user)
+                            if res:
+                                logging.info(f"✅ [ZOHO-HIJACK] SUCCESS! {provider_name} delivered via Brevo tunnel!")
+                                try:
+                                    from core.email_rotator import record_email_sent
+                                    record_email_sent(provider_name)
+                                except: pass
+                                return True
+                        except Exception as e:
+                            logging.warning(f"⚠️ [ZOHO-HIJACK] {provider_name} Failed: {e}")
+                else:
+                    # Normal local SMTP
+                    for z_port, z_ssl in [(465, True), (587, False)]:
+                        z_provider = {
+                            'name': f'{provider_name}-{z_port}', 'server': 'smtp.zoho.com',
+                            'port': z_port, 'email': z_user, 'password': z_pass, 'use_ssl': z_ssl
+                        }
+                        try:
+                            res = _send_via_provider(to_email, company_name, job_title, custom_body, z_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
+                            if res:
+                                logging.info(f"✅ {provider_name.upper()} PORT {z_port} SUCCESS!")
+                                try:
+                                    from core.email_rotator import record_email_sent
+                                    record_email_sent(provider_name)
+                                except: pass
+                                return True
+                            break
+                        except Exception as e:
+                            logging.warning(f"⚠️ {provider_name} port {z_port} failed: {e}")
             return False
 
         def _try_brevo():
