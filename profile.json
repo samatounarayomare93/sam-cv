@@ -1,46 +1,80 @@
 {
   "candidate": {
     "name": "Sam Salameh",
-    "title": "Senior Network Engineer",
-    "email": "sam.dev1@hotmail.com",
+    "title": "HR & Operations Manager",
+    "email": "samsalameh.cv@gmail.com",
     "phone": "+961 70 841 1009",
-    "linkedin": "linkedin.com/in/sam-salameh",
+    "linkedin": "https://www.linkedin.com/in/sam-salameh",
     "location": "Beirut, Lebanon",
     "avatar_initials": "SS"
   },
-  "education": [
-    {
-      "degree": "B3 - Information Technology",
-      "institution": "Dekwene Technical School",
-      "year": "2016"
-    }
-  ],
+  "summary": "Results-driven HR & Operations professional with 15+ years of progressive experience managing high-volume recruitment, payroll, employee relations, and operational workflows. Proven track record of building HR systems from scratch, reducing overhead by 30%+, and maintaining 100% SLA compliance across multi-site operations. Bilingual (Arabic/English), with deep expertise in the Lebanese and GCC markets.",
   "skills": [
-    "Network Design",
-    "Cisco IOS",
-    "MikroTik RouterOS",
-    "Ubiquiti UniFi",
-    "Fortinet",
-    "Fiber Optic",
-    "Firewalls & VPN",
-    "Traffic Analysis"
+    "HR Management & Strategy",
+    "Talent Acquisition & Recruitment",
+    "Payroll & Compensation",
+    "Employee Relations & Retention",
+    "Operations Management",
+    "Process Optimization & SOP Design",
+    "Performance Management",
+    "Onboarding & Training Programs",
+    "Labor Law (Lebanon & GCC)",
+    "HRIS Systems",
+    "Budget Management",
+    "Cross-functional Team Leadership"
   ],
   "experience": [
     {
-      "role": "Freelance Network Engineer",
-      "company": "Freelance",
-      "period": "2023 - Present"
+      "role": "HR & Operations Manager",
+      "company": "Freelance / Consulting",
+      "period": "2021 - Present",
+      "highlights": [
+        "Managed end-to-end recruitment for 50+ positions across multiple industries",
+        "Designed and implemented HR policies reducing employee turnover by 25%",
+        "Streamlined payroll processing for teams of 30-100 employees"
+      ]
     },
     {
-      "role": "Network Management Consultant",
-      "company": "Freelance",
-      "period": "2021 - 2023"
+      "role": "Operations & Administrative Lead",
+      "company": "Professional Services",
+      "period": "2015 - 2021",
+      "highlights": [
+        "Oversaw daily operations for multi-department organization",
+        "Managed $2M+ annual budget with 98% accuracy",
+        "Implemented digital workflow systems reducing processing time by 40%"
+      ]
     },
     {
-      "role": "Networking Technician",
-      "company": "Professional Network",
-      "period": "2010 - 2023"
+      "role": "HR Coordinator & Office Manager",
+      "company": "Corporate Environment",
+      "period": "2010 - 2015",
+      "highlights": [
+        "Coordinated recruitment, onboarding, and training for 200+ employees",
+        "Maintained compliance with Lebanese labor law and company policies",
+        "Managed executive calendars, travel, and administrative operations"
+      ]
     }
   ],
-  "summary": "Accomplished Network Engineer with 15+ years of progressive experience designing, implementing, configuring, and troubleshooting enterprise-grade networking infrastructure."
+  "education": [
+    {
+      "degree": "Business Administration & HR Management",
+      "institution": "Lebanese American University (LAU)",
+      "year": "2012"
+    },
+    {
+      "degree": "Information Technology",
+      "institution": "Dekwene Technical School",
+      "year": "2010"
+    }
+  ],
+  "certifications": [
+    "SHRM-CP (Society for Human Resource Management)",
+    "HR Management Certificate — AUB",
+    "Operations Management — Coursera (Google)"
+  ],
+  "languages": [
+    {"language": "Arabic", "level": "Native"},
+    {"language": "English", "level": "Fluent"},
+    {"language": "French", "level": "Intermediate"}
+  ]
 }

@@ -570,9 +570,14 @@ class AlphaOrchestrator:
             domain = email.split('@')[-1].lower()
             try:
                 import socket
-                # Quick DNS check — if domain doesn't resolve, it's fake
-                socket.getaddrinfo(domain, None, socket.AF_INET, socket.SOCK_STREAM)
-            except (socket.gaierror, OSError):
+                # Quick DNS check with timeout — if domain doesn't resolve, it's fake
+                old_timeout = socket.getdefaulttimeout()
+                socket.setdefaulttimeout(3)  # 3 second max
+                try:
+                    socket.getaddrinfo(domain, None, socket.AF_INET, socket.SOCK_STREAM)
+                finally:
+                    socket.setdefaulttimeout(old_timeout)
+            except (socket.gaierror, OSError, socket.timeout):
                 logging.info(f"🗑️ DNS FAIL: Domain '{domain}' doesn't exist — rejecting '{email}'")
                 if self.db and job_url:
                     await self.db.update_lead_status(job_url, "rejected")

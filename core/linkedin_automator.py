@@ -37,18 +37,22 @@ class NeuralLinkedIn:
         """
         
         try:
-            data = await self.ai.structural_query(prompt)
-            message = ""
-            if isinstance(data, dict):
-                message = str(data.get("nudge") or data.get("message") or "").strip()
+            # Use structural_query if available, otherwise use analyze_job
+            if hasattr(self.ai, 'structural_query'):
+                data = await self.ai.structural_query(prompt)
+                message = ""
+                if isinstance(data, dict):
+                    message = str(data.get("nudge") or data.get("message") or "").strip()
+            else:
+                message = ""
             
             if not message:
                 # Fallback to a high-converting static template if JSON parsing fails
                 message = f"Hi {recruiter_name}, saw your work with {company}. Given your recent growth, I'd love to connect and share my expertise in {job_title} management. Best, Sam."
             
-            # [🕵️ PHASE SHADOW: HOMOGLYPH STEALTH]
-            # Shield the message from automated keyword filters
-            message = self.ai.encode_shadow_text(message)
+            # [🕵️ PHASE SHADOW]: Shield the message from automated keyword filters
+            if hasattr(self.ai, 'encode_shadow_text'):
+                message = self.ai.encode_shadow_text(message)
             
             return message[:200]
         except Exception as e:

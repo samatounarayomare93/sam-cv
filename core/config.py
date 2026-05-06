@@ -43,7 +43,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 # Primary: Brevo (Free 300/day)
 BREVO_SMTP_SERVER = "smtp-relay.brevo.com"
 BREVO_SMTP_PORT = 587
-BREVO_SMTP_LOGIN = os.getenv("BREVO_SMTP_LOGIN", "a6e5bb001@smtp-brevo.com")
+BREVO_SMTP_LOGIN = os.getenv("BREVO_SMTP_LOGIN", "")
 BREVO_SMTP_PASSWORD = os.getenv("BREVO_SMTP_PASSWORD", "")
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 USE_BREVO_HTTP_FALLBACK = _env_flag("USE_BREVO_HTTP_FALLBACK", True)

@@ -1215,7 +1215,7 @@ class SovereignDashboard:
             ping_msg = f"🚨 <b>SOVEREIGN RADAR PING</b>\n🎯 <b>Target:</b> <code>{company_name}</code>\n👤 <b>ID:</b> <code>{update.effective_user.id}</code>"
             await self.broadcast_message(context.bot, text=ping_msg)
             welcome_msg = f"👋 <b>Welcome to the VIP Portal</b>\n\nYou are viewing a custom-architected profile for <b>{company_name}</b>."
-            keyboard = [[InlineKeyboardButton("📊 View Tailored Stats", web_app=WebAppInfo(url=f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/#/vip?id={target_id}"))]]
+            keyboard = [[InlineKeyboardButton("📊 View Tailored Stats", web_app=WebAppInfo(url=f"{os.getenv('RENDER_EXTERNAL_URL', 'https://sam-job-automator.onrender.com')}/#/vip?id={target_id}"))]]
             await update.effective_message.reply_text(welcome_msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
         else:
             await update.effective_message.reply_text("Project Chronos initializing...")

@@ -104,8 +104,13 @@ class PatternRecon:
             # 🛡️ DNS CHECK: Only guess emails for domains that actually exist
             import socket
             try:
-                socket.getaddrinfo(domain, None, socket.AF_INET, socket.SOCK_STREAM)
-            except (socket.gaierror, OSError):
+                old_timeout = socket.getdefaulttimeout()
+                socket.setdefaulttimeout(3)
+                try:
+                    socket.getaddrinfo(domain, None, socket.AF_INET, socket.SOCK_STREAM)
+                finally:
+                    socket.setdefaulttimeout(old_timeout)
+            except (socket.gaierror, OSError, socket.timeout):
                 logging.debug(f"🚫 DNS FAIL: Domain '{domain}' doesn't exist — skipping email guess")
                 return []
             

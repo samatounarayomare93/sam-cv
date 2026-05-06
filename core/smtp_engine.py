@@ -272,10 +272,12 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     
     # [👑 VIP RECOVERY]: Robust fallback for reply-to
     if not reply_to:
-        reply_to = os.getenv("REPLY_TO_EMAIL", "samsalameh.cv@gmail.com")
+        reply_to = os.getenv("REPLY_TO_EMAIL", os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "")))
 
-    if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', 'samsalameh.cv@gmail.com'):
-        to_email = getattr(config, 'TEST_RECEIVER_EMAIL', 'samsalameh.cv@gmail.com')
+    if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', ''):
+        test_recv = getattr(config, 'TEST_RECEIVER_EMAIL', '') or os.getenv("TEST_RECEIVER_EMAIL", "")
+        if test_recv:
+            to_email = test_recv
     
     # [👑 CENTRALIZED METADATA]: Generate professional subject line with company and STRIKE-ID
     if strike_id:
