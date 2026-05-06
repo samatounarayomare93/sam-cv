@@ -21,10 +21,11 @@ try:
     from core.interview_prep import InterviewPrepEngine
     from core.ai_agent import OmniIntelligence
     from core.smtp_engine import send_strike
-    from core.pdf_generator import create_personalized_pdf, generate_dual_package as generate_ultimate_package
+    from core.pdf_generator import create_personalized_pdf, generate_triple_package as generate_ultimate_package
 except ImportError as e:
     logging.critical(f"INTERNAL SYSTEM FAILURE: Missing Core Components - {e}")
     RealityShapingDB = None
+    InterviewPrepEngine = None
     OmniIntelligence = None
 
 # Load legacy scrapers from their new nested location

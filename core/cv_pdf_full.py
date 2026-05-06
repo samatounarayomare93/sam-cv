@@ -50,7 +50,10 @@ def generate_full_cv_pdf():
     pdf.set_xy(10, 63)
     pdf.set_font('Helvetica', '', 8)
     pdf.set_text_color(236, 240, 241)
-    pdf.multi_cell(50, 5, '+961 70 841 1009\nsam.dev1@hotmail.com\nBeirut, Lebanon\nlinkedin.com/in/sam-salameh')
+    _phone = os.getenv("CANDIDATE_PHONE", "+961 70 841 1009")
+    _email = os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "samsalameh.cv@gmail.com"))
+    _linkedin = os.getenv("LINKEDIN_URL", "linkedin.com/in/sam-salameh").replace("https://www.", "").replace("https://", "")
+    pdf.multi_cell(50, 5, f'{_phone}\n{_email}\nBeirut, Lebanon\n{_linkedin}')
     
     # EDUCATION Section
     pdf.set_xy(10, 95)

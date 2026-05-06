@@ -109,7 +109,7 @@ def _get_available_providers():
 
 def send_test_email(recipient_email=None, attachment_paths=None, highlights=None):
     """[👑 OMEGA] Sends a premium visual verification strike to verify the dual PDF package."""
-    recipient_email = recipient_email or getattr(config, 'TEST_RECEIVER_EMAIL', 'sam.dev1@hotmail.com')
+    recipient_email = recipient_email or getattr(config, 'TEST_RECEIVER_EMAIL', None) or os.getenv("TEST_RECEIVER_EMAIL", os.getenv("SENDER_EMAIL", ""))
     
     logging.info(f"🧪 TEST STRIKE: Sending to {recipient_email}")
     
@@ -323,7 +323,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 "to": [to_email],
                 "subject": subject,
                 "html": html_content,
-                "reply_to": reply_to or "samsalameh.cv@gmail.com"
+                "reply_to": reply_to or os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", ""))
             }
             if resend_attachments:
                 params["attachments"] = resend_attachments
@@ -1220,7 +1220,7 @@ def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, att
     html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
     # Use verified sender (account email)
-    sender_email = os.getenv("SENDPULSE_SENDER_EMAIL", gmail_user or "samatou683@gmail.com").strip()
+    sender_email = os.getenv("SENDPULSE_SENDER_EMAIL", gmail_user or os.getenv("SENDER_EMAIL", "")).strip()
 
     try:
         # Get token - support both API key and client_id/secret
@@ -1484,9 +1484,9 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
     # Get candidate info from environment
     linkedin_url = os.getenv("LINKEDIN_URL", "https://linkedin.com/in/sam-salameh")
     phone = os.getenv("CANDIDATE_PHONE", "+961 70 841 1009")
-    candidate_email = os.getenv("SENDER_EMAIL", "samsalameh.cv@gmail.com")
+    candidate_email = os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", ""))
     candidate_name = os.getenv("SENDER_NAME", "Sam Salameh")
-    candidate_profession = os.getenv("CANDIDATE_PROFESSION", "Senior Network Engineer")
+    candidate_profession = os.getenv("CANDIDATE_PROFESSION", "HR & Operations Manager")
     
     return f"""<!DOCTYPE html>
 <html>
