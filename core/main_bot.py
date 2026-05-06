@@ -917,7 +917,8 @@ class AlphaOrchestrator:
                     # [🧹 100-YEAR STABILITY]: Disk Cleanup
                     try:
                         os.remove(pdf_path)
-                    except: pass
+                    except OSError as _rm_err:
+                        logging.debug(f"⚠️ [CLEANUP] Could not remove temp PDF {pdf_path}: {_rm_err}")
                     
                     if success:
                         logging.info(f"🇷🇺 DECOY SUCCESS: {persona['name']} deployed against {company}.")
@@ -983,7 +984,8 @@ class AlphaOrchestrator:
                     await self.db._request_with_retry('PATCH',
                         f"{self.db.url}/rest/v1/leads?job_url=like.*{domain}*&status=eq.pending",
                         payload={"status": "rejected"})
-                except: pass
+                except Exception as _purge_err:
+                    logging.debug(f"⚠️ [SELF-HEAL] Could not purge junk domain {domain}: {_purge_err}")
             
             # 2. STAGNATION PREVENTION: Mark leads older than 7 days as expired (was 48h - too aggressive)
             from datetime import datetime, timedelta
@@ -1186,6 +1188,14 @@ class AlphaOrchestrator:
 
 async def run_orchestrator():
     """[👑 APEX PHOENIX]: Infinite survival wrapper with AI-powered diagnostics."""
+    # ✅ Validate configuration at startup — catch misconfigs before they cause silent failures
+    from core.config import validate_config
+    cfg_result = validate_config()
+    if not cfg_result["ok"]:
+        logging.critical("🚨 [STARTUP] Configuration errors detected! Bot may not function correctly.")
+        logging.critical(f"🚨 [STARTUP] Errors: {cfg_result['errors']}")
+        # Don't exit — try to run with whatever is configured
+
     restart_count = 0
     last_restart = 0
     
@@ -1216,13 +1226,15 @@ async def run_orchestrator():
                 await db.stream_log("CRITICAL", f"AI_DIAGNOSIS: {msg}")
                 # We can't easily import dashboard here without circular issues, so we use a DB task for notification
                 await db.sync_add_task(task_type="broadcast_notification", target="ALL_USERS", meta=msg)
-            except: pass
+            except Exception as _diag_err:
+                logging.warning(f"⚠️ [PHOENIX] AI diagnosis/notification failed: {_diag_err}")
             
             await asyncio.sleep(30)
         finally:
             if bot:
                 try: await bot.close()
-                except: pass
+                except Exception as _close_err:
+                    logging.debug(f"⚠️ [PHOENIX] Bot close error: {_close_err}")
 
 if __name__ == "__main__":
     try:

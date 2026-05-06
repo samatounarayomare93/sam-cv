@@ -39,6 +39,14 @@ class _SafeFormatDict(dict):
 _SMTP_POOL = {}
 _POOL_LOCK = threading.Lock()
 
+def _test_smtp_connection(conn):
+    """Test if an SMTP connection is still alive using NOOP command."""
+    try:
+        status = conn.noop()
+        return status[0] == 250
+    except Exception:
+        return False
+
 def _get_smtp_connection(provider):
     """MAXIMUM POWER: Reuse SMTP connections from pool. Supports both TLS and SSL."""
     key = f"{provider['name']}_{provider['server']}"
@@ -46,12 +54,15 @@ def _get_smtp_connection(provider):
     with _POOL_LOCK:
         if key in _SMTP_POOL:
             conn, last_used = _SMTP_POOL[key]
-            # Verify if connection is still alive (roughly)
-            if time.time() - last_used > 60:
+            # Verify connection is still alive: time-based + NOOP heartbeat
+            age = time.time() - last_used
+            if age > 60 or not _test_smtp_connection(conn):
+                logging.debug(f"♻️ [SMTP-POOL] Recycling stale connection for {key} (age={age:.0f}s)")
                 try: conn.quit()
                 except: pass
                 del _SMTP_POOL[key]
             else:
+                logging.debug(f"♻️ [SMTP-POOL] Reusing live connection for {key}")
                 return conn
         try:
             smtp_timeout = int(getattr(config, 'SMTP_CONNECT_TIMEOUT_SECONDS', 10) or 10)
@@ -65,8 +76,14 @@ def _get_smtp_connection(provider):
             server.login(provider['email'], provider['password'])
             _SMTP_POOL[key] = (server, time.time())
             return server
+        except smtplib.SMTPAuthenticationError as e:
+            logging.error(f"❌ [SMTP-POOL] Auth failed for {provider.get('name', key)}: {e}")
+            return None
+        except smtplib.SMTPConnectError as e:
+            logging.error(f"❌ [SMTP-POOL] Connection failed for {provider.get('name', key)} port {provider.get('port')}: {e}")
+            return None
         except Exception as e:
-            logging.error(f"Failed to create SMTP connection: {e}")
+            logging.error(f"❌ [SMTP-POOL] Unexpected error for {provider.get('name', key)}: {type(e).__name__}: {e}")
             return None
 
 def _render_template(template, company_name, job_title):
@@ -77,9 +94,24 @@ def _render_template(template, company_name, job_title):
         return template
 
 def _validate_email(email):
-    if not email or "@" not in email: return False
+    """Validate email address using RFC 5322 compliant regex."""
+    if not email or not isinstance(email, str):
+        return False
+    email = email.strip()
+    # RFC 5322 simplified pattern: local@domain.tld
+    pattern = r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$'
+    if not re.match(pattern, email):
+        return False
+    # Extra sanity checks
     parts = email.split("@")
-    return len(parts) == 2 and "." in parts[1]
+    if len(parts) != 2:
+        return False
+    local, domain = parts
+    if len(local) > 64 or len(domain) > 255:
+        return False
+    if ".." in email:  # No consecutive dots
+        return False
+    return True
 
 def _get_available_providers():
     providers = []
@@ -1029,113 +1061,6 @@ def send_email_via_resend(to_email, company_name, job_title, custom_body, attach
 
     logging.error("❌ [RESEND] All Resend keys failed!")
     return False
-
-
-def send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
-    """[MAILJET API] 200 emails/day free. Uses HTTP API."""
-    api_key = os.getenv("MAILJET_API_KEY", "").strip()
-    secret_key = os.getenv("MAILJET_SECRET_KEY", "").strip()
-    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
-    brevo_sender = os.getenv("BREVO_SENDER_EMAIL", "").strip()
-    sender_email = os.getenv("MAILJET_SENDER_EMAIL", gmail_user or brevo_sender).strip()
-    if not sender_email:
-        return False  # No verified sender configured
-    if not api_key or not secret_key:
-        return False
-
-    if not subject:
-        subject = f"Application: {job_title} - {company_name}"
-
-    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
-
-    payload = {
-        "Messages": [{
-            "From": {"Email": sender_email, "Name": sender_name},
-            "To": [{"Email": to_email}],
-            "Subject": subject,
-            "HTMLPart": html_content,
-            "ReplyTo": {"Email": reply_to or sender_email}
-        }]
-    }
-
-    try:
-        logging.info(f"📧 [MAILJET] Sending to {to_email}...")
-        r = requests.post(
-            "https://api.mailjet.com/v3.1/send",
-            auth=(api_key, secret_key),
-            json=payload,
-            timeout=20
-        )
-        if r.status_code in (200, 201):
-            logging.info(f"✅ [MAILJET] Email sent! Status: {r.status_code}")
-            return True
-        else:
-            logging.error(f"❌ [MAILJET] Failed: {r.status_code} - {r.text[:200]}")
-            return False
-    except Exception as e:
-        logging.error(f"❌ [MAILJET] Exception: {e}")
-        return False
-
-
-def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
-    """[SENDPULSE API] 400 emails/day free. Uses HTTP API."""
-    client_id = os.getenv("SENDPULSE_CLIENT_ID", "").strip()
-    client_secret = os.getenv("SENDPULSE_CLIENT_SECRET", "").strip()
-    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
-    brevo_sender = os.getenv("BREVO_SENDER_EMAIL", "").strip()
-    sender_email = os.getenv("SENDPULSE_SENDER_EMAIL", gmail_user or brevo_sender).strip()
-    if not sender_email:
-        return False  # No verified sender configured
-    if not client_id or not client_secret:
-        return False
-
-    if not subject:
-        subject = f"Application: {job_title} - {company_name}"
-
-    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
-
-    try:
-        # Get access token
-        token_r = requests.post(
-            "https://api.sendpulse.com/oauth/access_token",
-            json={"grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret},
-            timeout=15
-        )
-        if token_r.status_code != 200:
-            logging.error(f"❌ [SENDPULSE] Token failed: {token_r.text[:100]}")
-            return False
-
-        token = token_r.json().get("access_token")
-        if not token:
-            return False
-
-        # Send email
-        payload = {
-            "email": {
-                "html": html_content,
-                "text": "Please view this email in HTML format.",
-                "subject": subject,
-                "from": {"name": sender_name, "email": sender_email},
-                "to": [{"name": to_email.split("@")[0], "email": to_email}]
-            }
-        }
-
-        logging.info(f"📧 [SENDPULSE] Sending to {to_email}...")
-        r = requests.post(
-            "https://api.sendpulse.com/smtp/emails",
-            headers={"Authorization": f"Bearer {token}"},
-            json=payload,
-            timeout=20
-        )
-        if r.status_code in (200, 201):
-            logging.info(f"✅ [SENDPULSE] Email sent!")
-            return True
-        else:
-            logging.error(f"❌ [SENDPULSE] Failed: {r.status_code} - {r.text[:200]}")
-            return False
-    except Exception as e:
-        logging.error(f"❌ [SENDPULSE] Exception: {e}")
-        return False
 
 
 def send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):

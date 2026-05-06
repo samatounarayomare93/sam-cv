@@ -231,3 +231,69 @@ BANNED_TITLES = [
 EXCLUDED_COMPANIES = [
     "idm", "i.d.m", "idm lebanon", "interpublic", "ipg",
 ]
+
+# ============================================================================
+# ✅ CONFIGURATION VALIDATOR
+# ============================================================================
+
+def validate_config() -> dict:
+    """
+    Validates that critical environment variables are set at startup.
+    Returns a dict with 'warnings' and 'errors' lists.
+    Call this once at bot startup to catch misconfigurations early.
+    """
+    errors = []
+    warnings = []
+
+    # --- Critical: at least one email provider must be configured ---
+    has_email_provider = any([
+        BREVO_API_KEY,
+        BREVO_SMTP_LOGIN and BREVO_SMTP_PASSWORD,
+        GMAIL_SMTP_USER and GMAIL_APP_PASSWORD,
+        ZOHO_SMTP_USER and ZOHO_APP_PASSWORD,
+        OUTLOOK_USER and OUTLOOK_PASSWORD,
+        os.getenv("RESEND_API_KEY", ""),
+        os.getenv("SENDPULSE_API_KEY", "") or (os.getenv("SENDPULSE_CLIENT_ID", "") and os.getenv("SENDPULSE_CLIENT_SECRET", "")),
+        os.getenv("MAILJET_API_KEY", "") and os.getenv("MAILJET_API_SECRET", ""),
+    ])
+    if not has_email_provider:
+        errors.append("❌ No email provider configured! Set at least one of: BREVO_API_KEY, GMAIL_SMTP_USER+GMAIL_APP_PASSWORD, ZOHO_SMTP_USER+ZOHO_APP_PASSWORD, RESEND_API_KEY, etc.")
+
+    # --- Sender identity ---
+    if not SENDER_EMAIL:
+        errors.append("❌ SENDER_EMAIL is not set.")
+
+    # --- TEST_MODE safety check ---
+    if TEST_MODE and not TEST_RECEIVER_EMAIL:
+        errors.append("❌ TEST_MODE=true but TEST_RECEIVER_EMAIL is not set. All test emails will fail.")
+
+    # --- Telegram (optional but warn if partially configured) ---
+    if TELEGRAM_BOT_TOKEN and not TELEGRAM_CHAT_ID:
+        warnings.append("⚠️ TELEGRAM_BOT_TOKEN is set but TELEGRAM_CHAT_ID is missing.")
+    if TELEGRAM_CHAT_ID and not TELEGRAM_BOT_TOKEN:
+        warnings.append("⚠️ TELEGRAM_CHAT_ID is set but TELEGRAM_BOT_TOKEN is missing.")
+
+    # --- AI (optional but warn if USE_AI_ANALYSIS is forced on without keys) ---
+    if os.getenv("USE_AI_ANALYSIS", "").lower() == "true" and not (GEMINI_API_KEY or GROQ_API_KEY):
+        warnings.append("⚠️ USE_AI_ANALYSIS=true but neither GEMINI_API_KEY nor GROQ_API_KEY is set. AI analysis will be disabled.")
+
+    # --- Supabase (optional but warn if partially configured) ---
+    if SUPABASE_URL and not SUPABASE_KEY:
+        warnings.append("⚠️ SUPABASE_URL is set but SUPABASE_KEY is missing. Database will fall back to SQLite.")
+    if SUPABASE_KEY and not SUPABASE_URL:
+        warnings.append("⚠️ SUPABASE_KEY is set but SUPABASE_URL is missing. Database will fall back to SQLite.")
+
+    # --- Log results ---
+    if errors:
+        for e in errors:
+            import logging as _log
+            _log.error(f"[CONFIG] {e}")
+    if warnings:
+        for w in warnings:
+            import logging as _log
+            _log.warning(f"[CONFIG] {w}")
+    if not errors and not warnings:
+        import logging as _log
+        _log.info("✅ [CONFIG] All configuration checks passed.")
+
+    return {"errors": errors, "warnings": warnings, "ok": len(errors) == 0}
