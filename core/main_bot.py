@@ -131,6 +131,91 @@ JUNK_URL_DOMAINS: list = [
     'crunchbase.com', 'techcrunch.com', 'wikipedia.org',
 ]
 
+# ── Module-level constants used by _is_fake_domain ──────────────────────────
+_FAKE_DOMAIN_GENERIC_WORDS: frozenset = frozenset({
+    'new', 'my', 'it', 'top', 'word', 'list', 'well', 'future', 'common',
+    'venture', 'best', 'homepage', 'home', 'startup', 'company', 'business',
+    'office', 'work', 'job', 'jobs', 'career', 'careers', 'hire', 'hiring',
+    'recruit', 'talent', 'people', 'team', 'staff', 'hr', 'human', 'resources',
+    'global', 'world', 'international', 'group', 'corp', 'inc', 'llc', 'ltd',
+    'the', 'a', 'an', 'and', 'or', 'of', 'in', 'at', 'by', 'for', 'with',
+    'wight', 'airedale', 'heimdal', 'rhodeisland', 'doingbusiness',
+    'stravavaluationpowersupto', 'newofficelondon', 'dubaiinternationalfinancialcentreattracts',
+})
+_FAKE_EXACT_EMAILS: frozenset = frozenset({
+    'hr@new.com', 'hr@my.com', 'hr@it.com', 'hr@top.com',
+    'hr@word.com', 'hr@list.com', 'hr@well.com', 'hr@future.com',
+    'hr@common.com', 'hr@venture.com', 'hr@best.com',
+    'hr@homepage.com', 'hr@home.com', 'hr@wight.com',
+    'hr@airedale.com', 'hr@heimdal.com', 'hr@rhodeisland.com',
+    'hr@doingbusiness.com', 'hr@stackoverflow.com',
+    'hr@windows.com', 'hr@newestquestions.com',
+    'hr@tech.com', 'hr@automatically.com', 'hr@when.com',
+    'hr@arizona.com', 'hr@install.com', 'hr@gulpdigest.com',
+    'careers@confidential.com', 'careers@ahiringcompany.com',
+})
+_NON_HIRING_DOMAINS: frozenset = frozenset({
+    'stackoverflow.com', 'windows.com', 'microsoft.com', 'google.com',
+    'apple.com', 'amazon.com', 'youtube.com', 'wikipedia.org',
+    'facebook.com', 'twitter.com', 'instagram.com', 'tiktok.com',
+    'reddit.com', 'github.com', 'zippia.com',
+    'linkedin.com', 'lv.linkedin.com', 'ae.linkedin.com', 'uk.linkedin.com',
+    'glassdoor.com', 'indeed.com', 'uk.indeed.com', 'ae.indeed.com',
+    'monster.com', 'ziprecruiter.com', 'simplyhired.com',
+    'bayt.com', 'naukrigulf.com', 'gulftalent.com', 'naukri.com',
+    'dubizzle.com', 'daleel-madani.org', 'akhtaboot.com',
+    'wuzzuf.net', 'forasna.com', 'tanqeeb.com',
+    'crunchbase.com', 'techcrunch.com', 'builtin.com',
+    'wellfound.com', 'angel.co', 'lever.co', 'greenhouse.io',
+    'workable.com', 'bamboohr.com', 'smartrecruiters.com',
+    'jobvite.com', 'icims.com', 'taleo.net',
+})
+
+
+def _is_fake_domain(email_addr: str) -> bool:
+    """
+    Module-level function (defined once, not per-call) that detects AI-generated
+    fake email domains. Returns True if the email should be rejected.
+    """
+    if not email_addr or '@' not in email_addr:
+        return True
+    domain = email_addr.split('@')[-1].lower()
+
+    if len(domain) > 35:
+        return True
+
+    base = domain.replace('.com', '').replace('.org', '').replace('.net', '').replace('.co', '').replace('-', '')
+    if len(base) > 28:
+        return True
+
+    domain_root = domain.split('.')[0]
+    if domain_root in _FAKE_DOMAIN_GENERIC_WORDS:
+        return True
+
+    if email_addr.lower() in _FAKE_EXACT_EMAILS:
+        return True
+
+    if domain in _NON_HIRING_DOMAINS:
+        return True
+
+    return False
+
+
+async def _async_dns_check(domain: str, timeout: float = 3.0) -> bool:
+    """
+    Non-blocking async DNS check. Runs socket.getaddrinfo in a thread pool
+    so it never blocks the event loop. Returns True if domain resolves.
+    """
+    import socket
+    try:
+        await asyncio.wait_for(
+            asyncio.to_thread(socket.getaddrinfo, domain, None, socket.AF_INET, socket.SOCK_STREAM),
+            timeout=timeout
+        )
+        return True
+    except (asyncio.TimeoutError, socket.gaierror, OSError):
+        return False
+
 
 class AlphaOrchestrator:
     """Core orchestration engine with memory-efficient async scraping."""
@@ -522,78 +607,7 @@ class AlphaOrchestrator:
         # [🛡️ JUNK FILTER]: Reject garbage leads from blind extraction
         # Uses centralized JUNK_COMPANY_NAMES constant (defined at module level)
         
-        # [🛡️ FAKE DOMAIN FILTER]: Reject AI-generated fake email domains
-        # Real companies have short domain names. Fake ones are long sentences.
-        def _is_fake_domain(email_addr):
-            if not email_addr or '@' not in email_addr:
-                return True
-            domain = email_addr.split('@')[-1].lower()
-
-            # Reject domains that are clearly AI-generated sentences (too long)
-            if len(domain) > 35:
-                return True
-
-            # Reject domains with too many words (sentence-like: "farmerbrotherssignslease.com")
-            base = domain.replace('.com', '').replace('.org', '').replace('.net', '').replace('.co', '').replace('-', '')
-            # Heuristic: real company domains are ≤ 25 chars in the base
-            if len(base) > 28:
-                return True
-
-            # Reject single-word generic English words used as fake company names
-            GENERIC_WORDS = {
-                'new', 'my', 'it', 'top', 'word', 'list', 'well', 'future', 'common',
-                'venture', 'best', 'homepage', 'home', 'startup', 'company', 'business',
-                'office', 'work', 'job', 'jobs', 'career', 'careers', 'hire', 'hiring',
-                'recruit', 'talent', 'people', 'team', 'staff', 'hr', 'human', 'resources',
-                'global', 'world', 'international', 'group', 'corp', 'inc', 'llc', 'ltd',
-                'the', 'a', 'an', 'and', 'or', 'of', 'in', 'at', 'by', 'for', 'with',
-                'wight', 'airedale', 'heimdal', 'rhodeisland', 'doingbusiness',
-                'stravavaluationpowersupto', 'newofficelondon', 'dubaiinternationalfinancialcentreattracts',
-            }
-            # Extract the leftmost part of the domain (before first dot)
-            domain_root = domain.split('.')[0]
-            if domain_root in GENERIC_WORDS:
-                return True
-
-            # Reject known fake patterns explicitly
-            FAKE_EXACT = {
-                'hr@new.com', 'hr@my.com', 'hr@it.com', 'hr@top.com',
-                'hr@word.com', 'hr@list.com', 'hr@well.com', 'hr@future.com',
-                'hr@common.com', 'hr@venture.com', 'hr@best.com',
-                'hr@homepage.com', 'hr@home.com', 'hr@wight.com',
-                'hr@airedale.com', 'hr@heimdal.com', 'hr@rhodeisland.com',
-                'hr@doingbusiness.com', 'hr@stackoverflow.com',
-                'hr@windows.com', 'hr@newestquestions.com',
-                'hr@tech.com', 'hr@automatically.com', 'hr@when.com',
-                'hr@arizona.com', 'hr@install.com', 'hr@gulpdigest.com',
-                'careers@confidential.com', 'careers@ahiringcompany.com',
-            }
-            if email_addr.lower() in FAKE_EXACT:
-                return True
-
-            # Reject emails to well-known non-hiring domains
-            NON_HIRING_DOMAINS = {
-                # Tech giants
-                'stackoverflow.com', 'windows.com', 'microsoft.com', 'google.com',
-                'apple.com', 'amazon.com', 'youtube.com', 'wikipedia.org',
-                'facebook.com', 'twitter.com', 'instagram.com', 'tiktok.com',
-                'reddit.com', 'github.com', 'zippia.com',
-                # Job boards — we scrape FROM them, we don't apply TO them
-                'linkedin.com', 'lv.linkedin.com', 'ae.linkedin.com', 'uk.linkedin.com',
-                'glassdoor.com', 'indeed.com', 'uk.indeed.com', 'ae.indeed.com',
-                'monster.com', 'ziprecruiter.com', 'simplyhired.com',
-                'bayt.com', 'naukrigulf.com', 'gulftalent.com', 'naukri.com',
-                'dubizzle.com', 'daleel-madani.org', 'akhtaboot.com',
-                'wuzzuf.net', 'forasna.com', 'tanqeeb.com',
-                'crunchbase.com', 'techcrunch.com', 'builtin.com',
-                'wellfound.com', 'angel.co', 'lever.co', 'greenhouse.io',
-                'workable.com', 'bamboohr.com', 'smartrecruiters.com',
-                'jobvite.com', 'icims.com', 'taleo.net',
-            }
-            if domain in NON_HIRING_DOMAINS:
-                return True
-
-            return False
+        # [🛡️ FAKE DOMAIN FILTER]: Uses module-level _is_fake_domain() — defined once, not per-call
         
         if company_name.lower().strip() in JUNK_COMPANY_NAMES or len(company_name.strip()) < 2:
             logging.info(f"🗑️ JUNK FILTER: Rejected garbage lead '{company_name}'. Skipping.")
@@ -610,19 +624,12 @@ class AlphaOrchestrator:
             return
 
         # 🛡️ MX RECORD CHECK: Verify domain actually accepts emails (prevents bounces)
+        # Uses non-blocking async DNS check — never blocks the event loop
         if email and '@' in email:
             domain = email.split('@')[-1].lower()
-            try:
-                import socket
-                # Quick DNS check with timeout — if domain doesn't resolve, it's fake
-                old_timeout = socket.getdefaulttimeout()
-                socket.setdefaulttimeout(3)  # 3 second max
-                try:
-                    socket.getaddrinfo(domain, None, socket.AF_INET, socket.SOCK_STREAM)
-                finally:
-                    socket.setdefaulttimeout(old_timeout)
-            except (socket.gaierror, OSError, socket.timeout):
-                logging.info(f"🗑️ DNS FAIL: Domain '{domain}' doesn't exist — rejecting '{email}'")
+            dns_ok = await _async_dns_check(domain)
+            if not dns_ok:
+                logging.info(f"🗑️ DNS FAIL: Domain '{domain}' doesn't resolve — rejecting '{email}'")
                 if self.db and job_url:
                     await self.db.update_lead_status(job_url, "rejected")
                 return
@@ -649,20 +656,22 @@ class AlphaOrchestrator:
                 await self.db.update_lead_status(identifier, 'processing')
             except Exception:
                 pass
-            
-            # 🛡️ OMNISCIENT: Global Blacklist Check
-            domain = identifier.split("@")[-1] if "@" in identifier else ""
-            if domain and await self.db.is_globally_blacklisted(domain):
-                logging.warning(f"🛡️ HIVE-MIND BLOCK: {company_name} is under network-wide cooling. Aborting.")
-                return
-                
-        # 2. Extract heavy description if blind
+
+        # ── Wrap the rest in try/finally so lead never stays stuck as 'processing' ──
+        _marked_processing = bool(self.db and identifier)
+        
+        # 🛡️ OMNISCIENT: Global Blacklist Check
+        domain = identifier.split("@")[-1] if "@" in identifier else ""
+        if domain and self.db and await self.db.is_globally_blacklisted(domain):
+            logging.warning(f"🛡️ HIVE-MIND BLOCK: {company_name} is under network-wide cooling. Aborting.")
+            return
         if not description and job_url:
             logging.info(f"🔍 Deep Scraping Target Description: {job_url}")
             description = await self._stealth_scrape_target(job_url)
 
         # 3. AI Analysis & RAG Pipeline
-        if self.ai:
+        try:
+          if self.ai:
             from core.cv_tailor import get_tailored_cv_path
             from core.scrapers.omni_crawler import MarketOracle
             from core.ultimate_failover import get_failover
@@ -907,6 +916,15 @@ class AlphaOrchestrator:
             else:
                 logging.error(f"❌ STRIKE FAILED: PDF Synthesis error for {company_name}")
                 if self.db and job_url: await self.db.update_lead_status(job_url, 'pdf_error')
+
+        # 🛡️ SAFETY NET: If an unhandled exception occurs, ensure lead doesn't stay stuck as 'processing'
+        except Exception as _lead_err:
+            logging.error(f"💥 [PROCESS-LEAD] Unhandled error for '{company_name}': {type(_lead_err).__name__}: {_lead_err}")
+            if _marked_processing and self.db and identifier:
+                try:
+                    await self.db.update_lead_status(identifier, 'error')
+                except Exception:
+                    pass
 
     async def record_linkedin_nudge_task(self, company: str, role: str, recruiter: Dict[str, str]):
         """Records a task to manually connect with the sniped recruiter on LinkedIn."""

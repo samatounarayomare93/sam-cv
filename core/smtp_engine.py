@@ -38,6 +38,7 @@ class _SafeFormatDict(dict):
 # MAXIMUM POWER: Pre-built connection pool for SMTP
 _SMTP_POOL = {}
 _POOL_LOCK = threading.Lock()
+_SMTP_POOL_MAX_SIZE = 10  # Never keep more than 10 open connections
 
 def _test_smtp_connection(conn):
     """Test if an SMTP connection is still alive using NOOP command."""
@@ -59,11 +60,23 @@ def _get_smtp_connection(provider):
             if age > 60 or not _test_smtp_connection(conn):
                 logging.debug(f"♻️ [SMTP-POOL] Recycling stale connection for {key} (age={age:.0f}s)")
                 try: conn.quit()
-                except: pass
+                except Exception as e:
+                    logging.debug(f"⚠️ [SMTP-POOL] quit() failed during recycle: {e}")
                 del _SMTP_POOL[key]
             else:
                 logging.debug(f"♻️ [SMTP-POOL] Reusing live connection for {key}")
                 return conn
+
+        # Enforce max pool size — evict oldest connection if at limit
+        if len(_SMTP_POOL) >= _SMTP_POOL_MAX_SIZE:
+            oldest_key = min(_SMTP_POOL.keys(), key=lambda k: _SMTP_POOL[k][1])
+            try:
+                _SMTP_POOL[oldest_key][0].quit()
+            except Exception as e:
+                logging.debug(f"⚠️ [SMTP-POOL] quit() failed during eviction of {oldest_key}: {e}")
+            del _SMTP_POOL[oldest_key]
+            logging.debug(f"♻️ [SMTP-POOL] Evicted oldest connection ({oldest_key}) — pool was at max ({_SMTP_POOL_MAX_SIZE})")
+
         try:
             smtp_timeout = int(getattr(config, 'SMTP_CONNECT_TIMEOUT_SECONDS', 10) or 10)
             if use_ssl:
