@@ -115,9 +115,6 @@ async def main():
             engine = AlphaOrchestrator(db=shared_db, ai=shared_ai)
             dashboard = SovereignDashboard(db=shared_db, ai=shared_ai)
 
-            # [👑 SUPABASE-VAULT]: Bootstrap secrets before starting
-            await shared_db.bootstrap()
-            
             logging.info(f"[SYSTEM] Launching Unified Swarm Tasks... (Restart #{restart_count})")
             
             # [🧹 HYGIENE]: Truncate logs and clear cache if too big

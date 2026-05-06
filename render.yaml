@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: sam-cv-bot
+    name: sam-job-automator
     runtime: python
     region: frankfurt # Preferred for Lebanon/Dubai proximity
     plan: free
@@ -108,7 +108,7 @@ services:
       - key: RENDER_SERVICE_ID
         sync: false
       - key: RENDER_EXTERNAL_URL
-        value: https://sam-cv-bot.onrender.com
+        value: https://sam-job-automator.onrender.com
 
       # ── Candidate Identity ─────────────────────────────────────────────────
       - key: SENDER_NAME

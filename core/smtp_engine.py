@@ -819,13 +819,6 @@ def _try_mailjet():
 def _try_sendpulse():
     return send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
 
-        try:
-            res = _send_via_provider(to_email, company_name, job_title, custom_body, yahoo_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-            if res:
-                return True
-        except Exception as e:
-            logging.warning(f"⚠️ Yahoo SMTP failed: {e}")
-
     # ============================================================
     # 🔰 PRIORITY 4: BREVO REST API
     # ============================================================
