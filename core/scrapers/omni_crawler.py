@@ -100,7 +100,17 @@ class PatternRecon:
             if not domain: return []
             # Remove www.
             domain = domain.replace("www.", "")
-            return [f"{p}@{domain}" for p in PatternRecon.PATTERNS]
+            
+            # 🛡️ DNS CHECK: Only guess emails for domains that actually exist
+            import socket
+            try:
+                socket.getaddrinfo(domain, None, socket.AF_INET, socket.SOCK_STREAM)
+            except (socket.gaierror, OSError):
+                logging.debug(f"🚫 DNS FAIL: Domain '{domain}' doesn't exist — skipping email guess")
+                return []
+            
+            # Only return hr@ and careers@ — most reliable patterns
+            return [f"hr@{domain}", f"careers@{domain}"]
         except Exception:
             return []
 
@@ -743,8 +753,14 @@ class OmniCrawler:
                                 if valid_emails:
                                     target_email = valid_emails[0]
                                 else:
+                                    # 🛡️ DNS CHECK before guessing
                                     domain = urllib.parse.urlparse(url).netloc.replace("www.", "")
-                                    target_email = f"hr@{domain}"
+                                    import socket
+                                    try:
+                                        socket.getaddrinfo(domain, None)
+                                        target_email = f"hr@{domain}"
+                                    except (socket.gaierror, OSError):
+                                        continue  # Domain doesn't exist, skip
                                     
                                 logging.info(f"🎯 Target Acquired: {target_email}")
                                 intel = self._extract_company_info(title, snippet, content[:1500])
@@ -758,17 +774,8 @@ class OmniCrawler:
                                 ))
                                 _increment_deep_dive()
                             else:
-                                # Fallback for blocked sites
-                                domain = urllib.parse.urlparse(url).netloc.replace("www.", "")
-                                target_email = f"careers@{domain}"
-                                discovered_jobs.append(self._create_job_entry(
-                                    domain.split('.')[0].capitalize(),
-                                    title,
-                                    target_email,
-                                    url,
-                                    snippet,
-                                    "fallback"
-                                ))
+                                # Fallback for blocked sites — skip guessing, no DNS check possible
+                                continue
                         except Exception as e:
                             logging.debug(f"Scan failed: {e}")
                             continue

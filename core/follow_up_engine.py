@@ -22,13 +22,18 @@ class FollowUpEngine:
     async def generate_nudge(self, company_name, job_title):
         try:
             if self.ai:
-                _, _, nudge_body, _, _, _, _, _, _ = await self.ai.analyze_job(job_title, "Follow up nudge request")
-                return nudge_body[:500]
+                result = await self.ai.analyze_job(job_title, "Follow up nudge request")
+                # result is an 11-tuple: (is_relevant, reason, cover_letter, salary, score, advantage, keywords, persona, variant, archetype, highlights)
+                nudge_body = result[2] if result and len(result) > 2 else ""
+                return nudge_body[:500] if nudge_body else ""
         except Exception as e:
             logging.warning(f"AI nudge generation failed: {e}")
         return (
-            f"<p>Dear {company_name} Hiring Team, I am following up on my application for {job_title} sent last week. "
-            "I remain highly interested and am available for a brief call. Best, Sam Salameh</p>"
+            f"<p>Dear {company_name} Hiring Team,</p>"
+            f"<p>I am following up on my application for the <b>{job_title}</b> position I submitted last week. "
+            "I remain highly interested in joining your team and would welcome the opportunity for a brief call. "
+            "Please find my CV attached for your reference.</p>"
+            "<p>Best regards,<br>Sam Salameh<br>+961 70 841 100</p>"
         )
 
     async def execute_second_strike(self, lead):

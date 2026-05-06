@@ -739,10 +739,10 @@ class AlphaOrchestrator:
                 archetype = "Technical Expert"
                 highlights = fallback_result['highlights']
             
-            # ELITE SCORE THRESHOLD: Lowered for aggressive initial expansion
+            # ELITE SCORE THRESHOLD: 70 minimum for quality applications
             # Jitter prevents "Hard Blocking" on close matches
-            jitter = random.randint(-4, 4)
-            strike_threshold = (65 if lead.get("mission_type") == "Founding_Strike" else 60) + jitter
+            jitter = random.randint(-3, 3)
+            strike_threshold = (75 if lead.get("mission_type") == "Founding_Strike" else 70) + jitter
             
             if not is_relevant or score < strike_threshold:
                 logging.info(f"❌ Target Denied by Intelligence: {company_name} | Score: {score}/{strike_threshold} | Reason: {reason[:100]}...")
@@ -750,7 +750,7 @@ class AlphaOrchestrator:
                 return
             
             # RECON SURGE: Self-Healing Logic for High-Value Leads
-            if not email and (score >= 85 or lead.get("mission_type") == "Founding_Strike"):
+            if not email and (score >= 75 or lead.get("mission_type") == "Founding_Strike"):
                 logging.info(f"🧬 COSMIC RECON SURGE: High-value target {company_name} lacks contact. Deep-diving...")
                 emails = await self.omni_crawler.recon_surge(company_name)
                 if emails:
@@ -1118,10 +1118,21 @@ class AlphaOrchestrator:
                     # Sort by priority_score (Descending) to ensure high-value strikes happen first
                     raw_leads.sort(key=lambda x: x.get("priority_score", 0), reverse=True)
                     
-                    # [👑 CRITICAL FIX]: Persist ALL acquired leads to the Cloud DB immediately
-                    # This prevents lead loss if the bot crashes or the cycle is interrupted.
-                    logging.info(f"📥 PERSISTENCE: Archiving {len(raw_leads)} leads to the Hive-Mind...")
-                    save_tasks = [self.db.save_potential_lead(l, score=l.get('priority_score', 80)) for l in raw_leads]
+                    # 🛡️ PRE-SAVE FILTER: Remove junk before persisting to DB
+                    JUNK_COMPANY_NAMES = {
+                        'unknown', 'none', 'null', 'target node', 'automatic target',
+                        'oracle lead', 'undefined', 'error', 'test', 'example',
+                        'linkedin', 'indeed', 'glassdoor', 'bayt', 'naukrigulf',
+                        'monster', 'gulftalent', 'dubizzle', 'daleel madani',
+                    }
+                    clean_leads = [
+                        l for l in raw_leads
+                        if l.get('company_name', '').lower().strip() not in JUNK_COMPANY_NAMES
+                        and len(l.get('company_name', '').strip()) >= 3
+                        and l.get('email', '') != ''  # Only save leads with real emails
+                    ]
+                    logging.info(f"📥 PERSISTENCE: Archiving {len(clean_leads)}/{len(raw_leads)} clean leads to the Hive-Mind...")
+                    save_tasks = [self.db.save_potential_lead(l, score=l.get('priority_score', 80)) for l in clean_leads]
                     await asyncio.gather(*save_tasks, return_exceptions=True)
                     
                     # Limit to top 15 most valuable to prevent API burn, but prioritize Ghost Jobs
@@ -1129,6 +1140,19 @@ class AlphaOrchestrator:
                     await asyncio.gather(*tasks, return_exceptions=True)
 
                 logging.info("💤 Cycle concluded. Entering 100% Heartbeat cooldown.")
+                
+                # 🔄 FOLLOW-UP ENGINE: Send second strikes to companies that didn't reply in 7 days
+                try:
+                    due_followups = await self.follow_up.get_due_follow_ups()
+                    if due_followups:
+                        logging.info(f"📬 FOLLOW-UP: {len(due_followups)} companies due for second strike")
+                        for lead in due_followups[:5]:  # Max 5 follow-ups per cycle
+                            try:
+                                await self.follow_up.execute_second_strike(lead)
+                            except Exception as fe:
+                                logging.warning(f"⚠️ Follow-up failed for {lead.get('company_name')}: {fe}")
+                except Exception as e:
+                    logging.warning(f"⚠️ Follow-up engine error: {e}")
                 
                 # 🔄 RESET SESSION DEDUP: Clear processed set each cycle
                 # This allows leads to be retried in the next cycle if they failed
