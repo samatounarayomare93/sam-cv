@@ -98,10 +98,8 @@ class EmailRotator:
             providers.append({"name": "brevo", "display_name": "Brevo",
                                "limit": PROVIDER_LIMITS["brevo"], "priority": 4})
 
-        # Zoho Transactional API — works on Render when ZOHO_API_KEY is set
-        if os.getenv("ZOHO_API_KEY") and os.getenv("ZOHO_SMTP_USER"):
-            providers.append({"name": "zoho_1", "display_name": "Zoho API",
-                               "limit": PROVIDER_LIMITS.get("zoho_1", 500), "priority": 5})
+        # Zoho Transactional API — handled by the HIJACK block below
+        # (Removed duplicate zoho_1 registration)
 
         # Mailjet HTTP API — works on Render
         if os.getenv("MAILJET_API_KEY") and os.getenv("MAILJET_SECRET_KEY"):
