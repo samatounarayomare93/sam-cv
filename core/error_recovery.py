@@ -97,7 +97,7 @@ class SmartRetry:
                     if error_handler:
                         try:
                             return await error_handler(e, attempt)
-                        except:
+                        except Exception:
                             pass
                     
                     raise e
@@ -152,7 +152,7 @@ class SmartRetry:
                     if error_handler:
                         try:
                             return error_handler(e, attempt)
-                        except:
+                        except Exception:
                             pass
                     
                     raise e
@@ -284,7 +284,7 @@ class ErrorRecovery:
             await db.send_heartbeat()
             logging.info("✅ RECOVERY: Database connection restored")
             return True
-        except:
+        except Exception:
             logging.warning("⚠️ RECOVERY: Database still unavailable, using local SQLite")
             return False
     
@@ -298,7 +298,7 @@ class ErrorRecovery:
                 await ai.switch_provider()
                 logging.info("✅ RECOVERY: Switched to alternative AI provider")
                 return {'recovered': True, 'method': 'alternative_provider'}
-        except:
+        except Exception:
             pass
         
         # Fallback to templates
@@ -318,7 +318,7 @@ class ErrorRecovery:
             
             logging.info(f"✅ RECOVERY: Switching to {next_provider}")
             return next_provider
-        except:
+        except Exception:
             logging.warning("⚠️ RECOVERY: No alternative email provider available")
             return None
     
@@ -334,7 +334,7 @@ class ErrorRecovery:
             
             logging.info("✅ RECOVERY: Rotated scraper identity")
             return {'recovered': True, 'method': 'identity_rotation'}
-        except:
+        except Exception:
             logging.warning("⚠️ RECOVERY: Scraper recovery failed")
             return None
     

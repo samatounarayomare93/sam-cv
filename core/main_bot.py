@@ -28,6 +28,14 @@ except ImportError as e:
     InterviewPrepEngine = None
     OmniIntelligence = None
 
+# ✅ Import SmartRetry for intelligent retry logic (replaces raw asyncio.sleep)
+try:
+    from core.error_recovery import SmartRetry, with_retry, get_error_recovery
+    _smart_retry = SmartRetry(max_retries=3, base_delay=2.0, max_delay=30.0)
+except ImportError:
+    _smart_retry = None
+    logging.warning("⚠️ error_recovery module not found — using basic retry fallback")
+
 # Load legacy scrapers from their new nested location
 try:
     from core.scrapers import scraper
@@ -85,6 +93,45 @@ from core.follow_up_engine import FollowUpEngine
 from core.ai_agent import OmniIntelligence
 from core.linkedin_automator import NeuralLinkedIn
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🛡️ CENTRALIZED JUNK FILTER CONSTANTS
+# Single source of truth — used by process_single_lead() AND _perform_self_healing()
+# ═══════════════════════════════════════════════════════════════════════════════
+JUNK_COMPANY_NAMES: set = {
+    'login', 'die', 'press', 'how', 'win', 'create', 'company', 'who',
+    'what', 'the', 'info', 'contact', 'about', 'home', 'page', 'test',
+    'admin', 'user', 'unternehmensstruktur', 'unknown', 'none', 'null',
+    'undefined', 'error', 'help', 'support', 'search', 'index', 'api',
+    'target node', 'automatic target', 'oracle lead',
+    'microsoft word', 'cv template', 'example company', 'test job', 'placeholder',
+    'careers at', 'hiring manager', 'recruitment team', 'hr department',
+    'application', 'resume', 'cv', 'job opening', 'linkedin job',
+    'youtube', 'wikipedia', 'google', 'microsoft', 'apple', 'amazon',
+    'odoo dubai office', 'top startup investors', 'dubai office',
+    'search result', 'index of', 'parent directory',
+    'new', 'word', 'my', 'it', 'top', 'best', 'list', 'well', 'future',
+    'common', 'venture', 'doing business', 'stack overflow', 'startup programs',
+    'newest questions', 'windows', 'tech', 'automatically', 'when',
+    'arizona', 'install', 'biggest companies to work for in chandler',
+    'murray company mechanical contractors', 'hensley beverage company',
+    'gulf digest', 'ex', 'linkedin recruiter', 'official travel',
+    'strategic interview questions cheat sheet',
+    'www', 'http', 'https', 'com', 'org', 'net', 'co', 'io',
+    'indeed', 'linkedin', 'glassdoor', 'monster', 'ziprecruiter',
+    'bayt', 'naukrigulf', 'gulftalent', 'dubizzle', 'daleel madani',
+    'akhtaboot', 'wuzzuf', 'crunchbase', 'builtin', 'wellfound',
+    'angel.co', 'lever', 'greenhouse', 'workable', 'bamboohr',
+    'kaito', 'kaito radios', 'kaito voyager', 'travel', 'right',
+    'understanding companies', 'gulf recruitment', 'welcome to windows',
+    'periodic labs hiring', 'google hiring',
+}
+
+JUNK_URL_DOMAINS: list = [
+    'stackoverflow.com', 'windows.com', 'zippia.com', 'glassdoor.com',
+    'crunchbase.com', 'techcrunch.com', 'wikipedia.org',
+]
+
+
 class AlphaOrchestrator:
     """Core orchestration engine with memory-efficient async scraping."""
     
@@ -123,6 +170,8 @@ class AlphaOrchestrator:
         # 🛡️ PERMANENT DEDUP: company+email pairs that were successfully sent this run
         # (never reset — survives cycle resets to prevent duplicate sends)
         self._sent_company_email: set = set()
+        # 🔒 ATOMIC DEDUP LOCK: Prevents race condition when parallel tasks check dedup simultaneously
+        self._dedup_lock = None  # Lazy-init inside event loop
         self.follow_up = FollowUpEngine(self.db, self.ai)
         self.omni_crawler = OmniCrawler(self.ai) if OmniCrawler else None
         self.linkedin = NeuralLinkedIn(self.ai) if NeuralLinkedIn and self.ai else None
@@ -142,6 +191,13 @@ class AlphaOrchestrator:
         if self.rate_limit_lock is None:
             self.rate_limit_lock = asyncio.Lock()
         return self.rate_limit_lock
+
+    @property
+    def _dedup_guard(self):
+        """Lazy-initialize dedup Lock so it binds to the correct running event loop."""
+        if self._dedup_lock is None:
+            self._dedup_lock = asyncio.Lock()
+        return self._dedup_lock
 
     async def poisson_jitter(self, target_mean: int):
         """100% STEALTH: Mimics human jitter behavior using Poisson distribution."""
@@ -398,13 +454,22 @@ class AlphaOrchestrator:
     async def sync_evolutionary_weights(self):
         """Fetches latest performance-based weights from the Hive-Mind."""
         if not self.db: return
-        try:
-            new_weights = await self.db.get_variant_weights()
-            if new_weights:
-                self.variant_weights = new_weights
-                logging.info(f"🧬 EVOLUTION: Swarm weights synchronized: {self.variant_weights}")
-        except Exception as e:
-            logging.error(f"Evolution sync failure: {e}")
+        if _smart_retry:
+            try:
+                new_weights = await _smart_retry.retry_async(self.db.get_variant_weights)
+                if new_weights:
+                    self.variant_weights = new_weights
+                    logging.info(f"🧬 EVOLUTION: Swarm weights synchronized: {self.variant_weights}")
+            except Exception as e:
+                logging.error(f"Evolution sync failure after retries: {e}")
+        else:
+            try:
+                new_weights = await self.db.get_variant_weights()
+                if new_weights:
+                    self.variant_weights = new_weights
+                    logging.info(f"🧬 EVOLUTION: Swarm weights synchronized: {self.variant_weights}")
+            except Exception as e:
+                logging.error(f"Evolution sync failure: {e}")
 
     async def process_single_lead(self, lead: Dict[str, Any], variant_weights: Dict[str, float] = None):
         """Runs the complete AI analysis and database verification on a single job lead."""
@@ -425,15 +490,20 @@ class AlphaOrchestrator:
         session_key = f"{company_name}_{email}_{job_url}"
         # Also dedup by company+email alone to prevent parallel tasks hitting same target
         company_email_key = f"{company_name.lower().strip()}_{(email or '').lower().strip()}"
-        if session_key in self._processed_this_session or company_email_key in self._processed_this_session:
-            logging.info(f"⏭️ [SESSION-DEDUP] Already processed this session: {company_name}. Skipping.")
-            return
-        # 🛡️ PERMANENT DEDUP: check against successfully-sent set (survives cycle resets)
-        if company_email_key in self._sent_company_email:
-            logging.info(f"⏭️ [PERM-DEDUP] Already sent to {company_name} this run. Skipping.")
-            return
-        self._processed_this_session.add(session_key)
-        self._processed_this_session.add(company_email_key)
+
+        # 🔒 ATOMIC CHECK-AND-ADD: Lock prevents race condition where two parallel tasks
+        # both pass the check before either adds to the set (would cause duplicate sends)
+        async with self._dedup_guard:
+            if session_key in self._processed_this_session or company_email_key in self._processed_this_session:
+                logging.info(f"⏭️ [SESSION-DEDUP] Already processed this session: {company_name}. Skipping.")
+                return
+            if company_email_key in self._sent_company_email:
+                logging.info(f"⏭️ [PERM-DEDUP] Already sent to {company_name} this run. Skipping.")
+                return
+            # Add atomically inside the lock — no other task can slip through
+            self._processed_this_session.add(session_key)
+            self._processed_this_session.add(company_email_key)
+
         # Keep set size manageable (clear oldest entries if > 10000)
         if len(self._processed_this_session) > 10000:
             self._processed_this_session = set(list(self._processed_this_session)[-5000:])
@@ -450,34 +520,7 @@ class AlphaOrchestrator:
             return
 
         # [🛡️ JUNK FILTER]: Reject garbage leads from blind extraction
-        JUNK_NAMES = {
-            'login', 'die', 'press', 'how', 'win', 'create', 'company', 'who',
-            'what', 'the', 'info', 'contact', 'about', 'home', 'page', 'test',
-            'admin', 'user', 'unternehmensstruktur', 'unknown', 'none', 'null',
-            'undefined', 'error', 'help', 'support', 'search', 'index', 'api',
-            'target node', 'unknown', 'none', 'automatic target', 'oracle lead', 'null', 
-            'microsoft word', 'cv template', 'example company', 'test job', 'placeholder',
-            'careers at', 'hiring manager', 'recruitment team', 'hr department', 'admin',
-            'application', 'resume', 'cv', 'job opening', 'linkedin job',
-            'youtube', 'wikipedia', 'google', 'microsoft', 'apple', 'amazon',
-            'microsoft word', 'odoo dubai office', 'top startup investors', 'dubai office',
-            'search result', 'index of', 'parent directory',
-            'new', 'word', 'my', 'it', 'top', 'best', 'list', 'well', 'future',
-            'common', 'venture', 'doing business', 'stack overflow', 'startup programs',
-            # New junk from logs
-            'newest questions', 'windows', 'tech', 'automatically', 'when',
-            'arizona', 'install', 'biggest companies to work for in chandler',
-            'murray company mechanical contractors', 'hensley beverage company',
-            'gulf digest', 'ex', 'linkedin recruiter', 'official travel',
-            'strategic interview questions cheat sheet',
-            # URL fragments that get parsed as company names
-            'www', 'http', 'https', 'com', 'org', 'net', 'co', 'io',
-            # Job boards scraped as fake "companies"
-            'indeed', 'linkedin', 'glassdoor', 'monster', 'ziprecruiter',
-            'bayt', 'naukrigulf', 'gulftalent', 'dubizzle', 'daleel madani',
-            'akhtaboot', 'wuzzuf', 'crunchbase', 'builtin', 'wellfound',
-            'angel.co', 'lever', 'greenhouse', 'workable', 'bamboohr',
-        }
+        # Uses centralized JUNK_COMPANY_NAMES constant (defined at module level)
         
         # [🛡️ FAKE DOMAIN FILTER]: Reject AI-generated fake email domains
         # Real companies have short domain names. Fake ones are long sentences.
@@ -552,7 +595,7 @@ class AlphaOrchestrator:
 
             return False
         
-        if company_name.lower().strip() in JUNK_NAMES or len(company_name.strip()) < 2:
+        if company_name.lower().strip() in JUNK_COMPANY_NAMES or len(company_name.strip()) < 2:
             logging.info(f"🗑️ JUNK FILTER: Rejected garbage lead '{company_name}'. Skipping.")
             # Also mark it as processed in the cloud to stop it from reappearing
             if self.db and job_url:
@@ -953,33 +996,14 @@ class AlphaOrchestrator:
         
         try:
             # 1. PURGE JUNK LEADS: Mass-reject known garbage strings in the DB
-            junk_patterns = [
-                'target node', 'unknown', 'none', 'microsoft word', 'odoo dubai office',
-                'top startup investors', 'dubai office',
-                'newest questions', 'windows', 'tech', 'automatically', 'when',
-                'arizona', 'install', 'biggest companies to work for in chandler',
-                'hensley beverage company', 'gulf digest', 'linkedin recruiter',
-                'official travel', 'strategic interview questions cheat sheet',
-                'murray company mechanical contractors', 'ex',
-                'periodic labs hiring', 'google hiring', 'gulf recruitment',
-                'welcome to windows', 'stack overflow', 'newest questions',
-                # New junk from logs
-                'kaito', 'kaito radios', 'kaito voyager', 'travel', 'right',
-                'understanding companies', 'new', 'word', 'my', 'it', 'top',
-                'best', 'list', 'well', 'future', 'common', 'venture',
-                'doing business', 'startup programs', 'www', 'http', 'https',
-            ]
-            for pattern in junk_patterns:
-                await self.db._request_with_retry('PATCH', 
-                    f"{self.db.url}/rest/v1/leads?company_name=eq.{pattern}&status=eq.pending", 
+            # Uses centralized JUNK_COMPANY_NAMES constant (defined at module level)
+            for pattern in JUNK_COMPANY_NAMES:
+                await self.db._request_with_retry('PATCH',
+                    f"{self.db.url}/rest/v1/leads?company_name=eq.{pattern}&status=eq.pending",
                     payload={"status": "rejected"})
 
             # Also purge by junk job URLs (non-hiring domains)
-            junk_url_domains = [
-                'stackoverflow.com', 'windows.com', 'zippia.com', 'glassdoor.com',
-                'crunchbase.com', 'techcrunch.com', 'wikipedia.org',
-            ]
-            for domain in junk_url_domains:
+            for domain in JUNK_URL_DOMAINS:
                 try:
                     await self.db._request_with_retry('PATCH',
                         f"{self.db.url}/rest/v1/leads?job_url=like.*{domain}*&status=eq.pending",
