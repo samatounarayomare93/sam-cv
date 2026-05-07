@@ -55,6 +55,9 @@ async def check():
             hb_str = r5.json()[0].get("value", "")
             try:
                 hb = datetime.fromisoformat(hb_str.replace("Z", "+00:00"))
+                # Ensure both are timezone-aware for comparison
+                if hb.tzinfo is None:
+                    hb = hb.replace(tzinfo=timezone.utc)
                 now = datetime.now(timezone.utc)
                 age_sec = (now - hb).total_seconds()
                 print(f"=== BOT HEARTBEAT ===")
