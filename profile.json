@@ -1,80 +1,86 @@
 {
   "candidate": {
     "name": "Sam Salameh",
-    "title": "HR & Operations Manager",
+    "title": "Senior Network Engineer",
     "email": "samsalameh.cv@gmail.com",
     "phone": "+961 70 841 1009",
     "linkedin": "https://www.linkedin.com/in/sam-salameh",
     "location": "Beirut, Lebanon",
     "avatar_initials": "SS"
   },
-  "summary": "Results-driven HR & Operations professional with 15+ years of progressive experience managing high-volume recruitment, payroll, employee relations, and operational workflows. Proven track record of building HR systems from scratch, reducing overhead by 30%+, and maintaining 100% SLA compliance across multi-site operations. Bilingual (Arabic/English), with deep expertise in the Lebanese and GCC markets.",
+  "summary": "Accomplished Senior Network Engineer with 15+ years of progressive experience designing, implementing, configuring, and troubleshooting enterprise-grade networking infrastructure. Proven expertise in managing complex network environments, optimizing performance, and ensuring high availability across diverse platforms including Cisco, MikroTik, Ubiquiti, and Fortinet. Strong background in fiber optic installations, VPN configurations, firewall management, and traffic analysis.",
   "skills": [
-    "HR Management & Strategy",
-    "Talent Acquisition & Recruitment",
-    "Payroll & Compensation",
-    "Employee Relations & Retention",
-    "Operations Management",
-    "Process Optimization & SOP Design",
-    "Performance Management",
-    "Onboarding & Training Programs",
-    "Labor Law (Lebanon & GCC)",
-    "HRIS Systems",
-    "Budget Management",
-    "Cross-functional Team Leadership"
+    "Cisco IOS & CCNP",
+    "MikroTik RouterOS",
+    "Ubiquiti UniFi",
+    "Fortinet FortiGate",
+    "TCP/IP & VLAN",
+    "Routing & Switching (OSPF, BGP, EIGRP)",
+    "Network Security & Firewalls",
+    "VPN (IPSec, SSL)",
+    "Fiber Optic & Structured Cabling",
+    "Wireless Networks",
+    "Network Monitoring (PRTG, SolarWinds, Nagios)",
+    "Traffic Analysis (Wireshark)"
   ],
   "experience": [
     {
-      "role": "HR & Operations Manager",
-      "company": "Freelance / Consulting",
-      "period": "2021 - Present",
+      "role": "Freelance Network Engineer",
+      "company": "Freelance, Beirut",
+      "period": "2023 - Present",
       "highlights": [
-        "Managed end-to-end recruitment for 50+ positions across multiple industries",
-        "Designed and implemented HR policies reducing employee turnover by 25%",
-        "Streamlined payroll processing for teams of 30-100 employees"
+        "Designed and deployed enterprise-grade networks for 20+ clients including ISPs and educational institutions",
+        "Implemented secure VPN solutions and firewall configurations reducing security incidents by 100%",
+        "Conducted network audits and performance optimization achieving 99.9% uptime",
+        "Provided 24/7 technical support and emergency response for critical infrastructure"
       ]
     },
     {
-      "role": "Operations & Administrative Lead",
-      "company": "Professional Services",
-      "period": "2015 - 2021",
+      "role": "Network Management Consultant",
+      "company": "Freelance, Beirut",
+      "period": "2021 - 2023",
       "highlights": [
-        "Oversaw daily operations for multi-department organization",
-        "Managed $2M+ annual budget with 98% accuracy",
-        "Implemented digital workflow systems reducing processing time by 40%"
+        "Managed network infrastructure for multiple concurrent enterprise projects",
+        "Implemented advanced routing protocols (OSPF, BGP, EIGRP) for complex topologies",
+        "Configured and maintained enterprise firewalls and security systems",
+        "Trained technical teams on best practices and new technologies"
       ]
     },
     {
-      "role": "HR Coordinator & Office Manager",
-      "company": "Corporate Environment",
-      "period": "2010 - 2015",
+      "role": "Networking Technician",
+      "company": "Professional Network, Beirut",
+      "period": "2010 - 2023",
       "highlights": [
-        "Coordinated recruitment, onboarding, and training for 200+ employees",
-        "Maintained compliance with Lebanese labor law and company policies",
-        "Managed executive calendars, travel, and administrative operations"
+        "Installed and configured routers, switches, and wireless access points for 100+ sites",
+        "Performed fiber optic cable installations and terminations across enterprise environments",
+        "Monitored network performance and resolved connectivity issues with <1hr MTTR",
+        "Maintained detailed documentation of network configurations and change management"
       ]
     }
   ],
   "education": [
     {
-      "degree": "Business Administration & HR Management",
-      "institution": "Lebanese American University (LAU)",
-      "year": "2012"
-    },
-    {
-      "degree": "Information Technology",
+      "degree": "B3 - Information Technology",
       "institution": "Dekwene Technical School",
-      "year": "2010"
+      "year": "2016"
     }
   ],
   "certifications": [
-    "SHRM-CP (Society for Human Resource Management)",
-    "HR Management Certificate — AUB",
-    "Operations Management — Coursera (Google)"
+    "Cisco CCNA - Routing & Switching",
+    "Fortinet NSE Network Security",
+    "MikroTik MTCNA Certified",
+    "Ubiquiti UBWA Wireless Admin"
   ],
   "languages": [
     {"language": "Arabic", "level": "Native"},
     {"language": "English", "level": "Fluent"},
     {"language": "French", "level": "Intermediate"}
-  ]
+  ],
+  "technical_expertise": {
+    "networking": "TCP/IP, VLAN, Routing & Switching, QoS, Network Security",
+    "platforms": "Cisco IOS, MikroTik RouterOS, Ubiquiti UniFi, Fortinet FortiGate",
+    "infrastructure": "Fiber Optic, Structured Cabling, Wireless Networks",
+    "security": "Firewalls, VPN (IPSec, SSL), Access Control, Intrusion Detection",
+    "tools": "Wireshark, SolarWinds, PRTG, Nagios, Cacti"
+  }
 }

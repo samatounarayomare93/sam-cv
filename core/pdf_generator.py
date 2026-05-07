@@ -220,20 +220,21 @@ def build_pdf_cover_letter_body(company_name, job_title):
     body = (
         f"Dear {company_name} Hiring Team,\n\n"
         f"I am writing to express my strong interest in the {job_title} position. "
-        f"With my extensive background in {p.get('title', 'Operations Management')}, I am confident "
-        f"in my ability to contribute meaningfully to your team.\n\n"
+        f"With 15+ years of progressive experience in Network Engineering and IT Infrastructure, "
+        f"I am confident in my ability to deliver high-availability, secure, and optimized network solutions for your organization.\n\n"
         f"Key Strengths:\n"
-        f"- Streamlined operations and process optimization\n"
-        f"- Full-cycle recruitment and employee relations\n"
-        f"- Strategic resource management and coordination\n"
-        f"- Proven track record in fast-paced environments\n\n"
+        f"- Enterprise network design & deployment (Cisco, MikroTik, Ubiquiti, Fortinet)\n"
+        f"- Advanced routing protocols: OSPF, BGP, EIGRP across complex topologies\n"
+        f"- VPN & Firewall security (IPSec, SSL, FortiGate, Cisco ASA)\n"
+        f"- Fiber optic installations & structured cabling for 100+ enterprise sites\n"
+        f"- 24/7 network monitoring & troubleshooting with <1hr MTTR\n\n"
         f"I am excited about the opportunity to bring my expertise to {company_name} "
-        f"and would welcome the chance to discuss how my skills align with your needs.\n\n"
+        f"and would welcome the chance to discuss how my skills align with your technical needs.\n\n"
         f"Best regards,\n"
-        f"{p.get('name', 'Candidate')}\n"
-        f"{p.get('title', 'Specialist')}\n"
-        f"{p.get('phone', '')}\n"
-        f"{p.get('email', '')}"
+        f"{p.get('name', 'Sam Salameh')}\n"
+        f"Senior Network Engineer\n"
+        f"{p.get('phone', '+961 70 841 1009')}\n"
+        f"{p.get('email', 'samsalameh.cv@gmail.com')}"
     )
     
     # Cache it
@@ -276,9 +277,9 @@ def create_cover_letter_html(company_name, job_title):
         <p>Dear Hiring Team at <strong>{company_name}</strong>,</p>
         <p><strong>Subject: Application for {job_title}</strong></p>
         <div class="body">
-            <p>I am writing to express my strong interest in the {job_title} position at {company_name}. With over 5 years of experience in Human Resources and Customer Operations, I am confident that my skills and background align well with your organizational requirements.</p>
-            <p>Throughout my career, I have specialized in architecting workflows that prioritize precision and compliance. My expertise includes full-cycle recruitment logistics, employee documentation, and payroll synchronization with 100% data integrity. I am particularly adept at resolving complex technical and billing inquiries while maintaining strict SLA compliance.</p>
-            <p>I am eager to bring my rigorous accountability and high-conversion problem-solving to {company_name}. I am available for immediate relocation and prepared to contribute meaningfully from day one.</p>
+            <p>I am writing to express my strong interest in the {job_title} position at {company_name}. With 15+ years of progressive experience in Network Engineering and IT Infrastructure, I have developed deep expertise in designing, implementing, and troubleshooting enterprise-grade networks across Cisco, MikroTik, Ubiquiti, and Fortinet platforms.</p>
+            <p>Throughout my career, I have successfully deployed enterprise networks for 20+ clients, implemented advanced routing protocols (OSPF, BGP, EIGRP), configured VPN and firewall solutions, and maintained 99.9% network uptime. My hands-on experience with fiber optic installations, structured cabling, and wireless networks makes me a versatile and reliable network professional.</p>
+            <p>I am confident that my technical depth and proven track record in network engineering would make me a valuable asset to {company_name}. I am available for immediate engagement and prepared to contribute meaningfully from day one.</p>
         </div>
         <div class="signature">
             <p>Warm regards,</p>
@@ -356,9 +357,9 @@ def generate_cover_letter_pdf(company, job_title, lead=None):
     
     # 5. BODY
     body = [
-        "I am writing to express my strong interest in the " + job_title + " position at " + company + ". With my background in human resources and customer operations, I have developed the precision and efficiency required to deliver high-level results in competitive environments.",
-        "My methodology focuses on rigorous accountability and process scaling. I have consistently demonstrated the ability to manage complex inquiries while maintaining strict SLA compliance and 100% data integrity.",
-        "I am confident that my experience in onboarding optimization and operational coordination would make me a valuable asset to your team. Thank you for your time and consideration."
+        f"I am writing to express my strong interest in the {job_title} position at {company}. With 15+ years of progressive experience in Network Engineering and IT Infrastructure, I have developed deep expertise in designing, implementing, and troubleshooting enterprise-grade networks across Cisco, MikroTik, Ubiquiti, and Fortinet platforms.",
+        f"Throughout my career, I have successfully deployed enterprise networks for 20+ clients, implemented advanced routing protocols (OSPF, BGP, EIGRP), configured VPN and firewall solutions, and maintained 99.9% network uptime. My hands-on experience with fiber optic installations, structured cabling, and wireless networks makes me a versatile and reliable network professional.",
+        f"I am confident that my technical depth and proven track record in network engineering would make me a valuable asset to {company}. I am available for immediate engagement and prepared to contribute meaningfully from day one. Thank you for your time and consideration."
     ]
     
     for para in body:
@@ -481,7 +482,7 @@ def generate_dynamic_cover_letter(company_name, job_title, custom_body, persona=
     
     pdf.set_creator(random.choice(CREATORS))
     pdf.set_producer(random.choice(PRODUCERS))
-    pdf.set_keywords("Operations, HR, Strategy, Management, Excellence")
+    pdf.set_keywords("Network Engineering, Cisco, MikroTik, Fortinet, IT Infrastructure, VPN, Firewall")
     pdf.inject_forensic_noise(strike_id)
     pdf.compress = True
     

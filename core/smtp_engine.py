@@ -1486,14 +1486,16 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
         </p>
         
         <p style="margin: 20px 0; font-size: 15px; color: #e2e8f0; line-height: 1.8;">
-          My methodology is built specifically for organizations that focus heavily on automation, KPIs, and scaling corporate culture.
+          With <strong style="color: #00b4d8;">15+ years</strong> of progressive experience in Network Engineering and IT Infrastructure, 
+          I specialize in designing, implementing, and troubleshooting enterprise-grade networks across 
+          <strong style="color: #00b4d8;">Cisco, MikroTik, Ubiquiti, and Fortinet</strong> platforms.
         </p>
         
         {highlights_html}
         
         <div style="margin: 40px 0 30px 0; padding: 30px; background: rgba(0, 180, 216, 0.1); border-radius: 8px; text-align: center;">
           <p style="margin: 0; font-size: 16px; color: #e2e8f0; font-style: italic; line-height: 1.8;">
-            "I am looking to bring rigorous accountability and structured scaling to the {company_name} team."
+            "I am ready to bring enterprise-grade network engineering expertise to {company_name} — delivering high availability, security, and performance from day one."
           </p>
         </div>
         

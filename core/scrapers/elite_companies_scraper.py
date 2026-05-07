@@ -136,8 +136,6 @@ ELITE_COMPANIES = [
     {"name": "Standard Chartered UAE", "careers_url": "https://careers.sc.com/jobs?location=United%20Arab%20Emirates", "domain": "sc.com", "location": "Dubai"},
     {"name": "Citibank UAE", "careers_url": "https://jobs.citi.com/search-jobs/United%20Arab%20Emirates", "domain": "citi.com", "location": "Dubai"},
 ]
-
-
 class EliteCompaniesScraper:
     """
     🏆 Direct career page scraper for top 200 companies.
@@ -276,3 +274,51 @@ async def run_elite_scan(db=None) -> List[Dict]:
     """Quick function to run elite company scan and return leads."""
     scraper = get_elite_scraper(db)
     return await scraper.scan_all_elite_companies()
+
+
+# ── IT STAFFING AGENCIES (MOST POWERFUL SOURCE FOR NETWORK ENGINEERS!) ────────
+# These agencies have EXCLUSIVE jobs not posted anywhere else
+# They ACTIVELY call candidates - one email = potentially 10+ job offers
+IT_STAFFING_AGENCIES = [
+    # ── GLOBAL GIANTS ─────────────────────────────────────────────────────────
+    {"name": "Robert Half Technology", "careers_url": "https://www.roberthalf.com/jobs/it-technology", "domain": "roberthalf.com", "email": "technology@roberthalf.com", "location": "Global"},
+    {"name": "TEKsystems", "careers_url": "https://www.teksystems.com/en/jobs", "domain": "teksystems.com", "email": "jobs@teksystems.com", "location": "Global"},
+    {"name": "Insight Global", "careers_url": "https://jobs.insightglobal.com/jobs", "domain": "insightglobal.com", "email": "jobs@insightglobal.com", "location": "Global"},
+    {"name": "Randstad Technologies", "careers_url": "https://www.randstad.com/jobs/it-technology/", "domain": "randstad.com", "email": "technology@randstad.com", "location": "Global"},
+    {"name": "Modis (Adecco IT)", "careers_url": "https://www.modis.com/en-us/find-a-job/", "domain": "modis.com", "email": "jobs@modis.com", "location": "Global"},
+    {"name": "Apex Systems", "careers_url": "https://www.apexsystems.com/jobs", "domain": "apexsystems.com", "email": "jobs@apexsystems.com", "location": "Global"},
+    {"name": "Kforce Technology", "careers_url": "https://www.kforce.com/find-a-job/technology/", "domain": "kforce.com", "email": "technology@kforce.com", "location": "Global"},
+    {"name": "Experis (ManpowerGroup IT)", "careers_url": "https://www.experis.com/en/find-work", "domain": "experis.com", "email": "it@experis.com", "location": "Global"},
+    # ── MIDDLE EAST SPECIALISTS ────────────────────────────────────────────────
+    {"name": "Hays Technology UAE", "careers_url": "https://www.hays.ae/jobs/it-technology", "domain": "hays.ae", "email": "technology@hays.ae", "location": "Dubai"},
+    {"name": "Michael Page Technology UAE", "careers_url": "https://www.michaelpage.ae/jobs/technology", "domain": "michaelpage.ae", "email": "technology@michaelpage.ae", "location": "Dubai"},
+    {"name": "Bayt Recruitment", "careers_url": "https://www.bayt.com/en/uae/jobs/network-engineer-jobs/", "domain": "bayt.com", "email": "employers@bayt.com", "location": "Dubai"},
+    {"name": "GulfTalent IT", "careers_url": "https://www.gulftalent.com/jobs/it-technology", "domain": "gulftalent.com", "email": "it@gulftalent.com", "location": "Dubai"},
+    {"name": "Naukrigulf IT", "careers_url": "https://www.naukrigulf.com/network-engineer-jobs", "domain": "naukrigulf.com", "email": "it@naukrigulf.com", "location": "Dubai"},
+    {"name": "Charterhouse ME", "careers_url": "https://www.charterhouseme.ae/jobs/technology", "domain": "charterhouseme.ae", "email": "technology@charterhouseme.ae", "location": "Dubai"},
+    {"name": "Mackenzie Jones IT", "careers_url": "https://www.mackenziejo.com/jobs/technology", "domain": "mackenziejo.com", "email": "it@mackenziejo.com", "location": "Dubai"},
+    {"name": "Talent Arabia", "careers_url": "https://www.talentarabia.com/jobs/it", "domain": "talentarabia.com", "email": "it@talentarabia.com", "location": "Dubai"},
+    {"name": "Propel Consult", "careers_url": "https://www.propelconsult.com/jobs/technology", "domain": "propelconsult.com", "email": "technology@propelconsult.com", "location": "Bahrain"},
+    # ── LEBANON SPECIFIC ──────────────────────────────────────────────────────
+    {"name": "Khatib & Alami IT", "careers_url": "https://www.khatib-alami.com/careers", "domain": "khatib-alami.com", "email": "careers@khatib-alami.com", "location": "Beirut"},
+    {"name": "Deloitte Lebanon", "careers_url": "https://www2.deloitte.com/lb/en/careers.html", "domain": "deloitte.com", "email": "lb_careers@deloitte.com", "location": "Beirut"},
+    {"name": "BDO Lebanon", "careers_url": "https://www.bdo.com.lb/careers", "domain": "bdo.com.lb", "email": "careers@bdo.com.lb", "location": "Beirut"},
+    # ── ISPs & TELECOM (PERFECT FOR NETWORK ENGINEERS) ────────────────────────
+    {"name": "Ogero Telecom Lebanon", "careers_url": "https://www.ogero.gov.lb/careers", "domain": "ogero.gov.lb", "email": "hr@ogero.gov.lb", "location": "Beirut"},
+    {"name": "IDM Lebanon", "careers_url": "https://www.idm.net.lb/careers", "domain": "idm.net.lb", "email": "careers@idm.net.lb", "location": "Beirut"},
+    {"name": "Terranet Lebanon", "careers_url": "https://www.terra.net.lb/careers", "domain": "terra.net.lb", "email": "hr@terra.net.lb", "location": "Beirut"},
+    {"name": "Cyberia Lebanon", "careers_url": "https://www.cyberia.net.lb/careers", "domain": "cyberia.net.lb", "email": "careers@cyberia.net.lb", "location": "Beirut"},
+    {"name": "Alfa Telecom Lebanon", "careers_url": "https://www.alfa.com.lb/careers", "domain": "alfa.com.lb", "email": "careers@alfa.com.lb", "location": "Beirut"},
+    {"name": "Touch Lebanon", "careers_url": "https://www.touch.com.lb/careers", "domain": "touch.com.lb", "email": "careers@touch.com.lb", "location": "Beirut"},
+    {"name": "du Telecom UAE", "careers_url": "https://careers.du.ae/jobs", "domain": "du.ae", "email": "careers@du.ae", "location": "Dubai"},
+    {"name": "Etisalat UAE", "careers_url": "https://careers.etisalat.ae/jobs", "domain": "etisalat.ae", "email": "careers@etisalat.ae", "location": "Abu Dhabi"},
+    {"name": "STC Saudi Arabia", "careers_url": "https://careers.stc.com.sa/jobs", "domain": "stc.com.sa", "email": "careers@stc.com.sa", "location": "Riyadh"},
+    {"name": "Zain Telecom", "careers_url": "https://careers.zain.com/jobs", "domain": "zain.com", "email": "careers@zain.com", "location": "Kuwait"},
+    # ── IT COMPANIES IN BEIRUT DIGITAL DISTRICT ────────────────────────────────
+    {"name": "Murex Systems", "careers_url": "https://www.murex.com/careers", "domain": "murex.com", "email": "careers@murex.com", "location": "Beirut"},
+    {"name": "Berytech", "careers_url": "https://berytech.org/careers", "domain": "berytech.org", "email": "info@berytech.org", "location": "Beirut"},
+    {"name": "Sodetel Lebanon", "careers_url": "https://www.sodetel.net.lb/careers", "domain": "sodetel.net.lb", "email": "hr@sodetel.net.lb", "location": "Beirut"},
+]
+
+# Merge IT staffing agencies into main list for scanning
+ELITE_COMPANIES = ELITE_COMPANIES + IT_STAFFING_AGENCIES

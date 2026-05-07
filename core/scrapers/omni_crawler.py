@@ -366,12 +366,29 @@ class PlatformDiscovery:
 class OmniCrawler:
     """Multi-spider protocol for discovering job targets across the web."""
     
-    # 100% SOVEREIGN SOCIAL QUERIES
+    # 100% SOVEREIGN SOCIAL QUERIES - Network Engineering focused
     SOCIAL_QUERIES = [
-        'site:linkedin.com/posts "hiring" "HR"',
-        'site:linkedin.com/posts "looking for" "Administrative"',
-        'site:twitter.com "hiring" "HR" Lebanon',
-        'site:linkedin.com/posts "recruitment" "Operations Manager" UAE'
+        'site:linkedin.com/posts "hiring" "Network Engineer" UAE',
+        'site:linkedin.com/posts "looking for" "IT Infrastructure" Dubai',
+        'site:twitter.com "hiring" "Network Engineer" Lebanon',
+        'site:linkedin.com/posts "recruitment" "Senior Network Engineer" Gulf'
+    ]
+    
+    # 🔥 IT-SPECIFIC JOB BOARDS (Not on LinkedIn/Indeed - exclusive jobs!)
+    IT_JOB_BOARDS = [
+        # Global IT boards
+        {"name": "Dice.com", "url": "https://www.dice.com/jobs?q=network+engineer&location=UAE", "type": "it_board"},
+        {"name": "Jobserve IT", "url": "https://www.jobserve.com/gb/en/Job-Search/?shid=network-engineer", "type": "it_board"},
+        {"name": "TechFetch", "url": "https://www.techfetch.com/job/network-engineer-jobs.aspx", "type": "it_board"},
+        {"name": "ClearanceJobs", "url": "https://www.clearancejobs.com/jobs?q=network+engineer", "type": "it_board"},
+        {"name": "Stack Overflow Jobs", "url": "https://stackoverflow.com/jobs?q=network+engineer", "type": "it_board"},
+        # Middle East IT boards
+        {"name": "Bayt Network Engineer", "url": "https://www.bayt.com/en/uae/jobs/network-engineer-jobs/", "type": "it_board"},
+        {"name": "Naukrigulf Network", "url": "https://www.naukrigulf.com/network-engineer-jobs", "type": "it_board"},
+        {"name": "GulfTalent IT", "url": "https://www.gulftalent.com/jobs/it-technology/network-engineer", "type": "it_board"},
+        # Lebanon specific
+        {"name": "Daleel Madani IT", "url": "https://www.daleel-madani.org/civil-society-directory/jobs?field_job_category=IT", "type": "it_board"},
+        {"name": "HireLebanese IT", "url": "https://www.hireleb.com/jobs/it-technology", "type": "it_board"},
     ]
 
     def __init__(self, ai_agent: Optional[OmniIntelligence] = None):
