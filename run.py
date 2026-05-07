@@ -67,6 +67,90 @@ async def resource_watchdog():
         except ImportError:
             logging.info("🧹 [RESOURCE-WATCHDOG]: Memory cleared. Swarm health optimized.")
 
+
+async def continuous_scraper_background(engine, interval_seconds: int = 300, scraper_name: str = "Generic"):
+    """
+    [🔥 REVOLUTIONARY]: Continuous background scraper that NEVER stops.
+    Runs independently from the main loop - feeds leads to queue continuously.
+    This is the FACTORY ASSEMBLY LINE approach:
+    - Main loop = workers processing leads
+    - This task = conveyor belt feeding new leads
+    Queue NEVER runs dry!
+    """
+    import asyncio
+    logging.info(f"🏭 [CONTINUOUS-SCRAPER-{scraper_name}]: Background scraper started. Interval: {interval_seconds}s")
+    
+    while True:
+        try:
+            await asyncio.sleep(interval_seconds)
+            
+            if not engine or not engine.is_running:
+                break
+                
+            logging.info(f"🔄 [CONTINUOUS-SCRAPER-{scraper_name}]: Running background discovery cycle...")
+            raw_leads = []
+            
+            try:
+                from core.scrapers import scraper as main_scraper
+                from core.scrapers.omni_crawler import OmniCrawler
+                from core.scrapers.daleel_parallel import daleel_parallel_scan
+                from core.ai_agent import OmniIntelligence
+                
+                if scraper_name == "MAIN" and main_scraper:
+                    leads = await asyncio.to_thread(main_scraper.get_latest_jobs)
+                    if isinstance(leads, list):
+                        raw_leads.extend(leads)
+                        
+                elif scraper_name == "DALEEL" and engine.db:
+                    leads = await daleel_parallel_scan(engine.db, pages=3)
+                    if isinstance(leads, list):
+                        raw_leads.extend(leads)
+                        
+                elif scraper_name == "OMNI" and engine.omni_crawler:
+                    leads = await engine.omni_crawler.hunt_the_web()
+                    if isinstance(leads, list):
+                        raw_leads.extend(leads)
+                        
+                elif scraper_name == "PLATFORMS" and engine.omni_crawler:
+                    leads = await engine.omni_crawler.hunt_registered_platforms()
+                    if isinstance(leads, list):
+                        raw_leads.extend(leads)
+                        
+                elif scraper_name == "ELITE":
+                    # 🏆 ELITE COMPANIES: Direct career page scraping
+                    # This is the BEST source - jobs before they hit job boards!
+                    try:
+                        from core.scrapers.elite_companies_scraper import run_elite_scan
+                        leads = await run_elite_scan(engine.db)
+                        if isinstance(leads, list):
+                            raw_leads.extend(leads)
+                            logging.info(f"🏆 ELITE SCRAPER: Found {len(leads)} exclusive jobs from top companies!")
+                    except Exception as e:
+                        logging.warning(f"⚠️ Elite scraper error: {e}")
+                        
+            except Exception as e:
+                logging.warning(f"⚠️ [CONTINUOUS-SCRAPER-{scraper_name}]: Scrape error: {e}")
+            
+            # Save all discovered leads to queue
+            if raw_leads and engine.db:
+                JUNK = {'target node', 'none', 'null', 'unknown', 'automatic target', 'oracle lead',
+                        'linkedin', 'indeed', 'glassdoor', 'bayt', 'naukrigulf', 'gulftalent'}
+                clean = [l for l in raw_leads 
+                         if l.get('company_name', '').lower().strip() not in JUNK
+                         and len(l.get('company_name', '').strip()) >= 3]
+                
+                if clean:
+                    logging.info(f"🏭 [CONTINUOUS-SCRAPER-{scraper_name}]: Feeding {len(clean)} fresh leads to queue...")
+                    save_tasks = [engine.db.save_potential_lead(l, score=l.get('priority_score', 75)) for l in clean]
+                    await asyncio.gather(*save_tasks, return_exceptions=True)
+                    
+        except asyncio.CancelledError:
+            logging.info(f"🛑 [CONTINUOUS-SCRAPER-{scraper_name}]: Stopped.")
+            break
+        except Exception as e:
+            logging.error(f"❌ [CONTINUOUS-SCRAPER-{scraper_name}]: Fatal error: {e}")
+            await asyncio.sleep(60)  # Wait 1 min before retry
+
 async def health_monitor():
     """🛡️ IMMORTALITY: Monitor system health and auto-restart on failure."""
     last_heartbeat = {}
@@ -136,7 +220,14 @@ async def main():
                 asyncio.create_task(engine.execute_divine_loop(), name="Engine"),
                 asyncio.create_task(dashboard.run_headless(), name="Dashboard"),
                 asyncio.create_task(resource_watchdog(), name="Watchdog"),
-                asyncio.create_task(health_monitor(), name="HealthMonitor")
+                asyncio.create_task(health_monitor(), name="HealthMonitor"),
+                # [🔥 REVOLUTIONARY]: Continuous background scrapers - NEVER stop feeding leads!
+                # Each runs independently so queue is ALWAYS full
+                asyncio.create_task(continuous_scraper_background(engine, interval_seconds=300, scraper_name="MAIN"), name="Scraper-Main"),
+                asyncio.create_task(continuous_scraper_background(engine, interval_seconds=420, scraper_name="DALEEL"), name="Scraper-Daleel"),
+                asyncio.create_task(continuous_scraper_background(engine, interval_seconds=600, scraper_name="PLATFORMS"), name="Scraper-Platforms"),
+                asyncio.create_task(continuous_scraper_background(engine, interval_seconds=900, scraper_name="OMNI"), name="Scraper-Omni"),
+                asyncio.create_task(continuous_scraper_background(engine, interval_seconds=1800, scraper_name="ELITE"), name="Scraper-Elite"),
             ]
 
             # Wait for all systems to finish (or run forever)
