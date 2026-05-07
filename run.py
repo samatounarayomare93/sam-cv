@@ -1,9 +1,15 @@
+import sys
+import io
+# [🛡️ FIX]: Force UTF-8 encoding on Windows to prevent UnicodeEncodeError for emojis
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
 import asyncio
 import gc
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import os
-import sys
 import traceback
 
 # [🛡️ FIX]: Monkeypatch curl_cffi to prevent Event Loop Closed crashes during GC
