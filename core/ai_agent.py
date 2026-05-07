@@ -296,7 +296,7 @@ class OmniIntelligence:
         STEP 4 — WRITE THE COVER LETTER BODY (3 paragraphs, HTML format):
         
         PARAGRAPH 1 — THE HOOK (2-3 sentences):
-        - If news headline exists: OPEN with it. "Given {company_name}'s [news detail], I felt compelled to reach out..."
+        - If news headline exists: OPEN with it. "Given [Company Name]'s [news detail], I felt compelled to reach out..."
         - Otherwise: Open with a bold, specific statement about Sam's most relevant achievement for THIS role.
         - Mention the specific job title and company name.
         - Use dialect: {target_dialect}

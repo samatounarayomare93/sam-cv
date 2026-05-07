@@ -339,20 +339,20 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     _ab_seed = int(hashlib.md5(f"{to_email}{company_name}".encode()).hexdigest()[:8], 16) % 5
     
     _subject_variants = [
-        # Variant 0: Direct value proposition — highest professional credibility
-        f"{job_title} Application — Sam Salameh | CCNA, NSE, MTCNA | {company_name}",
+        # Variant 0: Direct value proposition
+        f"{job_title} Application - Sam Salameh | CCNA, NSE, MTCNA | {company_name}",
         
-        # Variant 1: Personal name first — stands out in inbox
-        f"Sam Salameh — Senior Network Engineer | {company_name}",
+        # Variant 1: Personal name first
+        f"Sam Salameh - Senior Network Engineer | {company_name}",
         
-        # Variant 2: Curiosity + specificity — makes recruiter want to open
-        f"15+ Years Network Engineering Experience — {job_title} at {company_name}",
+        # Variant 2: Experience-led
+        f"15+ Years Network Engineering - {job_title} at {company_name}",
         
-        # Variant 3: Achievement-led — shows value immediately
+        # Variant 3: Achievement-led
         f"{job_title} | 99.9% Uptime, 20+ Enterprise Clients | {company_name}",
         
-        # Variant 4: Clean standard with certifications
-        f"Application: {job_title} — Cisco CCNA + Fortinet NSE | {company_name}",
+        # Variant 4: Certifications-led
+        f"Application: {job_title} - Cisco CCNA + Fortinet NSE | {company_name}",
     ]
     
     subject = _subject_variants[_ab_seed]
