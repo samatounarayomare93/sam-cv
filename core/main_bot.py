@@ -876,8 +876,27 @@ class AlphaOrchestrator:
             package = await asyncio.to_thread(generate_ultimate_package, lead)
             
             final_attachments = []
-            if package.get("cv"): final_attachments.append(package["cv"])
-            if package.get("cl"): final_attachments.append(package["cl"])
+            # [🔥 FIX]: generate_ultimate_package returns {"cl_pdf": ..., "cv_html": ...}
+            if package.get("cl_pdf") and os.path.exists(str(package.get("cl_pdf", ""))): 
+                final_attachments.append(package["cl_pdf"])
+            if package.get("cv_html") and os.path.exists(str(package.get("cv_html", ""))): 
+                final_attachments.append(package["cv_html"])
+            # Fallback keys in case function signature changed
+            if not final_attachments:
+                if package.get("cv") and os.path.exists(str(package.get("cv", ""))): 
+                    final_attachments.append(package["cv"])
+                if package.get("cl") and os.path.exists(str(package.get("cl", ""))): 
+                    final_attachments.append(package["cl"])
+            # Last resort: generate cover letter PDF directly
+            if not final_attachments:
+                logging.warning(f"⚠️ Package empty for {company_name}, generating fallback PDF...")
+                try:
+                    from core.pdf_generator import generate_cover_letter_pdf
+                    fallback_pdf = await asyncio.to_thread(generate_cover_letter_pdf, company_name, job_title, lead)
+                    if fallback_pdf and os.path.exists(fallback_pdf):
+                        final_attachments.append(fallback_pdf)
+                except Exception as _pdf_err:
+                    logging.error(f"❌ Fallback PDF failed: {_pdf_err}")
             
             if final_attachments:
                 await self.poisson_jitter(10)
