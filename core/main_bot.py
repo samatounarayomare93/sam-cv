@@ -846,7 +846,11 @@ class AlphaOrchestrator:
             base_threshold = int(os.getenv("MIN_MATCH_SCORE", "55"))
             strike_threshold = (base_threshold + 5 if lead.get("mission_type") == "Founding_Strike" else base_threshold) + jitter
             
-            if not is_relevant or score < strike_threshold:
+            # [🛡️ OVERRIDE]: If lead has a known good email (not guessed) and score > 40, always send
+            # This prevents AI from blocking legitimate high-priority targets
+            is_known_good = email and not lead.get("is_guessed", False) and score >= 40
+            
+            if (not is_relevant or score < strike_threshold) and not is_known_good:
                 logging.info(f"❌ Target Denied by Intelligence: {company_name} | Score: {score}/{strike_threshold} | Reason: {reason[:100]}...")
                 if self.db and job_url: await self.db.update_lead_status(job_url, 'rejected')
                 return
