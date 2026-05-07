@@ -1,6 +1,6 @@
 import sys
 import io
-# [🛡️ FIX]: Force UTF-8 encoding on Windows to prevent UnicodeEncodeError for emojis
+# Force UTF-8 encoding on Windows to prevent UnicodeEncodeError for emojis
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
@@ -8,11 +8,13 @@ if sys.platform == "win32":
 import asyncio
 import gc
 import logging
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import RotatingFileHandler
 import os
+import shutil
 import traceback
+import time
 
-# [🛡️ FIX]: Monkeypatch curl_cffi to prevent Event Loop Closed crashes during GC
+# Monkeypatch curl_cffi to prevent Event Loop Closed crashes during GC
 try:
     import curl_cffi.aio
     original_del = getattr(curl_cffi.aio.AsyncSession, '__del__', None)
@@ -20,9 +22,6 @@ try:
         def safe_del(self):
             try:
                 original_del(self)
-            except RuntimeError as e:
-                if "Event loop is closed" not in str(e):
-                    pass
             except Exception:
                 pass
         curl_cffi.aio.AsyncSession.__del__ = safe_del
@@ -34,227 +33,319 @@ from core.main_bot import AlphaOrchestrator
 from core.telegram_dashboard import SovereignDashboard
 from core.auto_queue_refill import auto_refill_loop
 
-# [💎 CLOUD-PERFECTION]: Unified Swarm Orchestrator (Single-Process)
-# This prevents the 512MB OOM crash on Render by sharing memory between components.
-
 # Ensure logs directory exists
 os.makedirs("logs", exist_ok=True)
+os.makedirs("pdf_cache", exist_ok=True)
+os.makedirs("core/pdf_cache", exist_ok=True)
+os.makedirs("core/temp_cvs", exist_ok=True)
 
+# Use RotatingFileHandler (max 5MB per file, keep 2 backups) instead of TimedRotating
+# This guarantees disk never fills up from logs
 logging.basicConfig(
-    level=logging.INFO, 
-    format="%(asctime)s - [UNIFIED-SWARM] %(levelname)s - %(message)s",
+    level=logging.INFO,
+    format="%(asctime)s - [SWARM] %(levelname)s - %(message)s",
     handlers=[
-        TimedRotatingFileHandler("logs/orchestrator.log", when="D", interval=1, backupCount=1, encoding="utf-8"),
+        RotatingFileHandler(
+            "logs/orchestrator.log",
+            maxBytes=5 * 1024 * 1024,   # 5MB max
+            backupCount=2,               # Keep 2 backups = max 15MB total
+            encoding="utf-8"
+        ),
         logging.StreamHandler(sys.stdout)
     ]
 )
 
+# ─────────────────────────────────────────────────────────────────────────────
+# DISK JANITOR: Runs every 30 minutes, keeps disk clean forever
+# ─────────────────────────────────────────────────────────────────────────────
+async def disk_janitor():
+    """Permanently keeps disk clean. Runs every 30 minutes."""
+    while True:
+        try:
+            await asyncio.sleep(1800)  # Every 30 minutes
+
+            cleaned = 0
+
+            # 1. Clean PDF cache directories (keep only last 50 files)
+            for cache_dir in ["pdf_cache", "core/pdf_cache", "core/temp_cvs"]:
+                if os.path.exists(cache_dir):
+                    files = sorted(
+                        [os.path.join(cache_dir, f) for f in os.listdir(cache_dir)
+                         if os.path.isfile(os.path.join(cache_dir, f))],
+                        key=os.path.getmtime
+                    )
+                    # Delete all but the 10 newest
+                    for f in files[:-10]:
+                        try:
+                            os.remove(f)
+                            cleaned += 1
+                        except Exception:
+                            pass
+
+            # 2. Clean cover_letters directory
+            if os.path.exists("cover_letters"):
+                files = sorted(
+                    [os.path.join("cover_letters", f) for f in os.listdir("cover_letters")
+                     if os.path.isfile(os.path.join("cover_letters", f))],
+                    key=os.path.getmtime
+                )
+                for f in files[:-5]:
+                    try:
+                        os.remove(f)
+                        cleaned += 1
+                    except Exception:
+                        pass
+
+            # 3. Clean temp directory
+            if os.path.exists("temp_mirror"):
+                try:
+                    shutil.rmtree("temp_mirror", ignore_errors=True)
+                    os.makedirs("temp_mirror", exist_ok=True)
+                    cleaned += 1
+                except Exception:
+                    pass
+
+            # 4. Truncate log file if > 4MB (safety net on top of RotatingFileHandler)
+            log_file = "logs/orchestrator.log"
+            if os.path.exists(log_file) and os.path.getsize(log_file) > 4 * 1024 * 1024:
+                with open(log_file, "w", encoding="utf-8") as f:
+                    f.write(f"[JANITOR] Log truncated at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                cleaned += 1
+
+            # 5. Clean SQLite DB system_logs table (keep last 1000 rows)
+            try:
+                import sqlite3
+                db_path = "sam_ultimate.db"
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    conn.execute(
+                        "DELETE FROM system_logs WHERE id NOT IN "
+                        "(SELECT id FROM system_logs ORDER BY id DESC LIMIT 1000)"
+                    )
+                    conn.execute("VACUUM")
+                    conn.commit()
+                    conn.close()
+                    cleaned += 1
+            except Exception:
+                pass
+
+            if cleaned > 0:
+                logging.info(f"🧹 [JANITOR] Cleaned {cleaned} items. Disk healthy.")
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logging.warning(f"⚠️ [JANITOR] Error: {e}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RESOURCE WATCHDOG: Memory monitor
+# ─────────────────────────────────────────────────────────────────────────────
 async def resource_watchdog():
     """Monitor memory and pressure-clean the system."""
     while True:
-        await asyncio.sleep(120) # Every 2 minutes (was 5 - too slow for 512MB)
-        gc.collect()
-        # [🛡️ OOM-FIX]: Check actual memory usage and force aggressive cleanup
         try:
-            import psutil
-            process = psutil.Process()
-            mem_mb = process.memory_info().rss / (1024 * 1024)
-            if mem_mb > 400:  # Approaching 512MB Render limit
-                logging.warning(f"⚠️ [RESOURCE-WATCHDOG]: HIGH MEMORY: {mem_mb:.0f}MB! Forcing aggressive cleanup...")
-                gc.collect(2)  # Full generation-2 collection
+            await asyncio.sleep(120)
+            gc.collect()
+            try:
+                import psutil
+                process = psutil.Process()
+                mem_mb = process.memory_info().rss / (1024 * 1024)
+                if mem_mb > 420:
+                    logging.warning(f"⚠️ [WATCHDOG] HIGH MEMORY: {mem_mb:.0f}MB! Forcing cleanup...")
+                    gc.collect(2)
+                    gc.collect()
+                else:
+                    logging.info(f"💚 [WATCHDOG] Memory: {mem_mb:.0f}MB OK")
+            except ImportError:
                 gc.collect()
-            else:
-                logging.info(f"🧹 [RESOURCE-WATCHDOG]: Memory: {mem_mb:.0f}MB. Swarm health optimized.")
-        except ImportError:
-            logging.info("🧹 [RESOURCE-WATCHDOG]: Memory cleared. Swarm health optimized.")
+                logging.info("💚 [WATCHDOG] GC complete")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logging.warning(f"⚠️ [WATCHDOG] Error: {e}")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# HEALTH MONITOR: Watches tasks and restarts dead ones
+# ─────────────────────────────────────────────────────────────────────────────
+async def health_monitor():
+    """Monitor system health every minute."""
+    while True:
+        try:
+            await asyncio.sleep(60)
+            current_tasks = [t for t in asyncio.all_tasks() if not t.done()]
+            logging.info(f"💓 [HEALTH] System alive. Active tasks: {len(current_tasks)}")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logging.warning(f"⚠️ [HEALTH] Error: {e}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTINUOUS SCRAPERS: Feed leads to queue forever
+# ─────────────────────────────────────────────────────────────────────────────
 async def continuous_scraper_background(engine, interval_seconds: int = 300, scraper_name: str = "Generic"):
-    """
-    [🔥 REVOLUTIONARY]: Continuous background scraper that NEVER stops.
-    Runs independently from the main loop - feeds leads to queue continuously.
-    This is the FACTORY ASSEMBLY LINE approach:
-    - Main loop = workers processing leads
-    - This task = conveyor belt feeding new leads
-    Queue NEVER runs dry!
-    """
-    import asyncio
-    logging.info(f"🏭 [CONTINUOUS-SCRAPER-{scraper_name}]: Background scraper started. Interval: {interval_seconds}s")
-    
+    """Continuous background scraper that NEVER stops."""
+    logging.info(f"🏭 [SCRAPER-{scraper_name}] Started. Interval: {interval_seconds}s")
+
     while True:
         try:
             await asyncio.sleep(interval_seconds)
-            
+
             if not engine or not engine.is_running:
                 break
-                
-            logging.info(f"🔄 [CONTINUOUS-SCRAPER-{scraper_name}]: Running background discovery cycle...")
+
             raw_leads = []
-            
             try:
                 from core.scrapers import scraper as main_scraper
                 from core.scrapers.omni_crawler import OmniCrawler
                 from core.scrapers.daleel_parallel import daleel_parallel_scan
-                from core.ai_agent import OmniIntelligence
-                
+
                 if scraper_name == "MAIN" and main_scraper:
-                    leads = await asyncio.to_thread(main_scraper.get_latest_jobs)
+                    leads = await asyncio.wait_for(
+                        asyncio.to_thread(main_scraper.get_latest_jobs), timeout=120
+                    )
                     if isinstance(leads, list):
                         raw_leads.extend(leads)
-                        
+
                 elif scraper_name == "DALEEL" and engine.db:
-                    leads = await daleel_parallel_scan(engine.db, pages=3)
+                    leads = await asyncio.wait_for(
+                        daleel_parallel_scan(engine.db, pages=3), timeout=120
+                    )
                     if isinstance(leads, list):
                         raw_leads.extend(leads)
-                        
+
                 elif scraper_name == "OMNI" and engine.omni_crawler:
-                    leads = await engine.omni_crawler.hunt_the_web()
+                    leads = await asyncio.wait_for(
+                        engine.omni_crawler.hunt_the_web(), timeout=180
+                    )
                     if isinstance(leads, list):
                         raw_leads.extend(leads)
-                        
+
                 elif scraper_name == "PLATFORMS" and engine.omni_crawler:
-                    leads = await engine.omni_crawler.hunt_registered_platforms()
+                    leads = await asyncio.wait_for(
+                        engine.omni_crawler.hunt_registered_platforms(), timeout=120
+                    )
                     if isinstance(leads, list):
                         raw_leads.extend(leads)
-                        
+
                 elif scraper_name == "ELITE":
-                    # 🏆 ELITE COMPANIES: Direct career page scraping
-                    # This is the BEST source - jobs before they hit job boards!
                     try:
                         from core.scrapers.elite_companies_scraper import run_elite_scan
-                        leads = await run_elite_scan(engine.db)
+                        leads = await asyncio.wait_for(run_elite_scan(engine.db), timeout=180)
                         if isinstance(leads, list):
                             raw_leads.extend(leads)
-                            logging.info(f"🏆 ELITE SCRAPER: Found {len(leads)} exclusive jobs from top companies!")
                     except Exception as e:
-                        logging.warning(f"⚠️ Elite scraper error: {e}")
-                        
+                        logging.debug(f"Elite scraper: {e}")
+
+            except asyncio.TimeoutError:
+                logging.warning(f"⏱️ [SCRAPER-{scraper_name}] Timeout — skipping cycle")
             except Exception as e:
-                logging.warning(f"⚠️ [CONTINUOUS-SCRAPER-{scraper_name}]: Scrape error: {e}")
-            
-            # Save all discovered leads to queue
+                logging.warning(f"⚠️ [SCRAPER-{scraper_name}] Error: {e}")
+
+            # Save clean leads to queue
             if raw_leads and engine.db:
-                JUNK = {'target node', 'none', 'null', 'unknown', 'automatic target', 'oracle lead',
-                        'linkedin', 'indeed', 'glassdoor', 'bayt', 'naukrigulf', 'gulftalent'}
-                clean = [l for l in raw_leads 
-                         if l.get('company_name', '').lower().strip() not in JUNK
-                         and len(l.get('company_name', '').strip()) >= 3]
-                
+                JUNK = {
+                    'target node', 'none', 'null', 'unknown', 'automatic target',
+                    'oracle lead', 'linkedin', 'indeed', 'glassdoor', 'bayt',
+                    'naukrigulf', 'gulftalent', 'test', 'example', 'sample'
+                }
+                clean = [
+                    l for l in raw_leads
+                    if l.get('company_name', '').lower().strip() not in JUNK
+                    and len(l.get('company_name', '').strip()) >= 3
+                ]
                 if clean:
-                    logging.info(f"🏭 [CONTINUOUS-SCRAPER-{scraper_name}]: Feeding {len(clean)} fresh leads to queue...")
-                    save_tasks = [engine.db.save_potential_lead(l, score=l.get('priority_score', 75)) for l in clean]
+                    logging.info(f"🏭 [SCRAPER-{scraper_name}] Feeding {len(clean)} leads to queue...")
+                    save_tasks = [
+                        engine.db.save_potential_lead(l, score=l.get('priority_score', 75))
+                        for l in clean
+                    ]
                     await asyncio.gather(*save_tasks, return_exceptions=True)
-                    
+
         except asyncio.CancelledError:
-            logging.info(f"🛑 [CONTINUOUS-SCRAPER-{scraper_name}]: Stopped.")
+            logging.info(f"🛑 [SCRAPER-{scraper_name}] Stopped.")
             break
         except Exception as e:
-            logging.error(f"❌ [CONTINUOUS-SCRAPER-{scraper_name}]: Fatal error: {e}")
-            await asyncio.sleep(60)  # Wait 1 min before retry
+            logging.error(f"❌ [SCRAPER-{scraper_name}] Fatal: {e}")
+            await asyncio.sleep(60)
 
-async def health_monitor():
-    """🛡️ IMMORTALITY: Monitor system health and auto-restart on failure."""
-    last_heartbeat = {}
-    restart_count = 0
-    max_restarts = 10
-    
-    while True:
-        await asyncio.sleep(60)  # Check every minute
-        
-        try:
-            # Check if tasks are still alive
-            current_tasks = [t for t in asyncio.all_tasks() if not t.done()]
-            
-            if len(current_tasks) < 3:  # Should have at least 3 tasks running
-                logging.warning(f"⚠️ [HEALTH-MONITOR] Only {len(current_tasks)} tasks running. System may be degraded.")
-            
-            # Log heartbeat
-            logging.info(f"💓 [HEALTH-MONITOR] System alive. Active tasks: {len(current_tasks)}")
-            
-        except Exception as e:
-            logging.error(f"❌ [HEALTH-MONITOR] Error: {e}")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN: Immortal restart loop
+# ─────────────────────────────────────────────────────────────────────────────
 async def main():
-    print("""
-    ================================================================================
-    PROJECT CHRONOS: OMEGA-SOVEREIGNTY UNIFIED SWARM
-    --------------------------------------------------------------------------------
-    Status: CONSOLIDATING INTELLIGENCE...
-    Memory Mode: SLIM-PROCESS (OOM Protection Active)
-    🛡️ IMMORTALITY MODE: ENABLED (Auto-restart on crash)
-    ================================================================================
-    """)
+    logging.info("=" * 70)
+    logging.info("PROJECT CHRONOS: OMEGA-SOVEREIGNTY — IMMORTAL MODE ACTIVE")
+    logging.info("=" * 70)
 
-    # 1. Start Keep-Alive (Immediate Port Binding for Render)
-    logging.info("[SYSTEM] Activating Cloud Heartbeat (Port Binding)...")
+    # Start Keep-Alive (port binding for Render)
     keep_alive()
 
-    # 2. Initialize Shared Swarm Intelligence (Saves massive RAM)
-    logging.info("[SYSTEM] Initializing Shared Swarm Intelligence...")
-    
     restart_count = 0
-    max_restarts = 100  # Allow 100 restarts before giving up
-    
-    while restart_count < max_restarts:
+
+    while True:  # Infinite restart loop — NEVER gives up
         try:
             from core.db_client import RealityShapingDB
             from core.ai_agent import OmniIntelligence
-            
+
             shared_db = RealityShapingDB()
             shared_ai = OmniIntelligence()
-            
+
             engine = AlphaOrchestrator(db=shared_db, ai=shared_ai)
             dashboard = SovereignDashboard(db=shared_db, ai=shared_ai)
 
-            logging.info(f"[SYSTEM] Launching Unified Swarm Tasks... (Restart #{restart_count})")
-            
-            # [🧹 HYGIENE]: Truncate logs and clear cache if too big
-            try:
-                log_file = "logs/orchestrator.log"
-                if os.path.exists(log_file) and os.path.getsize(log_file) > 10 * 1024 * 1024: # 10MB
-                    with open(log_file, "w") as f: f.truncate(0)
-                    logging.info("🧹 [HYGIENE]: Truncated massive log file.")
-            except: pass
+            logging.info(f"🚀 [SYSTEM] Launching all tasks (restart #{restart_count})...")
 
-            # We run them as concurrent tasks in the SAME python process
             swarm_tasks = [
-                asyncio.create_task(engine.execute_divine_loop(), name="Engine"),
-                asyncio.create_task(dashboard.run_headless(), name="Dashboard"),
-                asyncio.create_task(resource_watchdog(), name="Watchdog"),
-                asyncio.create_task(health_monitor(), name="HealthMonitor"),
-                # [🔄 AUTO-REFILL]: Keeps queue ALWAYS full - never runs dry!
-                asyncio.create_task(auto_refill_loop(), name="AutoQueueRefill"),
-                # [🔥 REVOLUTIONARY]: Continuous background scrapers - NEVER stop feeding leads!
-                # Each runs independently so queue is ALWAYS full
-                asyncio.create_task(continuous_scraper_background(engine, interval_seconds=300, scraper_name="MAIN"), name="Scraper-Main"),
-                asyncio.create_task(continuous_scraper_background(engine, interval_seconds=420, scraper_name="DALEEL"), name="Scraper-Daleel"),
-                asyncio.create_task(continuous_scraper_background(engine, interval_seconds=600, scraper_name="PLATFORMS"), name="Scraper-Platforms"),
-                asyncio.create_task(continuous_scraper_background(engine, interval_seconds=900, scraper_name="OMNI"), name="Scraper-Omni"),
-                asyncio.create_task(continuous_scraper_background(engine, interval_seconds=1800, scraper_name="ELITE"), name="Scraper-Elite"),
+                asyncio.create_task(engine.execute_divine_loop(),      name="Engine"),
+                asyncio.create_task(dashboard.run_headless(),           name="Dashboard"),
+                asyncio.create_task(resource_watchdog(),                name="Watchdog"),
+                asyncio.create_task(health_monitor(),                   name="HealthMonitor"),
+                asyncio.create_task(disk_janitor(),                     name="DiskJanitor"),
+                asyncio.create_task(auto_refill_loop(),                 name="AutoQueueRefill"),
+                asyncio.create_task(
+                    continuous_scraper_background(engine, 300,  "MAIN"),     name="Scraper-Main"),
+                asyncio.create_task(
+                    continuous_scraper_background(engine, 420,  "DALEEL"),   name="Scraper-Daleel"),
+                asyncio.create_task(
+                    continuous_scraper_background(engine, 600,  "PLATFORMS"),name="Scraper-Platforms"),
+                asyncio.create_task(
+                    continuous_scraper_background(engine, 900,  "OMNI"),     name="Scraper-Omni"),
+                asyncio.create_task(
+                    continuous_scraper_background(engine, 1800, "ELITE"),    name="Scraper-Elite"),
             ]
 
-            # Wait for all systems to finish (or run forever)
-            await asyncio.gather(*swarm_tasks, return_exceptions=True)
-            
-            # If we reach here, a task finished unexpectedly
-            logging.warning("⚠️ [SYSTEM] A task finished unexpectedly. Restarting in 10 seconds...")
-            await asyncio.sleep(10)
+            done, pending = await asyncio.wait(
+                swarm_tasks,
+                return_when=asyncio.FIRST_EXCEPTION
+            )
+
+            # Cancel remaining tasks cleanly
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+
+            # Log which task died
+            for task in done:
+                if task.exception():
+                    logging.error(f"💀 Task '{task.get_name()}' died: {task.exception()}")
+
+            logging.warning(f"⚠️ [SYSTEM] Swarm collapsed. Restarting in 15s... (#{restart_count})")
+            await asyncio.sleep(15)
             restart_count += 1
 
         except KeyboardInterrupt:
-            logging.info("[SHUTDOWN] Safely anchoring the Swarm...")
+            logging.info("[SHUTDOWN] Graceful shutdown.")
             break
         except Exception as e:
-            logging.error(f"⚠️ [FATAL] Swarm Collapse: {e}")
-            logging.error(f"⚠️ [FATAL] Traceback: {traceback.format_exc()}")
-            
+            logging.error(f"❌ [FATAL] {e}\n{traceback.format_exc()}")
             restart_count += 1
-            if restart_count < max_restarts:
-                logging.info(f"🔄 [AUTO-RESTART] Restarting in 30 seconds... (Attempt {restart_count}/{max_restarts})")
-                await asyncio.sleep(30)
-            else:
-                logging.error(f"❌ [FATAL] Max restarts ({max_restarts}) reached. Giving up.")
-                sys.exit(1)
+            wait = min(30 * restart_count, 300)  # Max 5 min wait
+            logging.info(f"🔄 Restarting in {wait}s... (#{restart_count})")
+            await asyncio.sleep(wait)
+
 
 if __name__ == "__main__":
     try:

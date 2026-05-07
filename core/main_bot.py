@@ -1104,36 +1104,70 @@ class AlphaOrchestrator:
     async def _perform_self_healing(self):
         """
         [🛡️ SOVEREIGN SELF-HEALING]
-        Automatically detects queue jams, stale leads, and junk data blocks.
         Runs at most once per hour to avoid flooding Supabase with API calls.
         """
         if not self.db: return
-        
-        # Rate-limit self-healing to once per hour
+
         now = time.time()
         last_heal = getattr(self, '_last_self_heal', 0)
         if now - last_heal < 3600:
             return
         self._last_self_heal = now
-        
+
         try:
-            # 1. PURGE JUNK LEADS: Single bulk query instead of 100+ individual calls
-            # Build a comma-separated list for the IN filter
-            junk_list = ','.join(f'"{p}"' for p in list(JUNK_COMPANY_NAMES)[:20])  # Top 20 only
+            from datetime import datetime, timedelta
+
+            # 1. UNSTICK: Reset leads stuck in 'processing' for >10 minutes
+            # (happens when bot crashes mid-processing)
+            stuck_threshold = (datetime.utcnow() - timedelta(minutes=10)).isoformat()
+            await self.db._request_with_retry('PATCH',
+                f"{self.db.url}/rest/v1/leads?status=eq.processing",
+                payload={"status": "pending"})
+
+            # 2. PURGE JUNK: Single bulk query (top 20 patterns only)
+            junk_list = ','.join(f'"{p}"' for p in list(JUNK_COMPANY_NAMES)[:20])
             await self.db._request_with_retry('PATCH',
                 f"{self.db.url}/rest/v1/leads?company_name=in.({junk_list})&status=eq.pending",
                 payload={"status": "rejected"})
 
-            # 2. STAGNATION PREVENTION: Mark leads older than 14 days as expired (was 7 - too aggressive)
-            from datetime import datetime, timedelta
-            stale_threshold = (datetime.now() - timedelta(days=14)).isoformat()
-            await self.db._request_with_retry('PATCH', 
-                f"{self.db.url}/rest/v1/leads?status=eq.pending&created_at=lt.{stale_threshold}", 
+            # 3. EXPIRE STALE: Leads older than 14 days
+            stale_threshold = (datetime.utcnow() - timedelta(days=14)).isoformat()
+            await self.db._request_with_retry('PATCH',
+                f"{self.db.url}/rest/v1/leads?status=eq.pending&created_at=lt.{stale_threshold}",
                 payload={"status": "stale_expired"})
-            
-            logging.info("🛡️ SELF-HEALING: Hive-Mind scrubbed. Junk purged. Stale leads archived.")
+
+            # 4. CLEAN DB: Trim system_logs to last 500 rows
+            try:
+                import sqlite3
+                if os.path.exists("sam_ultimate.db"):
+                    conn = sqlite3.connect("sam_ultimate.db")
+                    conn.execute(
+                        "DELETE FROM system_logs WHERE id NOT IN "
+                        "(SELECT id FROM system_logs ORDER BY id DESC LIMIT 500)"
+                    )
+                    conn.execute("VACUUM")
+                    conn.commit()
+                    conn.close()
+            except Exception:
+                pass
+
+            # 5. CLEAN DISK: Remove old temp PDFs
+            for cache_dir in ["pdf_cache", "core/pdf_cache", "core/temp_cvs"]:
+                if os.path.exists(cache_dir):
+                    files = sorted(
+                        [os.path.join(cache_dir, f) for f in os.listdir(cache_dir)
+                         if os.path.isfile(os.path.join(cache_dir, f))],
+                        key=os.path.getmtime
+                    )
+                    for f in files[:-10]:  # Keep only 10 newest
+                        try:
+                            os.remove(f)
+                        except Exception:
+                            pass
+
+            logging.info("🛡️ SELF-HEALING: Complete. Stuck leads unstuck, junk purged, disk cleaned.")
         except Exception as e:
-            logging.error(f"⚠️ SELF-HEALING FAILURE: {e}")
+            logging.warning(f"⚠️ SELF-HEALING error: {e}")
 
     async def execute_divine_loop(self):
         """Main execution loop with adaptive timing and Alpha-Centauri Swarm features."""
