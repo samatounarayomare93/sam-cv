@@ -126,8 +126,8 @@ class MultiAIFallback:
         try:
             import google.generativeai as genai
             genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-            
-            model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            # [🛡️ FIX 2026-05-07]: gemini-2.0-flash-exp deprecated → use gemini-2.5-flash
+            model = genai.GenerativeModel('gemini-2.5-flash')
             response = model.generate_content(prompt)
             
             return response.text

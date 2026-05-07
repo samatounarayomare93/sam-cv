@@ -14,8 +14,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - [PROTOCOL GENESIS]
 # ZERO-COST REQUIREMENT: Uses Gemini Free Tier
 api_key = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key) if api_key else None
-# Model for 2.0-flash-exp (or whichever is current)
-MODEL_ID = 'gemini-2.0-flash-exp'
+# Model for 2.5-flash (latest stable as of 2026-05-07)
+MODEL_ID = 'gemini-2.5-flash'
 
 LOG_PATHS = ["logs/engine.log", "logs/dashboard.log", "logs/out.txt"]
 TARGET_APP_SCRIPT = "run.py"

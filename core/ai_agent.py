@@ -39,9 +39,10 @@ class OmniIntelligence:
         self.primary_engine = "gemini" if self.gemini_key else None
         if self.primary_engine == "gemini":
             try:
-                self.client = genai.Client(api_key=self.gemini_key, http_options={'api_version': 'v1alpha'})
-                self.model_id = 'gemini-2.0-flash'
-                logging.info("PRIMARY INTELLIGENCE: Gemini Online (genai-SDK).")
+                self.client = genai.Client(api_key=self.gemini_key, http_options={'api_version': 'v1beta'})
+                # [🛡️ FIX 2026-05-07]: gemini-2.0-flash deprecated → use gemini-2.5-flash (latest stable)
+                self.model_id = 'gemini-2.5-flash'
+                logging.info("PRIMARY INTELLIGENCE: Gemini 2.5 Flash Online (genai-SDK).")
             except Exception as e:
                 import traceback
                 error_detail = traceback.format_exc()

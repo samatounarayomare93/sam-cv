@@ -182,6 +182,8 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
             attachments = []
             
             # 1. PDF CV using Playwright (100% match to HTML)
+            # [🛡️ FIX]: Initialize cv_pdf_path to None BEFORE the try block
+            cv_pdf_path = None
             try:
                 from core.cv_playwright_pdf import generate_cv_from_html_playwright
                 cv_pdf_path = generate_cv_from_html_playwright()
@@ -189,18 +191,21 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
                     attachments.append(cv_pdf_path)
                     logging.info(f"✅ Added Playwright PDF CV: {cv_pdf_path}")
                 else:
-                    raise Exception("Playwright PDF generation failed")
+                    raise Exception("Playwright PDF generation failed or returned None")
             except Exception as e:
-                if "No module named" in str(e) or cv_pdf_path is None:
+                if "No module named" in str(e):
                     logging.debug("⏭️ Playwright not available, using FPDF")
                 else:
                     logging.warning(f"⚠️ Playwright failed: {e}, falling back to FPDF")
                 # Fallback to FPDF if Playwright fails
-                from core.cv_pdf_full import generate_full_cv_pdf
-                cv_pdf_path = generate_full_cv_pdf()
-                if cv_pdf_path and os.path.exists(cv_pdf_path):
-                    attachments.append(cv_pdf_path)
-                    logging.info(f"✅ Added FPDF CV: {cv_pdf_path}")
+                try:
+                    from core.cv_pdf_full import generate_full_cv_pdf
+                    cv_pdf_path = generate_full_cv_pdf()
+                    if cv_pdf_path and os.path.exists(cv_pdf_path):
+                        attachments.append(cv_pdf_path)
+                        logging.info(f"✅ Added FPDF CV: {cv_pdf_path}")
+                except Exception as fpdf_err:
+                    logging.error(f"❌ FPDF fallback also failed: {fpdf_err}")
             
             # 2. Cover Letter PDF
             try:
@@ -255,6 +260,9 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
         attachments = []
         
         # 1. CV PDF - Try Playwright first (best quality)
+        # [🛡️ FIX]: Initialize cv_pdf_path to None BEFORE the try block
+        # to prevent UnboundLocalError in the except handler
+        cv_pdf_path = None
         try:
             from core.cv_playwright_pdf import generate_cv_from_html_playwright
             cv_pdf_path = generate_cv_from_html_playwright()
@@ -263,21 +271,23 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
                 attachments.append(cv_pdf_path)
                 logging.info(f"✅ Using Playwright PDF CV for {company} (100% HTML match)")
             else:
-                raise Exception("Playwright PDF generation failed")
+                raise Exception("Playwright PDF generation failed or returned None")
         except Exception as e:
-            if "No module named" in str(e) or cv_pdf_path is None:
+            if "No module named" in str(e):
                 logging.debug("⏭️ Playwright not available, using FPDF")
             else:
                 logging.warning(f"⚠️ Playwright failed: {e}, falling back to FPDF")
             # Fallback to FPDF
-            from core.cv_pdf_full import generate_full_cv_pdf
-            cv_pdf_path = generate_full_cv_pdf()
-            
-            if cv_pdf_path and os.path.exists(cv_pdf_path):
-                attachments.append(cv_pdf_path)
-                logging.info(f"✅ Using FPDF CV for {company} (professional)")
-            else:
-                logging.error(f"❌ Failed to generate PDF CV")
+            try:
+                from core.cv_pdf_full import generate_full_cv_pdf
+                cv_pdf_path = generate_full_cv_pdf()
+                if cv_pdf_path and os.path.exists(cv_pdf_path):
+                    attachments.append(cv_pdf_path)
+                    logging.info(f"✅ Using FPDF CV for {company} (professional)")
+                else:
+                    logging.error(f"❌ Failed to generate PDF CV via FPDF")
+            except Exception as fpdf_err:
+                logging.error(f"❌ FPDF fallback also failed: {fpdf_err}")
         
         # 2. Cover Letter PDF
         try:

@@ -19,7 +19,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - [MARKET ORACLE] - 
 
 # ZERO-COST REQUIREMENT: Uses Gemini Free Tier
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-2.0-flash-exp')
+# [🛡️ FIX 2026-05-07]: gemini-2.0-flash-exp deprecated → use gemini-2.5-flash
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 async def scrape_expansion_news() -> list:
     """100% Free Web Scraper for MENA/Global expansion news."""
