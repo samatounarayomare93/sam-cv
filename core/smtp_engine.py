@@ -681,16 +681,16 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         # ============================================================
         # ROTATION ORDER: HTTP providers first (work on Render), SMTP last
         # Render blocks outbound SMTP ports — Brevo/Mailjet/SendPulse use HTTP API
+        # Brevo FIRST on Render — it's the most reliable HTTP provider we have configured
         # ============================================================
         is_render = bool(os.getenv("RENDER"))
         if is_render:
             rotation_order = [
-                ("Resend",     _try_resend),
-                ("Zoho",       _try_zoho),   # Zoho HTTP API works on Render
-                ("Brevo",      _try_brevo),
+                ("Brevo",      _try_brevo),      # ← FIRST: HTTP API, always works on Render
+                ("Resend",     _try_resend),      # ← needs verified custom domain
+                ("Zoho",       _try_zoho),        # ← needs ZOHO_API_KEY or ZEPTO_API_KEY
                 ("SendPulse",  _try_sendpulse),
                 ("Mailjet",    _try_mailjet),
-                # Zoho SMTP skipped on Render — port 465/587 always times out
             ]
         else:
             rotation_order = [
@@ -717,6 +717,31 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                         return True
             except Exception as e:
                 logging.warning(f"⚠️ Gmail API failed: {e}")
+
+        # ── ABSOLUTE LAST RESORT: Zoho SMTP tunneled via Brevo port 2525 ──────
+        # Render blocks 465/587 but allows 2525. Use Zoho address as visible sender.
+        brevo_user_lr = os.getenv("BREVO_SMTP_LOGIN", "").strip()
+        brevo_pass_lr = os.getenv("BREVO_SMTP_PASSWORD", "").strip()
+        zoho_user_lr = os.getenv("ZOHO_SMTP_USER", "").strip()
+        if brevo_user_lr and brevo_pass_lr and zoho_user_lr:
+            try:
+                tunnel_provider = {
+                    'name': 'Zoho-via-Brevo-2525',
+                    'server': 'smtp-relay.brevo.com',
+                    'port': 2525,
+                    'email': brevo_user_lr,
+                    'password': brevo_pass_lr,
+                    'use_ssl': False
+                }
+                logging.info(f"📧 [LAST-RESORT] Trying Zoho via Brevo tunnel port 2525...")
+                res = _send_via_provider(to_email, company_name, job_title, custom_body, tunnel_provider,
+                                         attachment_paths, sender_name, highlights, subject=subject,
+                                         reply_to=reply_to, sender_override=zoho_user_lr)
+                if res:
+                    logging.info("✅ [LAST-RESORT] Zoho-via-Brevo-2525 SUCCESS!")
+                    return True
+            except Exception as e:
+                logging.warning(f"⚠️ [LAST-RESORT] Tunnel failed: {e}")
 
         logging.error("❌ ALL PROVIDERS EXHAUSTED for today!")
         return False
@@ -1248,25 +1273,20 @@ def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, att
 
 
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
-    """[BREVO REST API] 300/day free. Best for corporate email domains."""
+    """[BREVO REST API] 300/day free. Works on Render (HTTP port 443)."""
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
-
-    # 🎯 SKIP Gmail recipients — Brevo can't deliver to Gmail
-    # Use Resend for Gmail, Brevo for corporate emails
-    if to_email and to_email.lower().endswith('@gmail.com'):
-        logging.info(f"⏭️ [BREVO] Skipping Gmail recipient {to_email} — use Resend instead")
-        return False
 
     # [👑 FIX] Use a verified sender address — priority:
     # 1. BREVO_SENDER_EMAIL env var (explicitly verified on Brevo)
     # 2. GMAIL_SMTP_USER (usually verified)
     # 3. BREVO_SMTP_LOGIN (the Brevo account login itself — always verified)
-    # Never use Hotmail/Outlook as sender — causes soft bounces
     brevo_sender = os.getenv("BREVO_SENDER_EMAIL", "").strip()
     gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
     brevo_login = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
 
+    # On Render: prefer Gmail sender (verified by Brevo) over Brevo login
+    # Brevo login (a974ef001@smtp-brevo.com) looks spammy as a sender
     sender_email = brevo_sender or gmail_user or brevo_login
     if not sender_email:
         logging.warning("⚠️ [BREVO] No verified sender email configured. Set BREVO_SENDER_EMAIL in env.")
