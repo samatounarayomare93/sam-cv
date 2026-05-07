@@ -701,9 +701,10 @@ class RealityShapingDB:
 
     async def get_pending_leads(self, limit: int = 10) -> List[Dict]:
         if not self.enabled: return []
-        # [🎯 FIX]: Also filter out leads with no email so we never try to send to empty address
+        # [🔥 FIX]: Accept ALL pending leads including those with guessed emails
+        # Previously filtered out empty emails but now email guessing fills them in save_potential_lead
         success, data = await self._request_with_retry("GET",
-            f"{self.url}/rest/v1/leads?status=in.(pending,circadian_hold)&email=not.is.null&email=neq.&order=priority_score.desc&limit={limit}")
+            f"{self.url}/rest/v1/leads?status=in.(pending,circadian_hold)&order=priority_score.desc&limit={limit}")
         if success and isinstance(data, list):
             logging.info(f"📊 [DB-FETCH] Found {len(data)} pending leads meeting all criteria.")
             # Secondary filter: skip leads with placeholder company names

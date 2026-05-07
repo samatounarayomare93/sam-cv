@@ -1226,7 +1226,8 @@ class AlphaOrchestrator:
                         l for l in raw_leads
                         if l.get('company_name', '').lower().strip() not in JUNK_COMPANY_NAMES
                         and len(l.get('company_name', '').strip()) >= 3
-                        and l.get('email', '') != ''  # Only save leads with real emails
+                        # [🔥 FIX]: Don't reject leads without email - email guessing will handle them
+                        # Previously: and l.get('email', '') != ''  ← THIS WAS BLOCKING 80% OF LEADS!
                     ]
                     logging.info(f"📥 PERSISTENCE: Archiving {len(clean_leads)}/{len(raw_leads)} clean leads to the Hive-Mind...")
                     save_tasks = [self.db.save_potential_lead(l, score=l.get('priority_score', 80)) for l in clean_leads]
@@ -1258,17 +1259,26 @@ class AlphaOrchestrator:
                 if old_size > 0:
                     logging.info(f"🔄 Session dedup reset: cleared {old_size} entries for next cycle")
                 
-                # 100% SOVEREIGN STEALTH: Adaptive Heartbeat
+                # [🔥 SMART QUEUE REFILL]: Check pending leads count
+                # If queue is empty → scrape immediately (don't wait full interval)
+                # If queue has leads → short wait and process them
                 pending_count = await self.db.get_pending_leads_count() if self.db else 0
                 
-                if pending_count > 0 and not self.emergency_strike_requested:
-                    logging.info(f"⚡ FAST-TRACK: {pending_count} leads remaining. Skipping deep sleep.")
-                    await self.poisson_jitter(30)
-                elif not self.emergency_strike_requested:
-                    await self.poisson_jitter(300)
-                else:
+                if self.emergency_strike_requested:
                     self.emergency_strike_requested = False
                     logging.info("⚡ EMERGENCY STRIKE: Bypassing heartbeat cycle.")
+                elif pending_count > 50:
+                    # Lots of leads waiting → process fast
+                    logging.info(f"⚡ FAST-TRACK: {pending_count} leads in queue. Short cooldown (30s).")
+                    await asyncio.sleep(30)
+                elif pending_count > 0:
+                    # Some leads → short wait
+                    logging.info(f"⚡ FAST-TRACK: {pending_count} leads remaining. Skipping deep sleep.")
+                    await self.poisson_jitter(30)
+                else:
+                    # Queue empty → scrape immediately, no long wait
+                    logging.info(f"📭 QUEUE EMPTY: Triggering immediate scrape cycle (no wait).")
+                    await asyncio.sleep(10)  # Just 10 seconds then scrape again
 
             except Exception as e:
                 logging.error(f"Divine loop cycle failed: {e}")

@@ -150,25 +150,25 @@ services:
       - key: MAX_PARALLEL_STRIKES
         value: "15"
       - key: MAX_QUALIFIED_LEADS_PER_CYCLE
-        value: "300"
+        value: "500"
       - key: MAX_APPLICATIONS_PER_DAY
         value: "1500"
       - key: MAX_APPLICATIONS_PER_HOUR
         value: "120"
       - key: MIN_MATCH_SCORE
-        value: "55"
+        value: "45"
       - key: QUALITY_THRESHOLD
-        value: "55"
+        value: "45"
       - key: BATCH_SIZE
-        value: "75"
+        value: "100"
       - key: BATCH_PROCESSING_ENABLED
         value: "true"
       - key: SCRAPE_INTERVAL_MINUTES
-        value: "90"
+        value: "45"
       - key: MAX_PARALLEL_SCRAPERS
-        value: "7"
+        value: "12"
       - key: MAX_SCRAPER_PAGES
-        value: "120"
+        value: "200"
       - key: SCRAPER_DELAY_MIN
         value: "2"
       - key: SCRAPER_DELAY_MAX
