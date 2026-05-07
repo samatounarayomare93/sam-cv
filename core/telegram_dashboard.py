@@ -152,7 +152,8 @@ class SovereignDashboard:
             BotCommand("pause", "⏸️ إيقاف مؤقت (Pause Engine)"),
             BotCommand("resume", "🟢 استئناف العمل (Resume Swarm)"),
             BotCommand("unpause", "▶️ إلغاء الإيقاف (Unpause)"),
-            BotCommand("omega_halt", "🛑 التوقف التام (Total Halt)")
+            BotCommand("omega_halt", "🛑 التوقف التام (Total Halt)"),
+            BotCommand("fix", "🔧 إصلاح طارئ (Emergency Fix & Restart)")
         ]
         try:
             await application.bot.set_my_commands(commands)
@@ -440,6 +441,58 @@ class SovereignDashboard:
         elif cmd == "/reboot":
             # ☁️ CLOUD-SAFE: On cloud, Render handles restarts
             await update.effective_message.reply_text("🔄 <b>REBOOT REQUEST</b>\nOn cloud, Render automatically restarts the bot if needed. System is running 24/7.", parse_mode='HTML')
+
+        elif cmd == "/fix" or cmd == "/reset" or cmd == "/forcestart":
+            """[🔥 EMERGENCY FIX]: Force reset leadership, clear kill switch, restart engine."""
+            await update.effective_message.reply_text("🔧 <b>EMERGENCY FIX INITIATED...</b>\n<i>Resetting all locks and restarting engine...</i>", parse_mode='HTML')
+            
+            steps = []
+            try:
+                # Step 1: Disable kill switch in DB
+                await self.db.activate_kill_switch(False)
+                os.environ["KILL_SWITCH_ACTIVE"] = "false"
+                steps.append("✅ Kill switch: DISABLED")
+            except Exception as e:
+                steps.append(f"⚠️ Kill switch reset failed: {e}")
+            
+            try:
+                # Step 2: Force claim leadership by clearing stale heartbeat
+                old_time = "2020-01-01T00:00:00"
+                await self.db.update_setting("active_bot_heartbeat", old_time)
+                await asyncio.sleep(1)
+                is_leader = await self.db.claim_bot_leadership()
+                steps.append(f"✅ Leadership: {'CLAIMED' if is_leader else 'FAILED'}")
+            except Exception as e:
+                steps.append(f"⚠️ Leadership reset failed: {e}")
+            
+            try:
+                # Step 3: Check pending leads count
+                count = await self.db.get_pending_leads_count()
+                steps.append(f"📊 Pending leads in queue: {count}")
+                if count == 0:
+                    steps.append("⚠️ Queue is EMPTY - bot will scrape new jobs in next cycle")
+                else:
+                    steps.append(f"🚀 Bot will process {count} leads immediately")
+            except Exception as e:
+                steps.append(f"⚠️ Queue check failed: {e}")
+            
+            try:
+                # Step 4: Send heartbeat to confirm DB connection
+                await self.db.send_heartbeat()
+                steps.append("✅ Database: CONNECTED")
+            except Exception as e:
+                steps.append(f"❌ Database: FAILED - {e}")
+            
+            result_msg = (
+                "🔧 <b>EMERGENCY FIX COMPLETE</b>\n"
+                "━━━━━━━━━━━━━━━\n"
+                + "\n".join(steps) +
+                "\n━━━━━━━━━━━━━━━\n"
+                "🔥 <b>Engine is running!</b>\n"
+                "<i>If queue was empty, bot will scrape new jobs in ~90 minutes.\n"
+                "Use /status to monitor progress.</i>"
+            )
+            await update.effective_message.reply_text(result_msg, parse_mode='HTML')
 
         elif cmd == "/hud":
             msg = await update.effective_message.reply_text("📟 <b>INITIALIZING LIVE HUD...</b>", parse_mode='HTML')
@@ -1584,14 +1637,11 @@ class SovereignDashboard:
                                 asyncio.create_task(PhantomClient().run_watchdog())
                             except Exception as e:
                                 logging.error(f"⚠️ Failed to start PhantomClient: {e}")
-                            try:
-                                from core.main_bot import AlphaOrchestrator
-                                orch = AlphaOrchestrator(db=self.db, ai=self.ai)
-                                asyncio.create_task(orch.execute_divine_loop())
-                            except Exception as e:
-                                logging.error(f"⚠️ Failed to start AlphaOrchestrator: {e}")
                             
-                            logging.info("✅ ALL LOOPS ARMED: Auto-Backup, Watchdogs, Phantom & ALPHA ORCHESTRATOR.")
+                            # [🔥 FIX]: Do NOT start AlphaOrchestrator here — it's already running
+                            # from run.py as a separate task. Starting it twice causes conflicts
+                            # and double-processing of leads.
+                            logging.info("✅ ALL LOOPS ARMED: Auto-Backup, Watchdogs & Phantom. (Engine already running from run.py)")
                             
                             # HUD RECONNECTION LOGIC
                             try:

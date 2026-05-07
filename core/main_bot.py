@@ -405,8 +405,24 @@ class AlphaOrchestrator:
         self._session = None
 
     async def check_kill_switch(self) -> bool:
-        """Reads global environment and live DB flag for instantaneous halt."""
+        """Reads global environment AND live DB flag for instantaneous halt."""
+        # Check env var first (fast)
         kill_switch = os.getenv("KILL_SWITCH_ACTIVE", "False").lower() == "true"
+        
+        # Also check DB kill switch (so /kill Telegram command actually works)
+        if not kill_switch and self.db:
+            try:
+                success, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/system_settings?key=eq.kill_switch&select=value&limit=1"
+                )
+                if success and isinstance(data, list) and data:
+                    db_kill = str(data[0].get("value", "false")).lower() == "true"
+                    if db_kill:
+                        kill_switch = True
+            except Exception:
+                pass  # If DB check fails, don't halt
+        
         if kill_switch:
             logging.critical("🛑 KILL SWITCH ENGAGED. HALTING ALL OPERATIONS.")
             self.is_running = False
@@ -1080,24 +1096,13 @@ class AlphaOrchestrator:
                         
                         if is_leader:
                             logging.info("🔥 [LOOP-START] we are leader! Syncing cloud...")
-                            cloud_leads = await self.db.get_pending_leads(limit=20)
-                            logging.info(f"🔥 [LOOP-START] Found {len(cloud_leads)} cloud leads.")
-                            
-                            if cloud_leads:
-                                logging.info(f"🚀 MISSION READY: Found {len(cloud_leads)} pending strikes.")
-                                for lead in cloud_leads:
-                                    try:
-                                        logging.info(f"🎯 TRIGGERING STRIKE for {lead.get('company_name')}...")
-                                        await self.process_single_lead(lead)
-                                    except Exception as e:
-                                        logging.error(f"❌ CRITICAL STRIKE FAILURE: {e}", exc_info=True)
-                            else:
-                                logging.info("📡 CLOUD SYNC: No pending strikes found.")
+                            # [🔥 FIX]: Only fetch leads ONCE per cycle (was fetched twice causing double API calls)
+                            # Leads will be fetched again below in the main processing block
+                            logging.info("📡 [LOOP-START] Leadership confirmed. Proceeding to main processing...")
                         else:
                             logging.info("💤 STANDBY: This node is currently an Auxiliary Node.")
-                            is_render = os.getenv("RENDER") is not None
-                            logging.critical("🏰 SOVEREIGN OVERRIDE: Active Cloud Node detected. (Bypassed for testing)")
-                            # sys.exit(0)
+                            # [🔥 FIX]: Don't exit on standby - just wait and retry leadership
+                            logging.info("🔄 Retrying leadership in next cycle...")
                     except Exception as e:
                         logging.error(f"❌ CLOUD SYNC FAILURE: {e}")
 
@@ -1112,10 +1117,10 @@ class AlphaOrchestrator:
                 logging.info("🧬 EVOLUTION: Fetching variant performance stats...")
                 weights = await self.db.get_variant_weights() if self.db else None
                 
-
+                # [🔥 FIX]: Single lead fetch per cycle (removed duplicate fetch above)
                 try:
                     logging.info("🧠 CLOUD SYNC: Checking for pending strikes in the Hive-Mind...")
-                    cloud_leads = await self.db.get_pending_leads(limit=20)
+                    cloud_leads = await self.db.get_pending_leads(limit=int(os.getenv("MAX_QUALIFIED_LEADS_PER_CYCLE", 300)))
                     if cloud_leads:
                         logging.info(f"🚀 MISSION READY: Found {len(cloud_leads)} pending strikes. Igniting Strikes...")
                         tasks = [self.process_single_lead(lead, variant_weights=weights) for lead in cloud_leads]
