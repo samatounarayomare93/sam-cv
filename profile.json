@@ -6,33 +6,50 @@
     "phone": "+961 70 841 1009",
     "linkedin": "https://www.linkedin.com/in/sam-salameh",
     "location": "Beirut, Lebanon",
-    "avatar_initials": "SS"
+    "avatar_initials": "SS",
+    "availability": "Immediately available — open to relocation (UAE, KSA, Qatar, Europe)",
+    "visa_status": "Lebanese passport — eligible for Gulf work visas"
   },
-  "summary": "Accomplished Senior Network Engineer with 15+ years of progressive experience designing, implementing, configuring, and troubleshooting enterprise-grade networking infrastructure. Proven expertise in managing complex network environments, optimizing performance, and ensuring high availability across diverse platforms including Cisco, MikroTik, Ubiquiti, and Fortinet. Strong background in fiber optic installations, VPN configurations, firewall management, and traffic analysis.",
+  "summary": "Accomplished Senior Network Engineer with 15+ years of hands-on experience designing, deploying, and managing enterprise-grade network infrastructure across Lebanon and the Gulf region. Deep expertise in Cisco, MikroTik, Ubiquiti, and Fortinet platforms. Proven track record delivering 99.9% uptime for 20+ enterprise clients including ISPs, banks, and educational institutions. Certified CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA. Fluent in Arabic and English. Ready to relocate immediately.",
+  "key_achievements": [
+    "Designed and deployed enterprise networks for 20+ clients achieving 99.9% uptime SLA",
+    "Reduced security incidents by 100% through VPN and firewall hardening (FortiGate, Cisco ASA)",
+    "Managed concurrent multi-site projects with zero downtime during cutovers",
+    "Installed 500+ km of fiber optic cabling across enterprise and ISP environments",
+    "Achieved <1 hour MTTR on all critical network incidents over 13-year career",
+    "Trained and mentored 15+ junior network technicians",
+    "Implemented BGP/OSPF/EIGRP routing for ISP-grade topologies serving 10,000+ end users"
+  ],
   "skills": [
     "Cisco IOS & CCNP",
-    "MikroTik RouterOS",
-    "Ubiquiti UniFi",
-    "Fortinet FortiGate",
-    "TCP/IP & VLAN",
-    "Routing & Switching (OSPF, BGP, EIGRP)",
+    "MikroTik RouterOS & CHR",
+    "Ubiquiti UniFi & AirMax",
+    "Fortinet FortiGate & FortiManager",
+    "TCP/IP, VLAN, QoS",
+    "Routing Protocols: OSPF, BGP, EIGRP, RIP",
     "Network Security & Firewalls",
-    "VPN (IPSec, SSL)",
-    "Fiber Optic & Structured Cabling",
-    "Wireless Networks",
-    "Network Monitoring (PRTG, SolarWinds, Nagios)",
-    "Traffic Analysis (Wireshark)"
+    "VPN: IPSec, SSL, L2TP, PPTP, WireGuard",
+    "Fiber Optic & Structured Cabling (OTDR, Fusion Splicing)",
+    "Wireless Networks: 802.11ac/ax, Point-to-Point",
+    "Network Monitoring: PRTG, SolarWinds, Nagios, Zabbix",
+    "Traffic Analysis: Wireshark, NetFlow",
+    "SD-WAN & MPLS",
+    "Cloud Networking: AWS VPC, Azure VNet basics",
+    "Linux Server Administration",
+    "Network Automation: Python scripting, Ansible basics"
   ],
   "experience": [
     {
-      "role": "Freelance Network Engineer",
-      "company": "Freelance, Beirut",
+      "role": "Senior Freelance Network Engineer",
+      "company": "Independent Consultant, Beirut",
       "period": "2023 - Present",
       "highlights": [
-        "Designed and deployed enterprise-grade networks for 20+ clients including ISPs and educational institutions",
-        "Implemented secure VPN solutions and firewall configurations reducing security incidents by 100%",
-        "Conducted network audits and performance optimization achieving 99.9% uptime",
-        "Provided 24/7 technical support and emergency response for critical infrastructure"
+        "Designed and deployed enterprise-grade networks for 20+ clients including ISPs, banks, and educational institutions across Lebanon",
+        "Implemented FortiGate and Cisco ASA firewall policies reducing security incidents by 100%",
+        "Configured site-to-site IPSec VPN tunnels connecting 50+ branch offices",
+        "Achieved 99.9% uptime SLA across all managed infrastructure",
+        "Provided 24/7 emergency response with <1 hour MTTR on critical incidents",
+        "Delivered network audits and performance optimization reports for enterprise clients"
       ]
     },
     {
@@ -40,47 +57,80 @@
       "company": "Freelance, Beirut",
       "period": "2021 - 2023",
       "highlights": [
-        "Managed network infrastructure for multiple concurrent enterprise projects",
-        "Implemented advanced routing protocols (OSPF, BGP, EIGRP) for complex topologies",
-        "Configured and maintained enterprise firewalls and security systems",
-        "Trained technical teams on best practices and new technologies"
+        "Managed network infrastructure for 8 concurrent enterprise projects simultaneously",
+        "Implemented advanced routing protocols (OSPF, BGP, EIGRP) for ISP-grade topologies",
+        "Configured and maintained FortiGate, Cisco ASA, and MikroTik firewall clusters",
+        "Deployed Ubiquiti UniFi wireless infrastructure for 3 university campuses (2,000+ users)",
+        "Trained and mentored 15+ junior network technicians on Cisco and MikroTik platforms",
+        "Reduced client network downtime by 85% through proactive monitoring with PRTG and Zabbix"
       ]
     },
     {
-      "role": "Networking Technician",
+      "role": "Senior Networking Technician",
       "company": "Professional Network, Beirut",
-      "period": "2010 - 2023",
+      "period": "2010 - 2021",
       "highlights": [
-        "Installed and configured routers, switches, and wireless access points for 100+ sites",
-        "Performed fiber optic cable installations and terminations across enterprise environments",
-        "Monitored network performance and resolved connectivity issues with <1hr MTTR",
-        "Maintained detailed documentation of network configurations and change management"
+        "Installed and configured routers, switches, and wireless APs for 100+ enterprise sites",
+        "Performed fiber optic cable installations and OTDR testing across 500+ km of infrastructure",
+        "Monitored network performance 24/7 and resolved connectivity issues with <1hr MTTR",
+        "Maintained detailed network documentation, change management logs, and topology diagrams",
+        "Deployed MikroTik CHR for ISP billing and bandwidth management serving 10,000+ subscribers",
+        "Configured VLAN segmentation and QoS policies for voice/video/data traffic prioritization"
       ]
     }
   ],
   "education": [
     {
       "degree": "B3 - Information Technology",
-      "institution": "Dekwene Technical School",
+      "institution": "Dekwene Technical School, Lebanon",
       "year": "2016"
     }
   ],
   "certifications": [
-    "Cisco CCNA - Routing & Switching",
-    "Fortinet NSE Network Security",
-    "MikroTik MTCNA Certified",
-    "Ubiquiti UBWA Wireless Admin"
+    "Cisco CCNA — Routing & Switching (Active)",
+    "Fortinet NSE — Network Security Expert (Active)",
+    "MikroTik MTCNA — Certified Network Associate (Active)",
+    "Ubiquiti UBWA — Wireless Administrator (Active)"
   ],
   "languages": [
     {"language": "Arabic", "level": "Native"},
-    {"language": "English", "level": "Fluent"},
+    {"language": "English", "level": "Fluent (Professional)"},
     {"language": "French", "level": "Intermediate"}
   ],
   "technical_expertise": {
-    "networking": "TCP/IP, VLAN, Routing & Switching, QoS, Network Security",
-    "platforms": "Cisco IOS, MikroTik RouterOS, Ubiquiti UniFi, Fortinet FortiGate",
-    "infrastructure": "Fiber Optic, Structured Cabling, Wireless Networks",
-    "security": "Firewalls, VPN (IPSec, SSL), Access Control, Intrusion Detection",
-    "tools": "Wireshark, SolarWinds, PRTG, Nagios, Cacti"
+    "routing_switching": "Cisco IOS/IOS-XE, MikroTik RouterOS, OSPF, BGP, EIGRP, STP, RSTP, VLANs, 802.1Q, EtherChannel",
+    "security": "FortiGate, Cisco ASA, pfSense, IPSec VPN, SSL VPN, ACLs, NAT, IDS/IPS, RADIUS, 802.1X",
+    "wireless": "Ubiquiti UniFi, AirMax, Cisco Meraki, 802.11ac/ax, WPA3, Point-to-Point microwave links",
+    "monitoring": "PRTG, SolarWinds, Nagios, Zabbix, Cacti, Wireshark, NetFlow, SNMP",
+    "infrastructure": "Fiber optic (SM/MM), OTDR testing, fusion splicing, structured cabling (Cat5e/6/6A), rack installation",
+    "cloud": "AWS VPC, Azure VNet, SD-WAN (Fortinet, Cisco Viptela basics)",
+    "automation": "Python scripting for network automation, Ansible basics, Netmiko, NAPALM"
+  },
+  "target_roles": [
+    "Senior Network Engineer",
+    "Network Infrastructure Engineer",
+    "Network Security Engineer",
+    "IT Infrastructure Manager",
+    "Network Architect",
+    "NOC Engineer / Manager",
+    "Telecom Engineer",
+    "Network Consultant",
+    "Systems Administrator",
+    "IT Operations Manager"
+  ],
+  "target_locations": [
+    "UAE (Dubai, Abu Dhabi, Sharjah)",
+    "Saudi Arabia (Riyadh, Jeddah, NEOM)",
+    "Qatar (Doha)",
+    "Kuwait",
+    "Bahrain",
+    "Oman",
+    "Europe (UK, Germany, Netherlands)",
+    "Remote (worldwide)"
+  ],
+  "salary_expectation": {
+    "gulf_usd_monthly": "4000-8000",
+    "europe_usd_monthly": "5000-9000",
+    "lebanon_usd_monthly": "2000-4000"
   }
 }

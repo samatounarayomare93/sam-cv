@@ -334,28 +334,25 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         if test_recv:
             to_email = test_recv
     
-    # [🔥 WORLD-CLASS SUBJECT LINE ENGINE]: A/B Testing with proven high-open-rate tricks
-    # Based on: Silicon Valley growth hacking + Russian social engineering + Israeli intelligence
+    # 5 subject line variants — A/B tested per recipient (deterministic via MD5 hash)
     import hashlib
     _ab_seed = int(hashlib.md5(f"{to_email}{company_name}".encode()).hexdigest()[:8], 16) % 5
     
-    # 5 variants - each proven to increase open rates
     _subject_variants = [
-        # Variant 0: "Re:" trick - looks like a reply (40% higher open rate!)
-        # Used by top sales teams worldwide - recruiter thinks they forgot to reply
-        f"Re: {job_title} at {company_name}",
+        # Variant 0: Direct value proposition — highest professional credibility
+        f"{job_title} Application — Sam Salameh | CCNA, NSE, MTCNA | {company_name}",
         
-        # Variant 1: Personal name first - stands out in inbox
-        f"Sam Salameh – {job_title} | {company_name}",
+        # Variant 1: Personal name first — stands out in inbox
+        f"Sam Salameh — Senior Network Engineer | {company_name}",
         
-        # Variant 2: Curiosity gap - makes recruiter want to open
-        f"Quick question about {company_name}'s {job_title} role",
+        # Variant 2: Curiosity + specificity — makes recruiter want to open
+        f"15+ Years Network Engineering Experience — {job_title} at {company_name}",
         
-        # Variant 3: Value proposition first - shows benefit immediately
-        f"{job_title} – 15+ Years Network Engineering | {company_name}",
+        # Variant 3: Achievement-led — shows value immediately
+        f"{job_title} | 99.9% Uptime, 20+ Enterprise Clients | {company_name}",
         
-        # Variant 4: Standard with strike ID (original - baseline)
-        f"Application: {job_title} – {company_name}" + (f" [{strike_id}]" if strike_id else ""),
+        # Variant 4: Clean standard with certifications
+        f"Application: {job_title} — Cisco CCNA + Fortinet NSE | {company_name}",
     ]
     
     subject = _subject_variants[_ab_seed]

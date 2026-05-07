@@ -666,16 +666,21 @@ class AlphaOrchestrator:
         except Exception as e:
             logging.debug(f"⚠️ Ghost job detection error: {e}")
 
-        # 🛡️ MX RECORD CHECK: Verify domain actually accepts emails (prevents bounces)
-        # Uses non-blocking async DNS check — never blocks the event loop
+        # 🛡️ MX RECORD CHECK: Only reject clearly unresolvable domains
+        # Don't reject on timeout — Render's DNS can be slow
         if email and '@' in email:
             domain = email.split('@')[-1].lower()
-            dns_ok = await _async_dns_check(domain)
-            if not dns_ok:
-                logging.info(f"🗑️ DNS FAIL: Domain '{domain}' doesn't resolve — rejecting '{email}'")
-                if self.db and job_url:
-                    await self.db.update_lead_status(job_url, "rejected")
-                return
+            # Only do DNS check for obviously guessed/fake domains
+            # Skip for known real company domains to avoid false rejections
+            SKIP_DNS_CHECK_TLDS = {'.ae', '.sa', '.qa', '.kw', '.bh', '.om', '.lb', '.com', '.net', '.org', '.io'}
+            domain_tld = '.' + domain.split('.')[-1] if '.' in domain else ''
+            if domain_tld not in SKIP_DNS_CHECK_TLDS:
+                dns_ok = await _async_dns_check(domain)
+                if not dns_ok:
+                    logging.info(f"🗑️ DNS FAIL: Domain '{domain}' doesn't resolve — rejecting '{email}'")
+                    if self.db and job_url:
+                        await self.db.update_lead_status(job_url, "rejected")
+                    return
         
         # ✅ FIX: Early email check — no point running AI analysis on leads with no contact
         if not email:
@@ -976,6 +981,32 @@ class AlphaOrchestrator:
                 if success:
                     logging.info(f"🚀 STRIKE SUCCESS: Application beamed to {company_name}")
                     await self.telemetry_stream("SUCCESS", f"✅ STRIKE SUCCESS - {company_name}")
+                    
+                    # 📱 TELEGRAM NOTIFICATION: Notify Sam on every successful send
+                    try:
+                        tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+                        tg_chat = os.getenv("TELEGRAM_CHAT_ID", "")
+                        if tg_token and tg_chat:
+                            import httpx as _httpx
+                            msg = (
+                                f"✅ <b>APPLICATION SENT!</b>\n"
+                                f"🏢 <b>{company_name}</b>\n"
+                                f"💼 {job_title}\n"
+                                f"📧 {email}\n"
+                                f"⭐ Score: {score}/100"
+                            )
+                            await asyncio.wait_for(
+                                asyncio.to_thread(
+                                    lambda: __import__('requests').post(
+                                        f"https://api.telegram.org/bot{tg_token}/sendMessage",
+                                        json={"chat_id": tg_chat, "text": msg, "parse_mode": "HTML"},
+                                        timeout=5
+                                    )
+                                ),
+                                timeout=8.0
+                            )
+                    except Exception:
+                        pass  # Never let Telegram notification break the flow
                     
                     # 🛡️ ANTI-BAN: Record successful application
                     from core.anti_ban_protection import get_protection

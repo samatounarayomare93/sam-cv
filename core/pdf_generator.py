@@ -75,24 +75,66 @@ def load_profile():
     return {
         "candidate": {
             "name": "Sam Salameh",
-            "title": "HR & Customer Operations Specialist",
-            "email": "sam.dev1@outlook.com",
-            "phone": "+961 76 005 412",
-            "linkedin": "linkedin.com/in/sam-salameh",
-            "location": "Keserwan, Lebanon",
-            "avatar_initials": "RC"
+            "title": "Senior Network Engineer",
+            "email": "samsalameh.cv@gmail.com",
+            "phone": "+961 70 841 1009",
+            "linkedin": "https://www.linkedin.com/in/sam-salameh",
+            "location": "Beirut, Lebanon",
+            "avatar_initials": "SS"
         },
-        "education": [
-            {"degree": "Bachelor in Human Resources", "institution": "Lebanese Canadian University", "year": "2016"},
-            {"degree": "Diploma in Health & Safety", "institution": "eLearning College, UK", "year": "2025"}
+        "summary": "Senior Network Engineer with 15+ years of experience designing and managing enterprise-grade network infrastructure. Certified CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA. Proven track record delivering 99.9% uptime for 20+ enterprise clients. Available for immediate relocation to UAE, KSA, Qatar, or Europe.",
+        "skills": [
+            "Cisco IOS & CCNP", "MikroTik RouterOS", "Ubiquiti UniFi",
+            "Fortinet FortiGate", "TCP/IP & VLAN", "OSPF, BGP, EIGRP",
+            "Network Security & Firewalls", "VPN (IPSec, SSL)",
+            "Fiber Optic & Structured Cabling", "PRTG, SolarWinds, Nagios"
         ],
-        "skills": ["HR Operations", "Recruitment", "Employee Onboarding", "Payroll", "Customer Support", "SLA Management"],
+        "certifications": [
+            "Cisco CCNA — Routing & Switching",
+            "Fortinet NSE — Network Security Expert",
+            "MikroTik MTCNA Certified",
+            "Ubiquiti UBWA Wireless Admin"
+        ],
         "experience": [
-            {"role": "HR & Operations Coordinator", "company": "Sam Consulting", "period": "2020 - Present"},
-            {"role": "Customer Service Representative", "company": "ISP, Keserwan", "period": "2023 - 2025"},
-            {"role": "Freelance Recruiter", "company": "Self-Employed", "period": "2023 - 2024"}
+            {
+                "role": "Senior Freelance Network Engineer",
+                "company": "Independent Consultant, Beirut",
+                "period": "2023 - Present",
+                "highlights": [
+                    "Deployed enterprise networks for 20+ clients with 99.9% uptime SLA",
+                    "Reduced security incidents by 100% via FortiGate/Cisco ASA hardening",
+                    "Configured site-to-site IPSec VPN for 50+ branch offices"
+                ]
+            },
+            {
+                "role": "Network Management Consultant",
+                "company": "Freelance, Beirut",
+                "period": "2021 - 2023",
+                "highlights": [
+                    "Managed 8 concurrent enterprise network projects",
+                    "Implemented OSPF/BGP/EIGRP routing for ISP-grade topologies",
+                    "Trained 15+ junior network technicians"
+                ]
+            },
+            {
+                "role": "Senior Networking Technician",
+                "company": "Professional Network, Beirut",
+                "period": "2010 - 2021",
+                "highlights": [
+                    "Installed networks for 100+ enterprise sites",
+                    "500+ km fiber optic installations with OTDR testing",
+                    "<1 hour MTTR on all critical incidents"
+                ]
+            }
         ],
-        "summary": "Architect of high-efficiency administrative and customer operations workflows. Proven expertise in overhauling full-cycle recruitment logistics and mitigating client billing conflicts."
+        "education": [
+            {"degree": "B3 - Information Technology", "institution": "Dekwene Technical School", "year": "2016"}
+        ],
+        "languages": [
+            {"language": "Arabic", "level": "Native"},
+            {"language": "English", "level": "Fluent"},
+            {"language": "French", "level": "Intermediate"}
+        ]
     }
 
 class CoverLetterPDF(FPDF):

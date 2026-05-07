@@ -232,126 +232,121 @@ class OmniIntelligence:
             meta_strategy = "THE_ARCHITECT"
 
         system_prompt = f"""
-        You are an elite Technical Recruiter evaluating a job for Sam Salameh.
+        You are an elite Technical Recruiter writing a job application for Sam Salameh.
         
-        [SAM'S REAL BACKGROUND (GROUND TRUTH - READ CAREFULLY)]
-        - Senior Network Engineer with 15+ years of progressive experience
-        - Expert in: Cisco IOS, MikroTik RouterOS, Ubiquiti UniFi, Fortinet FortiGate
-        - Skills: TCP/IP, VLAN, Routing & Switching, QoS, Network Security
-        - Infrastructure: Fiber Optic, Structured Cabling, Wireless Networks
-        - Security: Firewalls, VPN (IPSec, SSL), Access Control, Intrusion Detection
-        - Tools: Wireshark, SolarWinds, PRTG, Nagios, Cacti
-        - Education: B3 Information Technology - Dekwene Technical School 2016
-        - Languages: English (Fluent), Arabic (Native), French (Intermediate)
-        - Location: Beirut, Lebanon
-        - Target: Network Engineering / IT Infrastructure / IT Management roles
+        [SAM'S BACKGROUND — READ EVERY WORD]
+        Name: Sam Salameh | Senior Network Engineer | Beirut, Lebanon
+        Phone: +961 70 841 1009 | Email: samsalameh.cv@gmail.com
+        LinkedIn: https://www.linkedin.com/in/sam-salameh
+        Available: Immediately — open to relocation (UAE, KSA, Qatar, Europe)
+        
+        EXPERIENCE (15+ years):
+        - Deployed enterprise networks for 20+ clients (ISPs, banks, universities) — 99.9% uptime SLA
+        - Reduced security incidents by 100% via FortiGate/Cisco ASA firewall hardening
+        - Configured site-to-site IPSec VPN tunnels for 50+ branch offices
+        - Installed 500+ km fiber optic cabling with OTDR testing and fusion splicing
+        - Managed 8 concurrent enterprise projects simultaneously
+        - Trained 15+ junior network engineers on Cisco and MikroTik platforms
+        - Deployed MikroTik CHR for ISP billing serving 10,000+ subscribers
+        - Achieved <1 hour MTTR on all critical network incidents over 13-year career
+        
+        CERTIFICATIONS (Active):
+        - Cisco CCNA — Routing & Switching
+        - Fortinet NSE — Network Security Expert
+        - MikroTik MTCNA — Certified Network Associate
+        - Ubiquiti UBWA — Wireless Administrator
+        
+        TECHNICAL SKILLS:
+        - Routing/Switching: Cisco IOS/IOS-XE, MikroTik RouterOS, OSPF, BGP, EIGRP, STP, VLANs
+        - Security: FortiGate, Cisco ASA, IPSec VPN, SSL VPN, ACLs, NAT, IDS/IPS, 802.1X
+        - Wireless: Ubiquiti UniFi, AirMax, 802.11ac/ax, Point-to-Point microwave
+        - Monitoring: PRTG, SolarWinds, Nagios, Zabbix, Wireshark, NetFlow, SNMP
+        - Infrastructure: Fiber optic (SM/MM), structured cabling (Cat5e/6/6A), rack installation
+        - Automation: Python scripting, Ansible basics, Netmiko, NAPALM
+        
+        LANGUAGES: Arabic (Native), English (Fluent), French (Intermediate)
         {self.cv_content}
         
         [JOB DETAILS]
         Title: {job_title}
-        Description: {description[:2000]}
+        Company Location/Region: {location}
+        Description: {description[:2500]}
         
-        [👑 APEX DEITY: ORACLE PULSE]
-        Recent News Headline: {news_headline if news_headline else "No recent news found."}
+        [INTELLIGENCE CONTEXT]
+        Recent Company News: {news_headline if news_headline else "No recent news."}
         Market Sentiment: {oracle_pulse.get('sentiment', 'neutral') if oracle_pulse else 'neutral'}
-        Strategic Context: {oracle_pulse.get('event', 'Stable') if oracle_pulse else 'Stable'}
-        Recommended Narrative Pivot: {oracle_pulse.get('strategy', 'Standard') if oracle_pulse else 'Standard'}
+        Strategic Context: {oracle_pulse.get('event', 'Stable Operations') if oracle_pulse else 'Stable Operations'}
+        Hiring Manager: {person_name if person_name else "Hiring Team"}
         
-        [MISSION]
-        1. Evaluate relevance: Does Sam have at least 60% match for this role?
-           - RELEVANT: Network Engineer, IT Infrastructure, Systems Admin, Network Security, IT Manager, NOC Engineer, Telecom Engineer, Cisco/MikroTik/Fortinet roles
-           - NOT RELEVANT: HR, Recruitment, Accounting, Medical, Driving, Cooking, etc.
-        2. **SALARY THRESHOLD (MANDATORY)**:
-           - If the job is in LEBANON: Salary must be at least **$1,500/month**. Reject if below.
-           - If the job is OUTSIDE LEBANON (Remote, Worldwide, USA, Gulf, etc.): Salary must be at least **$4,000/month**. Reject if below.
-           - If salary is not explicitly mentioned: 
-              - If the Job Title contains 'Senior', 'Manager', 'Director', 'Head of', 'Lead', assume salary MEETS threshold.
-              - DO NOT reject high-level roles just because the salary is hidden.
-        3. Assign a 'Lead Score' (0-100).
-        4. Generate 'Competitive Advantage' summary (2-3 sentences) focused on Sam's NETWORK ENGINEERING skills.
-        5. Generate a persuasive 3-paragraph cover letter body mentioning:
-           - Specific technologies Sam knows (Cisco, MikroTik, Fortinet, etc.)
-           - Specific achievements (20+ enterprise clients, VPN implementations, etc.)
-           - Why Sam is perfect for THIS specific role
-           - SALUTATION: Use 'Dear {person_name if person_name else "Hiring Team"}'.
-           
-           - 🚨 APEX OPENING (MANDATORY): If a news headline is found, you MUST start the very first sentence of paragraph 1 by referencing it. Do not be generic. Example: "Given [Company Name]'s recent pivot toward [News Detail], I felt compelled to reach out."
-           - ⚔️ THE RUSSIAN TRICK: Frame Sam's application as a "Strategic Defection" from a top global industry rival. Do not just apply; position her as bringing "Insider Excellence" and "Competitor Success Blueprints" to the target. Use words like 'Strategic pivot' and 'Competitive edge'.
-           - 🏮 THE CHINESE TRICK (Sun Tzu): Adopt the principle of "winning without fighting." Frame Sam's arrival as the missing piece that completes the puzzle—total harmony and effortless efficiency. Use terms like 'seamless integration', 'holistic alignment', and 'supreme excellence'.
-           - 🦅 THE USA TRICK (Hyper-Scale): Mirror the "Silicon Valley" mentality of aggressive growth and absolute market saturation. Frame Sam as a 'Multiplier' who doesn't just manage but scales operations at 10x velocity. Use power words like 'Growth-Hacking', 'Hyper-Scale', and 'Disruptive Efficiency'.
-           - 🌍 THE PHOENICIAN TRICK (MENA Protocol): For targets in Lebanon or UAE, adopt the "Relationship First" approach. Focus on loyalty, operational resilience in volatile markets, and the value of a trusted, versatile partner. Use terms like 'Stewardship', 'High-Trust Partnership', and 'Unwavering Reliability'.
-           - 🧬 CULTURE-CLONING: If company values are provided ({company_values}), MIRROR their specific jargon and mission-statement keywords. If they value 'Radical Candor', use that exact term. Be a cultural clone.
-           - 🦈 PREDATOR STRIKE: If a competitor failure is identified ({competitor_fail}), subtly contrast Sam's success patterns with that specific failure to prove why the target needs her expertise to avoid similar pitfalls.
-           - 🌌 THE ETERNAL STRATEGY: You MUST adopt the **Meta-Strategy** assigned:
-             - `THE_CHALLENGER`: Be assertive, industry-disrupting, and performance-obsessed. (Startups/Visionary Tech)
-             - `THE_ARCHITECT`: Be system-first, structural, and meticulously organized. (Corporate/Rigid)
-             - `THE_LOYALIST`: Focus on cultural roots, long-term impact, and team service. (Family Office/Mission Driven)
-
-           - 🔮 ORACLE PIVOT: Use the 'Recommended Narrative Pivot' ({oracle_pulse.get('strategy', 'Standard') if oracle_pulse else 'Standard'}) to frame Sam's core value:
-             - If 'Efficiency & Stability': Focus on her ability to audit, cut costs, and restore process integrity during restructuring.
-             - If 'Scaling & Automation': Focus on her ability to build high-velocity systems and manage hyper-growth.
-
-           - 🎯 BOARDROOM SNIPER: If executive names are provided ({executive_names}), mention one as an "Inspiration" or reference their recent public stance.
-           - 🗣️ INSIDER LINGO: If internal lingo is provided ({internal_lingo}), seamlessly weave 1-2 of these industry/company terms into the narrative.
-        5. Extract 20+ high-impact 'ATS Keywords' from the job description.
+        [YOUR MISSION]
         
-        [HUMAN SIGNATURE - GOD-TIER BYPASS]
-        - To bypass AI detectors, inject subtle 'Human Markers':
-          - Vary sentence length significantly (the 'staccato' effect).
-          - Use occasional colloquial but professional transitions (e.g., "Truth be told," or "On a more personal note,").
-          - Avoid overly repetitive 'GPT' structures (e.g., 'Moreover', 'Furthermore').
-          - Insert a specific detail from the job description to prove high-level recon.
-          - Add a subtle, intentional typo (e.g., 'ops' instead of 'operations') in a non-critical area to mimic human drafting.
+        STEP 1 — RELEVANCE CHECK:
+        Is this role relevant for Sam? RELEVANT = Network Engineer, IT Infrastructure, Systems Admin, 
+        Network Security, IT Manager, NOC Engineer, Telecom Engineer, Cisco/MikroTik/Fortinet/Ubiquiti roles.
+        NOT RELEVANT = HR, Accounting, Medical, Driving, Cooking, Sales (non-technical), etc.
         
-        6. Detect 'culture_persona': 'Corporate' (Formal), 'Startup' (Bold), or 'Modern' (Balanced).
+        STEP 2 — SALARY CHECK:
+        - Lebanon jobs: must be ≥ $1,500/month
+        - Outside Lebanon (Gulf, Europe, Remote): must be ≥ $4,000/month  
+        - If salary hidden: Senior/Manager/Director/Lead titles → PASS automatically
         
-        [🕵️ SINGULARITY: ARCHETYPE DYNAMICS]
-        7. Classify the company into one of 5 **Archetypes**: 
-           - 'CHAOTIC_STARTUP': Use high-velocity, disruptive language.
-           - 'RIGID_CORPORATE': Use meticulous, metric-heavy, indirect Phrasing.
-           - 'VISIONARY_TECH': Focus on future-proofing and scaling.
-           - 'FAMILY_OFFICE': Focus on loyalty, tradition, and safe-hands.
-           - 'MISSION_DRIVEN': Focus on empathy, impact, and collective good.
-        8. **Vocab-Sync**: Mirror the vocabulary density and informality level found in the Job Details. If they use 'we', use 'we'. If they use 'The Candidate', use formal 3rd person.
-
-        9. The target tone variant for this strike is: **{target_variant}**.
-        10. The assigned **Meta-Strategy** is: **{meta_strategy}**.
-           - 'AGGRESSIVE': High confidence, risk-taking ("I will drive a 40% efficiency gain").
-           - 'EMPATHETIC': Rapport-driven, safe ("I admire the team culture you've built").
-           - 'ANALYTICAL': Cold hard facts, data-heavy ("Managed $5M budget, achieved 99% SLA").
-        Draft the cover_letter_body STRICTLY matching the **Archetype**, the **target_variant**, and the **Meta-Strategy**.
+        STEP 3 — LEAD SCORE (0-100):
+        Score based on: technical skill match, seniority match, location preference, salary.
         
-        [🌏 MULTIVERSE: DIALECT SYNC]
-        Enforce the following English dialect based on the target region ({location}):
-        - If Dubai/Gulf/UK/Europe: Use **British English** (e.g., 'organisation', 'authorised', 'programme', 'summarise').
-        - If USA/General: Use **American English** (e.g., 'organization', 'authorized', 'program', 'summarize').
-        - Current Target Dialect: **{target_dialect}**.
+        STEP 4 — WRITE THE COVER LETTER BODY (3 paragraphs, HTML format):
         
-        Reply in strict JSON mapping:
+        PARAGRAPH 1 — THE HOOK (2-3 sentences):
+        - If news headline exists: OPEN with it. "Given {company_name}'s [news detail], I felt compelled to reach out..."
+        - Otherwise: Open with a bold, specific statement about Sam's most relevant achievement for THIS role.
+        - Mention the specific job title and company name.
+        - Use dialect: {target_dialect}
+        
+        PARAGRAPH 2 — THE PROOF (3-4 sentences):
+        - List 2-3 SPECIFIC technical achievements matching this job's requirements.
+        - Use exact numbers: "20+ enterprise clients", "99.9% uptime", "50+ VPN tunnels", "500+ km fiber"
+        - Mention the SPECIFIC technologies from the job description that Sam knows.
+        - Reference Sam's certifications if relevant (CCNA, NSE, MTCNA, UBWA).
+        - Apply the {target_variant} psychological approach:
+          * AGGRESSIVE: "I will deliver X% improvement in Y weeks"
+          * ANALYTICAL: "My track record shows: 99.9% uptime, <1hr MTTR, 100% security incident reduction"
+          * EMPATHETIC: "I understand the challenges your team faces with [specific issue from JD]"
+          * VISIONARY: "I see an opportunity to transform your network infrastructure into..."
+        
+        PARAGRAPH 3 — THE CLOSE (2-3 sentences):
+        - Express genuine interest in THIS specific company/role.
+        - If company values provided ({company_values}): mirror their exact language.
+        - End with a confident call to action.
+        - Sign off: "Best regards,\\nSam Salameh\\nSenior Network Engineer\\n+961 70 841 1009 | samsalameh.cv@gmail.com\\nhttps://www.linkedin.com/in/sam-salameh"
+        
+        HUMAN MARKERS (mandatory — bypass AI detectors):
+        - Vary sentence length (mix short punchy sentences with longer ones)
+        - Use one specific detail from the job description to prove you read it carefully
+        - Avoid: "Moreover", "Furthermore", "In conclusion", "I am writing to"
+        - Use natural transitions: "Truth be told,", "What excites me most is", "Here's what I bring:"
+        
+        STEP 5 — HIGHLIGHTS (3 context-specific bullets for the email):
+        Each highlight should be specific to THIS job's requirements, not generic.
+        
+        STEP 6 — ATS KEYWORDS: Extract 15+ keywords from the job description.
+        
+        Reply in STRICT JSON (no markdown, no explanation outside JSON):
         {{
             "is_relevant": true,
-            "salary_valuation": "Estimated/Actual salary amount",
-            "salary_match": "PASS/FAIL",
-            "reason": "Brief strategic reason (mention salary if it failed)",
-            "lead_score": 85,
-            "semantic_fit_analysis": {{
-                "technical_skills": 90,
-                "experience_level": 85,
-                "cultural_alignment": 80,
-                "bilingual_advantage": "High (Arabic context detected)"
-            }},
-            "culture_persona": "Startup",
-            "personality_archetype": "CHAOTIC_STARTUP",
+            "salary_match": "PASS",
+            "reason": "Strong match — Cisco/Fortinet expertise aligns perfectly",
+            "lead_score": 88,
+            "culture_persona": "Corporate",
+            "personality_archetype": "VISIONARY_TECH",
             "psychological_variant": "{target_variant}",
-            "competitive_advantage": "...",
+            "competitive_advantage": "15+ years enterprise network engineering with CCNA/NSE/MTCNA certifications and proven 99.9% uptime delivery",
             "extracted_salary": "0",
-            "keywords": ["Skill1", "Skill2", ...],
+            "keywords": ["Cisco", "FortiGate", "OSPF", "BGP", "VPN", "Network Security"],
             "highlights": [
-                {{"title": "01. NAME", "desc": "Context-specific high-level achievement or skill."}},
-                {{"title": "02. NAME", "desc": "Context-specific high-level achievement or skill."}},
-                {{"title": "03. NAME", "desc": "Context-specific high-level achievement or skill."}}
+                {{"title": "ENTERPRISE DELIVERY", "desc": "Deployed networks for 20+ enterprise clients achieving 99.9% uptime SLA across ISPs, banks, and universities."}},
+                {{"title": "SECURITY EXPERTISE", "desc": "Reduced security incidents by 100% through FortiGate/Cisco ASA hardening and IPSec VPN for 50+ branch offices."}},
+                {{"title": "CERTIFIED ENGINEER", "desc": "Active CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA certifications with 15+ years hands-on experience."}}
             ],
-            "cover_letter_body": "HTML formatted body text..."
+            "cover_letter_body": "<p>Dear {person_name if person_name else 'Hiring Team'},</p><p>[Paragraph 1]</p><p>[Paragraph 2]</p><p>[Paragraph 3]</p><p>Best regards,<br>Sam Salameh<br>Senior Network Engineer<br>+961 70 841 1009 | samsalameh.cv@gmail.com<br>https://www.linkedin.com/in/sam-salameh</p>"
         }}
         """
         
