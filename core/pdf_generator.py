@@ -397,16 +397,42 @@ def generate_cover_letter_pdf(company, job_title, lead=None):
     pdf.cell(0, 7, f"Dear {company} Hiring Team,", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
     
-    # 5. BODY
-    body = [
-        f"I am writing to express my strong interest in the {job_title} position at {company}. With 15+ years of progressive experience in Network Engineering and IT Infrastructure, I have developed deep expertise in designing, implementing, and troubleshooting enterprise-grade networks across Cisco, MikroTik, Ubiquiti, and Fortinet platforms.",
-        f"Throughout my career, I have successfully deployed enterprise networks for 20+ clients, implemented advanced routing protocols (OSPF, BGP, EIGRP), configured VPN and firewall solutions, and maintained 99.9% network uptime. My hands-on experience with fiber optic installations, structured cabling, and wireless networks makes me a versatile and reliable network professional.",
-        f"I am confident that my technical depth and proven track record in network engineering would make me a valuable asset to {company}. I am available for immediate engagement and prepared to contribute meaningfully from day one. Thank you for your time and consideration."
-    ]
+    # 5. BODY — use AI-generated cover letter if available, else professional fallback
+    ai_body = lead.get('custom_body', '') if lead else ''
     
-    for para in body:
-        pdf.multi_cell(0, 6, para)
-        pdf.ln(4)
+    if ai_body and len(ai_body.strip()) > 100:
+        # Strip HTML tags for PDF plain text
+        import re as _re
+        from bs4 import BeautifulSoup as _BS
+        try:
+            clean = _BS(ai_body, 'html.parser').get_text(separator='\n')
+            clean = _re.sub(r'\n{3,}', '\n\n', clean).strip()
+            # Remove the sign-off if it's already in the PDF footer
+            clean = _re.sub(r'Best regards.*$', '', clean, flags=_re.DOTALL | _re.IGNORECASE).strip()
+            paragraphs = [p.strip() for p in clean.split('\n\n') if p.strip() and len(p.strip()) > 20]
+        except Exception:
+            paragraphs = []
+        
+        if not paragraphs:
+            # Fallback if parsing fails
+            paragraphs = [
+                f"I am writing to express my strong interest in the {job_title} position at {company}. With 15+ years of enterprise network engineering experience and active certifications in Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA, I am confident I can deliver immediate value to your team.",
+                f"Throughout my career, I have deployed enterprise networks for 20+ clients achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate/Cisco ASA hardening, configured IPSec/SSL VPN for 50+ branch offices, and installed 500+ km of fiber optic infrastructure. I am available for immediate relocation to the UAE, KSA, Qatar, or Europe.",
+                f"I would welcome the opportunity to discuss how my expertise aligns with {company}'s infrastructure goals. Please find my CV attached for your review. Thank you for your consideration."
+            ]
+    else:
+        # Professional fallback with Sam's real achievements
+        paragraphs = [
+            f"I am writing to express my strong interest in the {job_title} position at {company}. With 15+ years of enterprise network engineering experience and active certifications in Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA, I am confident I can deliver immediate value to your team.",
+            f"Throughout my career, I have deployed enterprise networks for 20+ clients achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate/Cisco ASA hardening, configured IPSec/SSL VPN for 50+ branch offices, and installed 500+ km of fiber optic infrastructure. My expertise spans Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, Ubiquiti UniFi, and monitoring tools including PRTG, SolarWinds, and Zabbix.",
+            f"I am available for immediate relocation to the UAE, KSA, Qatar, or Europe. I would welcome the opportunity to discuss how my background aligns with {company}'s infrastructure goals. Thank you for your consideration."
+        ]
+    
+    for para in paragraphs[:4]:  # Max 4 paragraphs
+        safe_para = _safe_text_for_pdf(para)
+        if safe_para:
+            pdf.multi_cell(0, 6, safe_para)
+            pdf.ln(4)
     
     pdf.ln(10)
     
