@@ -750,32 +750,35 @@ class AlphaOrchestrator:
                     logging.warning(f"⚠️ LinkedIn nudge task failed: {e}")
                 
                 # 📰 APEX DEITY: News-Pulse Recon (Oracle Pulse)
+                # Wrapped in a single timeout to prevent blocking on Render
                 try:
-                    news_headline = await MarketOracle.get_latest_news(company_name)
-                    oracle_pulse = await MarketOracle.get_news_pulse(company_name)
+                    async def _do_recon():
+                        nonlocal news_headline, oracle_pulse, company_values, competitor_fail, internal_lingo, executive_names
+                        news_headline = await MarketOracle.get_latest_news(company_name)
+                        oracle_pulse = await MarketOracle.get_news_pulse(company_name)
+                        company_values = await MarketOracle.get_culture_values(company_name)
+                        competitor_fail = await MarketOracle.get_competitor_disruption(company_name)
+                        internal_lingo = await MarketOracle.get_internal_lingo(company_name)
+                        executive_names = await MarketOracle.get_leadership_team(company_name)
+                    
+                    news_headline = ""
+                    oracle_pulse = {"sentiment": "neutral", "event": "Stable Operations"}
+                    company_values = []
+                    competitor_fail = ""
+                    internal_lingo = []
+                    executive_names = []
+                    
+                    await asyncio.wait_for(_do_recon(), timeout=15.0)
                     logging.info(f"🔮 ORACLE PULSE: Sentiment: {oracle_pulse['sentiment']} | Event: {oracle_pulse['event']}")
+                except asyncio.TimeoutError:
+                    logging.info(f"⏱️ Recon timeout for {company_name} — using defaults")
                 except Exception as e:
-                    logging.warning(f"⚠️ News pulse failed: {e}")
+                    logging.warning(f"⚠️ Recon failed: {e}")
                     news_headline = ""
                     oracle_pulse = {"sentiment": "neutral", "event": "none"}
                 
-                # 🧬 OMNISCIENT: Total Narrative Recon
-                try:
-                    company_values = await MarketOracle.get_culture_values(company_name)
-                    competitor_fail = await MarketOracle.get_competitor_disruption(company_name)
-                except Exception as e:
-                    logging.warning(f"⚠️ Company recon failed: {e}")
-                    company_values = []
-                    competitor_fail = ""
-                
-                # 🌌 TRANSCENDENCE: Social Infiltration Recon
-                try:
-                    internal_lingo = await MarketOracle.get_internal_lingo(company_name)
-                    executive_names = await MarketOracle.get_leadership_team(company_name)
-                except Exception as e:
-                    logging.warning(f"⚠️ Social recon failed: {e}")
-                    internal_lingo = []
-                    executive_names = []
+                # 🧬 OMNISCIENT: Total Narrative Recon — already done above in _do_recon()
+                # (company_values, competitor_fail, internal_lingo, executive_names set above)
                 
                 # Fetch latest evolutionary weights before analysis
                 await self.sync_evolutionary_weights()
@@ -783,24 +786,27 @@ class AlphaOrchestrator:
 
                 location = lead.get("location") or "Global"
                 
-                # 🛡️ TRY AI ANALYSIS
+                # 🛡️ TRY AI ANALYSIS — with timeout to prevent hanging on Render
                 try:
-                    is_relevant, reason, cover_letter, salary, score, advantage, keywords, persona, psych_variant, archetype, highlights = await self.ai.analyze_job(
-                        job_title, 
-                        description[:3000] if description else "Professional role",
-                        variant_weights=current_weights,
-                        person_name=hiring_mgr,
-                        location=location,
-                        news_headline=news_headline,
-                        company_values=company_values,
-                        competitor_fail=competitor_fail,
-                        internal_lingo=internal_lingo,
-                        executive_names=executive_names,
-                        oracle_pulse=oracle_pulse
+                    is_relevant, reason, cover_letter, salary, score, advantage, keywords, persona, psych_variant, archetype, highlights = await asyncio.wait_for(
+                        self.ai.analyze_job(
+                            job_title, 
+                            description[:3000] if description else "Professional role",
+                            variant_weights=current_weights,
+                            person_name=hiring_mgr,
+                            location=location,
+                            news_headline=news_headline,
+                            company_values=company_values,
+                            competitor_fail=competitor_fail,
+                            internal_lingo=internal_lingo,
+                            executive_names=executive_names,
+                            oracle_pulse=oracle_pulse
+                        ),
+                        timeout=30.0
                     )
-                except Exception as ai_error:
-                    # 🛡️ ULTIMATE FAILOVER: AI failed, use fallback templates
-                    logging.error(f"❌ AI ANALYSIS FAILED: {ai_error}")
+                except (Exception, asyncio.TimeoutError) as ai_error:
+                    # 🛡️ ULTIMATE FAILOVER: AI failed or timed out, use fallback templates
+                    logging.warning(f"⚠️ AI ANALYSIS FAILED/TIMEOUT: {type(ai_error).__name__}: {ai_error}")
                     logging.info("🛡️ ACTIVATING FAILOVER: Using pre-written templates")
                     
                     failover = get_failover()
