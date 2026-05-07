@@ -634,13 +634,13 @@ def get_latest_jobs():
     gc.collect()  # Final cleanup
     return unique_jobs
 
-def scrape_linkedin_jobs(location="Lebanon", keyword="HR"):
-    """Enhanced LinkedIn scraper"""
+def scrape_linkedin_jobs(location="Lebanon", keyword="Network Engineer"):
+    """Enhanced LinkedIn scraper - Network Engineering focused"""
     logging.info(f" LinkedIn: {keyword} in {location}")
     
     jobs = []
-    keywords = ["HR", "Human Resources", "Operations Manager", "Admin", "Recruiter", "Office Manager"]
-    locations = ["Lebanon", "Dubai", "Remote", "Saudi Arabia", "Gulf"]
+    keywords = ["Network Engineer", "Senior Network Engineer", "IT Infrastructure", "Network Administrator", "Systems Administrator", "Cisco Engineer", "Fortinet Engineer", "MikroTik Engineer"]
+    locations = ["Lebanon", "Dubai", "UAE", "Saudi Arabia", "Qatar"]
     
     for kw in keywords:
         for loc in locations[:2]:  # Limit to avoid bans
@@ -694,10 +694,10 @@ def scrape_linkedin_jobs(location="Lebanon", keyword="HR"):
     return jobs
 
 def scrape_hirelebanese_jobs():
-    """Enhanced HireLebanese scraper"""
+    """Enhanced HireLebanese scraper - Network Engineering focused"""
     logging.info(" HireLebanese...")
     jobs = []
-    keywords = ["HR", "Human Resources", "Administration", "Operations", "Assistant", "Coordinator", "Manager"]
+    keywords = ["Network Engineer", "IT Infrastructure", "Systems Administrator", "Network Security", "Cisco", "MikroTik", "Fortinet", "IT Manager", "NOC Engineer", "Telecom Engineer"]
     
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -745,12 +745,11 @@ def scrape_hirelebanese_jobs():
     
     return jobs
 
-def scrape_bayt_jobs(location="lebanon", keyword="hr"):
-    """Enhanced Bayt scraper"""
+def scrape_bayt_jobs(location="lebanon", keyword="network-engineer"):
+    """Enhanced Bayt scraper - Network Engineering focused"""
     logging.info(f" Bayt: {keyword}")
     jobs = []
-    
-    keywords = ["hr", "human resources", "operations", "admin", "recruiter", "office manager"]
+    keywords = ["network-engineer", "it-infrastructure", "systems-administrator", "network-security", "cisco-engineer", "it-manager", "noc-engineer", "telecom-engineer"]
     
     headers = {
         'User-Agent': random.choice([
@@ -797,12 +796,11 @@ def scrape_bayt_jobs(location="lebanon", keyword="hr"):
     
     return jobs
 
-def scrape_monster_jobs(location="Lebanon", keyword="HR"):
-    """Enhanced Monster scraper"""
+def scrape_monster_jobs(location="Lebanon", keyword="Network Engineer"):
+    """Enhanced Monster/Foundit scraper - Network Engineering focused"""
     logging.info(f" Monster/Foundit...")
     jobs = []
-    
-    keywords = ["HR", "Operations", "Admin", "Recruiter"]
+    keywords = ["Network Engineer", "IT Infrastructure", "Systems Administrator", "Network Security", "IT Manager"]
     
     for kw in keywords:
         try:

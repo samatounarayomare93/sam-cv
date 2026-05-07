@@ -17,14 +17,14 @@ DALEEL_DOMAIN = "www.daleel-madani.org"
 # Search queries that surface Daleel Madani job listings via search engines.
 # Varied by role type and region to maximise coverage.
 DALEEL_QUERIES = [
-    f'site:{DALEEL_DOMAIN} "HR" OR "Human Resources" Lebanon',
-    f'site:{DALEEL_DOMAIN} "Operations" Lebanon',
-    f'site:{DALEEL_DOMAIN} "Administrative" Lebanon',
-    f'site:{DALEEL_DOMAIN} "Business" Lebanon hiring',
-    f'site:{DALEEL_DOMAIN} "Manager" Beirut',
-    f'site:{DALEEL_DOMAIN} "Recruiter" Lebanon',
-    f'site:{DALEEL_DOMAIN} "Finance" Lebanon',
-    f'site:{DALEEL_DOMAIN} "Marketing" Lebanon',
+    f'site:{DALEEL_DOMAIN} "Network Engineer" Lebanon',
+    f'site:{DALEEL_DOMAIN} "IT" OR "Information Technology" Lebanon',
+    f'site:{DALEEL_DOMAIN} "Systems Administrator" Lebanon',
+    f'site:{DALEEL_DOMAIN} "Network" Beirut hiring',
+    f'site:{DALEEL_DOMAIN} "IT Manager" Lebanon',
+    f'site:{DALEEL_DOMAIN} "Telecom" Lebanon',
+    f'site:{DALEEL_DOMAIN} "Infrastructure" Lebanon',
+    f'site:{DALEEL_DOMAIN} "Technical" Beirut',
 ]
 
 

@@ -508,8 +508,8 @@ class OmniCrawler:
                         # Don't guess email — leads without real emails get filtered downstream
                         leads.append({
                             "company_name": company,
-                            "job_title": "Strategic Operations Lead",
-                            "email": None,  # No guessed email — real contact must be found
+                            "job_title": "Senior Network Engineer",
+                            "email": None,
                             "description": r['body'],
                             "link": r['href'],
                             "mission_type": "PRE_HIRING_SIGNAL",
