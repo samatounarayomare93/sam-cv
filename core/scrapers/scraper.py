@@ -316,8 +316,8 @@ def scrape_new_companies():
 def scrape_glassdoor_jobs():
     """Scrape Glassdoor jobs"""
     jobs = []
-    keywords = ["HR Manager", "Operations Manager", "Recruiter", "Admin Manager"]
-    locations = ["Lebanon", "Dubai", "UAE", "Qatar"]
+    keywords = ["Network Engineer", "Senior Network Engineer", "IT Infrastructure Engineer", "Network Administrator"]
+    locations = ["Lebanon", "Dubai", "UAE", "Qatar", "Saudi Arabia"]
     
     for kw in keywords:
         for loc in locations[:2]:
@@ -368,7 +368,7 @@ def scrape_glassdoor_jobs():
 def scrape_indeed_jobs(location="Lebanon"):
     """Scrape Indeed jobs"""
     jobs = []
-    keywords = ["HR Manager", "Operations Manager", "Human Resources", "Recruiter", "Admin Manager", "Office Manager"]
+    keywords = ["Network Engineer", "Senior Network Engineer", "IT Infrastructure", "Network Administrator", "Systems Administrator", "Network Security Engineer"]
     
     for kw in keywords:
         try:
@@ -426,7 +426,7 @@ def scrape_careerbuilder_jobs():
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        keywords = ["HR", "Operations", "Human Resources", "Recruiter"]
+        keywords = ["Network Engineer", "IT Infrastructure", "Network Administrator", "Systems Administrator"]
         
         for kw in keywords:
             url = f"https://www.careerbuilder.com/jobs/hr-in-lebanon?keywords={urllib.parse.quote(kw)}"

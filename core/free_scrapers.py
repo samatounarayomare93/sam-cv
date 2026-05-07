@@ -129,8 +129,8 @@ class BaytScraper(FreeScraper):
         try:
             logging.info(f"[{self.name}] Starting scrape...")
             
-            # Search for HR/Operations jobs in UAE
-            search_terms = ["hr-manager", "operations-manager", "chief-of-staff"]
+            # Search for Network Engineering jobs in UAE
+            search_terms = ["network-engineer", "it-infrastructure-engineer", "systems-administrator"]
             
             for term in search_terms:
                 url = f"{self.base_url}/{term}/"
@@ -184,8 +184,8 @@ class GulfTalentScraper(FreeScraper):
         try:
             logging.info(f"[{self.name}] Starting scrape...")
             
-            # Search for HR/Operations jobs
-            keywords = ["hr-manager", "operations-manager"]
+            # Search for Network Engineering jobs
+            keywords = ["network-engineer", "it-infrastructure"]
             
             for keyword in keywords:
                 url = f"{self.base_url}/{keyword}"
@@ -240,8 +240,8 @@ class NaukrigulfScraper(FreeScraper):
         try:
             logging.info(f"[{self.name}] Starting scrape...")
             
-            # Search for HR/Operations jobs in UAE
-            search_url = f"{self.base_url}/hr-manager-jobs-in-uae"
+            # Search for Network Engineering jobs in UAE
+            search_url = f"{self.base_url}/network-engineer-jobs-in-uae"
             response = self._safe_get(search_url)
             
             if not response:

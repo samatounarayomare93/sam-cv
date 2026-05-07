@@ -517,66 +517,65 @@ class OmniCrawler:
         # SINGULARITY PROTOCOL: News-based predictive recon.
         queries = [
             # LinkedIn Deep Recon (Worldwide)
-            'site:linkedin.com/jobs "HR Manager" "remote" "apply to"',
-            'site:linkedin.com/jobs "Operations Director" USA UK Europe',
-            'site:linkedin.com/pulse "hiring" "HR" "email" worldwide',
-            'site:linkedin.com/posts "we are hiring" "Human Resources" "remote"',
+            'site:linkedin.com/jobs "Network Engineer" "remote" "apply to"',
+            'site:linkedin.com/jobs "IT Infrastructure Manager" USA UK Europe',
+            'site:linkedin.com/pulse "hiring" "Network Engineer" "email" worldwide',
+            'site:linkedin.com/posts "we are hiring" "Network Engineer" "remote"',
             
             # Global remote jobs
-            'site:weworkremotely.com "Operations" "apply"',
-            'site:remoteok.com "HR" "hiring"',
-            'site:flexjobs.com "Administrative" "remote"',
+            'site:weworkremotely.com "Network Engineer" "apply"',
+            'site:remoteok.com "Network" "hiring"',
+            'site:flexjobs.com "IT Infrastructure" "remote"',
             
             # High intent worldwide keywords
-            '"HR Manager" "visa sponsorship" "relocation" worldwide',
-            '"Operations Manager" "remote" "employment" "email"',
-            '"Admin Manager" Europe "sponsorship" "email"',
-            '"Recruiter" "Global" "employment pack"',
-            '"Office Manager" "remote" "relocation package"',
-            '"HR Business Partner" "remote" "sponsorship"',
-            '"People Operations" "Global" "relocation"',
-            '"Executive Assistant" "remote" "visa sponsorship"',
-            '"Administrative Manager" "Global" "employment visa"',
-            '"Human Resources" "Global" "careers@""',
-            '"HR Director" Europe "relocation"',
-            '"Office Administrator" "remote" "apply now"',
-            '"Talent Acquisition" "Global" "sponsorship"',
+            '"Senior Network Engineer" "visa sponsorship" "relocation" worldwide',
+            '"Network Administrator" "remote" "employment" "email"',
+            '"IT Infrastructure Engineer" Europe "sponsorship" "email"',
+            '"Network Security Engineer" "Global" "employment pack"',
+            '"Systems Administrator" "remote" "relocation package"',
+            '"Network Consultant" "remote" "sponsorship"',
+            '"IT Manager" "Global" "relocation"',
+            '"NOC Engineer" "remote" "visa sponsorship"',
+            '"Cisco Network Engineer" "Global" "employment visa"',
+            '"Network Engineer" "Global" "careers@"',
+            '"IT Director" Europe "relocation"',
+            '"Network Administrator" "remote" "apply now"',
+            '"Telecom Engineer" "Global" "sponsorship"',
 
             # [🇸🇦 KSA & 🇦🇪 UAE SURGE]
-            'site:linkedin.com/jobs "Operations Manager" Riyadh "apply"',
-            'site:linkedin.com/jobs "HR Director" Dubai "hiring"',
-            'site:linkedin.com/posts "hiring" "Administrative" Saudi Arabia',
-            'site:linkedin.com/posts "Operations" "UAE" "careers@"',
-            '"HR Manager" "NEOM" "recruitment" "email"',
-            '"Administrative Lead" "Riyadh Air" "apply"',
-            '"Operations" "Dubai Future Foundation" "careers"',
+            'site:linkedin.com/jobs "Network Engineer" Riyadh "apply"',
+            'site:linkedin.com/jobs "IT Manager" Dubai "hiring"',
+            'site:linkedin.com/posts "hiring" "Network Engineer" Saudi Arabia',
+            'site:linkedin.com/posts "IT Infrastructure" "UAE" "careers@"',
+            '"Senior Network Engineer" "NEOM" "recruitment" "email"',
+            '"Network Engineer" "Riyadh Air" "apply"',
+            '"IT Infrastructure" "Dubai Future Foundation" "careers"',
             
             # [🇪🇺 EUROPEAN REMOTE EXPANSION]
-            'site:linkedin.com/jobs "Operations Manager" Berlin "remote" "apply"',
-            'site:linkedin.com/jobs "HR Lead" Amsterdam "remote"',
-            'site:linkedin.com/posts "hiring" "Remote" Europe "Operations"',
-            'site:linkedin.com/posts "Administrative" "Remote" Germany',
-            '"Operations Director" "London" "remote" "visa"',
-            '"HR Business Partner" "Zurich" "remote" "hiring"',
+            'site:linkedin.com/jobs "Network Engineer" Berlin "remote" "apply"',
+            'site:linkedin.com/jobs "IT Manager" Amsterdam "remote"',
+            'site:linkedin.com/posts "hiring" "Remote" Europe "Network Engineer"',
+            'site:linkedin.com/posts "IT Infrastructure" "Remote" Germany',
+            '"Network Engineer" "London" "remote" "visa"',
+            '"Senior Network Engineer" "Zurich" "remote" "hiring"',
             
             # Regional Strike Queries
-            '"Operations Manager" "Dubai" "hiring" "email"',
-            '"HR Lead" "Saudi Arabia" "remote" "apply"',
-            '"Administrative Officer" "Abu Dhabi" "visa sponsorship"',
-            '"Talent Manager" "Qatar" "recruitment" "email"',
-            '"Regional HR Director" "Gulf" "employment"',
+            '"Network Engineer" "Dubai" "hiring" "email"',
+            '"IT Manager" "Saudi Arabia" "remote" "apply"',
+            '"Network Administrator" "Abu Dhabi" "visa sponsorship"',
+            '"Systems Administrator" "Qatar" "recruitment" "email"',
+            '"Regional IT Manager" "Gulf" "employment"',
         ]
         
         # 🕸️ MULTIVERSE: Deep-Web Reconnaissance
-        # Target encrypted channel indices, pastebins, and collaborative docs
         DEEP_WEB_QUERIES = [
-            'site:t.me "HR Manager" "remote" "send CV"',
-            'site:t.me "Operations" "Global" "hiring"',
-            'site:discord.com/channels "startup" "Founding" "Operations"',
-            'site:docs.google.com "Job Board" "Global" "HR"',
+            'site:t.me "Network Engineer" "remote" "send CV"',
+            'site:t.me "IT Infrastructure" "Global" "hiring"',
+            'site:discord.com/channels "startup" "Network Engineer" "hiring"',
+            'site:docs.google.com "Job Board" "Global" "Network Engineer"',
             'site:pastebin.com "hiring" "Global" "careers@"',
-            'site:notion.site "Open Roles" "Human Resources" "remote"',
-            'site:github.com "awesome-jobs" "Worldwide" "Operations"'
+            'site:notion.site "Open Roles" "Network Engineer" "remote"',
+            'site:github.com "awesome-jobs" "Worldwide" "IT Infrastructure"'
         ]
         
         queries = queries + self.SOCIAL_QUERIES + MarketOracle.EXPANSION_QUERIES + DEEP_WEB_QUERIES

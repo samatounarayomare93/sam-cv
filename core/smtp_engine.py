@@ -342,7 +342,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         f"Quick question about {company_name}'s {job_title} role",
         
         # Variant 3: Value proposition first - shows benefit immediately
-        f"{job_title} – 8+ Years HR & Operations | {company_name}",
+        f"{job_title} – 15+ Years Network Engineering | {company_name}",
         
         # Variant 4: Standard with strike ID (original - baseline)
         f"Application: {job_title} – {company_name}" + (f" [{strike_id}]" if strike_id else ""),
@@ -1442,7 +1442,7 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
     phone = os.getenv("CANDIDATE_PHONE", "+961 70 841 1009")
     candidate_email = os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", ""))
     candidate_name = os.getenv("SENDER_NAME", "Sam Salameh")
-    candidate_profession = os.getenv("CANDIDATE_PROFESSION", "HR & Operations Manager")
+    candidate_profession = os.getenv("CANDIDATE_PROFESSION", "Senior Network Engineer")
     
     return f"""<!DOCTYPE html>
 <html>

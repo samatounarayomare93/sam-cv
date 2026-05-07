@@ -163,19 +163,31 @@ class EliteCompaniesScraper:
         return self._session
 
     def _extract_hr_jobs(self, html: str, company: Dict) -> List[Dict]:
-        """Extract HR/Operations/Admin jobs from career page HTML."""
+        """Extract Network Engineering / IT jobs from career page HTML."""
         leads = []
         
-        # Keywords that match Sam's profile
+        # Keywords that match Sam's profile - Senior Network Engineer
         HR_KEYWORDS = [
-            'hr manager', 'human resources manager', 'hr director', 'hr business partner',
-            'operations manager', 'operations director', 'office manager',
-            'hr & operations', 'people manager', 'talent manager', 'talent acquisition',
-            'recruitment manager', 'hr generalist', 'hr specialist', 'hr coordinator',
-            'admin manager', 'administration manager', 'executive assistant',
-            'chief of staff', 'people operations', 'workforce manager',
-            'hr lead', 'people lead', 'culture manager', 'employee experience',
-            'total rewards', 'compensation', 'payroll manager', 'hr consultant',
+            # Core Network Engineering
+            'network engineer', 'senior network engineer', 'network administrator',
+            'network specialist', 'network consultant', 'network architect',
+            'network infrastructure', 'network support', 'network technician',
+            # IT Infrastructure
+            'it infrastructure', 'systems administrator', 'system administrator',
+            'it administrator', 'it manager', 'it director', 'it specialist',
+            'it support engineer', 'it operations', 'infrastructure manager',
+            # Security
+            'network security', 'security engineer', 'cybersecurity',
+            'firewall engineer', 'security administrator', 'noc engineer',
+            # Telecom
+            'telecom engineer', 'telecommunications', 'isp engineer',
+            'fiber optic', 'cabling technician',
+            # Vendor Specific
+            'cisco engineer', 'cisco network', 'mikrotik', 'ubiquiti',
+            'fortinet', 'fortigate', 'juniper engineer',
+            # Management
+            'it manager', 'network manager', 'head of it', 'it director',
+            'technical manager', 'technology manager', 'pre-sales engineer',
         ]
         
         html_lower = html.lower()
@@ -186,9 +198,9 @@ class EliteCompaniesScraper:
                 lead = {
                     "company_name": company["name"],
                     "job_title": keyword.title(),
-                    "email": f"hr@{company['domain']}",
+                    "email": f"it@{company['domain']}",
                     "job_url": company["careers_url"],
-                    "description": f"HR/Operations role at {company['name']} in {company['location']}",
+                    "description": f"Network Engineering/IT role at {company['name']} in {company['location']}",
                     "location": company["location"],
                     "source": "elite_career_page",
                     "priority_score": 90,  # High priority - direct from company!

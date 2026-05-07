@@ -124,7 +124,7 @@ services:
       - key: LINKEDIN_URL
         value: https://www.linkedin.com/in/sam-salameh
       - key: CANDIDATE_PROFESSION
-        value: HR & Operations Manager
+        value: Senior Network Engineer
 
       # ── System Config ──────────────────────────────────────────────────────
       - key: CV_FILE_PATH

@@ -128,7 +128,7 @@ class OmniIntelligence:
             except Exception as e:
                 logging.error(f"Failed to load CV: {e}")
         
-        return "Professional HR & Operations Management expert."
+        return "Senior Network Engineer with 15+ years experience in Cisco, MikroTik, Ubiquiti, Fortinet, TCP/IP, VPN, Firewalls, and IT Infrastructure."
 
     def _extract_json_robustly(self, text: str) -> Dict[str, Any]:
         """Uses regex to pull JSON out of potential AI conversational padding."""
@@ -231,9 +231,19 @@ class OmniIntelligence:
             meta_strategy = "THE_ARCHITECT"
 
         system_prompt = f"""
-        You are an elite HR Operations Analyst evaluating a job for Sam Salameh.
+        You are an elite Technical Recruiter evaluating a job for Sam Salameh.
         
-        [SAM'S BACKGROUND (GROUND TRUTH)]
+        [SAM'S REAL BACKGROUND (GROUND TRUTH - READ CAREFULLY)]
+        - Senior Network Engineer with 15+ years of progressive experience
+        - Expert in: Cisco IOS, MikroTik RouterOS, Ubiquiti UniFi, Fortinet FortiGate
+        - Skills: TCP/IP, VLAN, Routing & Switching, QoS, Network Security
+        - Infrastructure: Fiber Optic, Structured Cabling, Wireless Networks
+        - Security: Firewalls, VPN (IPSec, SSL), Access Control, Intrusion Detection
+        - Tools: Wireshark, SolarWinds, PRTG, Nagios, Cacti
+        - Education: B3 Information Technology - Dekwene Technical School 2016
+        - Languages: English (Fluent), Arabic (Native), French (Intermediate)
+        - Location: Beirut, Lebanon
+        - Target: Network Engineering / IT Infrastructure / IT Management roles
         {self.cv_content}
         
         [JOB DETAILS]
@@ -247,17 +257,21 @@ class OmniIntelligence:
         Recommended Narrative Pivot: {oracle_pulse.get('strategy', 'Standard') if oracle_pulse else 'Standard'}
         
         [MISSION]
-        1. Evaluate relevance: Does Sam have at least 70% match for this role?
+        1. Evaluate relevance: Does Sam have at least 60% match for this role?
+           - RELEVANT: Network Engineer, IT Infrastructure, Systems Admin, Network Security, IT Manager, NOC Engineer, Telecom Engineer, Cisco/MikroTik/Fortinet roles
+           - NOT RELEVANT: HR, Recruitment, Accounting, Medical, Driving, Cooking, etc.
         2. **SALARY THRESHOLD (MANDATORY)**:
            - If the job is in LEBANON: Salary must be at least **$1,500/month**. Reject if below.
-           - If the job is OUTSIDE LEBANON (Remote, Worldwide, USA, Gulf, etc.): Salary must be at least **$6,000/month**. Reject if below.
+           - If the job is OUTSIDE LEBANON (Remote, Worldwide, USA, Gulf, etc.): Salary must be at least **$4,000/month**. Reject if below.
            - If salary is not explicitly mentioned: 
-              - If the Job Title contains 'Manager', 'Director', 'Head of', 'Lead', or 'Senior', assume the salary MEETS the threshold unless the description specifically mentions 'Junior' or 'Entry-level' budget.
-              - In cases of extreme ambiguity where the title is high-level but the company is small, set `is_relevant` to `true` but add a note in `reasoning` that 'Salary needs verification'. 
+              - If the Job Title contains 'Senior', 'Manager', 'Director', 'Head of', 'Lead', assume salary MEETS threshold.
               - DO NOT reject high-level roles just because the salary is hidden.
         3. Assign a 'Lead Score' (0-100).
-        4. Generate 'Competitive Advantage' summary (2-3 sentences).
-        5. Generate a persuasive 3-paragraph cover letter body with 3+ numbers/metrics.
+        4. Generate 'Competitive Advantage' summary (2-3 sentences) focused on Sam's NETWORK ENGINEERING skills.
+        5. Generate a persuasive 3-paragraph cover letter body mentioning:
+           - Specific technologies Sam knows (Cisco, MikroTik, Fortinet, etc.)
+           - Specific achievements (20+ enterprise clients, VPN implementations, etc.)
+           - Why Sam is perfect for THIS specific role
            - SALUTATION: Use 'Dear {person_name if person_name else "Hiring Team"}'.
            
            - 🚨 APEX OPENING (MANDATORY): If a news headline is found, you MUST start the very first sentence of paragraph 1 by referencing it. Do not be generic. Example: "Given [Company Name]'s recent pivot toward [News Detail], I felt compelled to reach out."
