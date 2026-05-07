@@ -8,14 +8,15 @@ import httpx
 import os
 import random
 import logging
+import time
 from dotenv import load_dotenv
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [AUTO-REFILL] %(message)s")
 
 # Threshold: refill when pending drops below this number
-REFILL_THRESHOLD = 20
-CHECK_INTERVAL = 120  # Check every 2 minutes
+REFILL_THRESHOLD = 50   # Raised: refill earlier so queue never runs dry
+CHECK_INTERVAL = 60     # Check every 1 minute (was 2)
 
 # 500+ companies to cycle through
 COMPANY_POOL = [
@@ -167,9 +168,10 @@ async def get_pending_count(c, url, headers):
         return len(r.json())
     return 0
 
-async def inject_batch(c, url, headers, count=50):
+async def inject_batch(c, url, headers, count=80):
     global _round_counter
     _round_counter += 1
+    ts = int(time.time())
     
     # Shuffle companies for variety
     companies = COMPANY_POOL.copy()
@@ -177,17 +179,20 @@ async def inject_batch(c, url, headers, count=50):
     companies = companies[:count]
     
     leads = []
-    for company_name, email, score in companies:
+    for i, (company_name, email, score) in enumerate(companies):
         title = random.choice(JOB_TITLES)
-        # Unique URL per round to avoid duplicates
-        job_url = f"https://careers.{email.split('@')[1]}/{title.lower().replace(' ', '-')}-r{_round_counter}"
+        # Unique URL per round+timestamp to avoid duplicates
+        job_url = f"https://careers.{email.split('@')[1]}/{title.lower().replace(' ', '-')}-r{_round_counter}-t{ts}-{i}"
         leads.append({
             "company_name": company_name,
             "email": email,
             "job_title": title,
             "job_url": job_url,
             "status": "pending",
-            "priority_score": score + random.randint(-5, 5)
+            "priority_score": score + random.randint(-5, 5),
+            "description": f"We are looking for a {title} to join {company_name}. "
+                          f"5+ years experience in network engineering required. "
+                          f"Cisco/Juniper certifications preferred."
         })
     
     success = 0
