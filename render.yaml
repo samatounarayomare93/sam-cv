@@ -1,4 +1,4 @@
-services:
+﻿services:
   - type: web
     name: sam-job-automator
     runtime: python
@@ -7,7 +7,7 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python run.py
     envVars:
-      # ── Core Database ──────────────────────────────────────────────────────
+      # â”€â”€ Core Database â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
@@ -15,11 +15,11 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2lhemJhZHltZWlrbXhlc2l0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzMxNzE1NSwiZXhwIjoyMDkyODkzMTU1fQ.NWdt3IcKs60M-6T_syPLQU4m22msqugqGA7wZpCXNbg"
 
-      # ── AI Services ────────────────────────────────────────────────────────
+      # â”€â”€ AI Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: GROQ_API_KEY
         sync: false
       - key: GEMINI_API_KEY
-        sync: false
+        value: "AIzaSyBFNxUyS-WXIcaBCxrlMuaZ6l1f0c4KCZs"
       - key: HUGGINGFACE_API_KEY
         sync: false
       - key: TOGETHER_API_KEY
@@ -27,7 +27,7 @@ services:
       - key: PERPLEXITY_API_KEY
         sync: false
 
-      # ── Email: Brevo (primary HTTP API — works on Render) ──────────────────
+      # â”€â”€ Email: Brevo (primary HTTP API â€” works on Render) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_SMTP_LOGIN
@@ -35,7 +35,7 @@ services:
       - key: BREVO_SMTP_PASSWORD
         sync: false
 
-      # ── Email: Resend (requires verified custom domain) ────────────────────
+      # â”€â”€ Email: Resend (requires verified custom domain) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_API_KEY_2
@@ -43,11 +43,11 @@ services:
       - key: RESEND_API_KEY_3
         sync: false
       # RESEND_FROM_EMAIL must be a verified custom-domain address (NOT gmail.com)
-      # Leave blank/unset if you don't have a verified domain — Brevo will be used instead
+      # Leave blank/unset if you don't have a verified domain â€” Brevo will be used instead
       - key: RESEND_FROM_EMAIL
         sync: false
 
-      # ── Email: Zoho (SMTP blocked on Render; Zoho API works) ──────────────
+      # â”€â”€ Email: Zoho (SMTP blocked on Render; Zoho API works) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: ZOHO_SMTP_USER
         sync: false
       - key: ZOHO_APP_PASSWORD
@@ -59,25 +59,25 @@ services:
       - key: ZOHO_API_KEY
         sync: false
 
-      # ── Email: Mailjet HTTP API ────────────────────────────────────────────
+      # â”€â”€ Email: Mailjet HTTP API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: MAILJET_API_KEY
         sync: false
       - key: MAILJET_SECRET_KEY
         sync: false
 
-      # ── Email: SendPulse HTTP API ──────────────────────────────────────────
+      # â”€â”€ Email: SendPulse HTTP API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: SENDPULSE_CLIENT_ID
         sync: false
       - key: SENDPULSE_CLIENT_SECRET
         sync: false
 
-      # ── Email: Gmail (SMTP blocked on Render; Gmail API works) ────────────
+      # â”€â”€ Email: Gmail (SMTP blocked on Render; Gmail API works) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: GMAIL_SMTP_USER
         sync: false
       - key: GMAIL_APP_PASSWORD
         sync: false
 
-      # ── Email: Yahoo / Outlook (SMTP — local only) ────────────────────────
+      # â”€â”€ Email: Yahoo / Outlook (SMTP â€” local only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: YAHOO_SMTP_USER
         sync: false
       - key: YAHOO_APP_PASSWORD
@@ -87,7 +87,7 @@ services:
       - key: OUTLOOK_PASSWORD
         sync: false
 
-      # ── Telegram ───────────────────────────────────────────────────────────
+      # â”€â”€ Telegram â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_CHAT_ID
@@ -102,7 +102,7 @@ services:
       - key: AUTHORIZED_CHATS
         sync: false
 
-      # ── Render self-deploy API ─────────────────────────────────────────────
+      # â”€â”€ Render self-deploy API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: RENDER_API_KEY
         sync: false
       - key: RENDER_SERVICE_ID
@@ -110,7 +110,7 @@ services:
       - key: RENDER_EXTERNAL_URL
         value: https://sam-job-automator.onrender.com
 
-      # ── Candidate Identity ─────────────────────────────────────────────────
+      # â”€â”€ Candidate Identity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: SENDER_NAME
         value: Sam Salameh
       - key: CANDIDATE_NAME
@@ -126,7 +126,7 @@ services:
       - key: CANDIDATE_PROFESSION
         value: Senior Network Engineer
 
-      # ── System Config ──────────────────────────────────────────────────────
+      # â”€â”€ System Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: CV_FILE_PATH
         value: Sam_Salameh_CV.html
       - key: USE_AI_ANALYSIS
@@ -134,7 +134,7 @@ services:
       - key: VERBOSE_LOGGING
         value: "true"
 
-      # ── Throughput Controls ────────────────────────────────────────────────
+      # â”€â”€ Throughput Controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: MAX_EMAILS_PER_DAY
         value: "1900"
       - key: MAX_EMAILS_PER_HOUR
@@ -206,19 +206,19 @@ services:
       - key: MEMORY_THRESHOLD_MB
         value: "450"
 
-      # ── Keep-Alive (prevents Render free-tier sleep) ───────────────────────
+      # â”€â”€ Keep-Alive (prevents Render free-tier sleep) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: KEEP_ALIVE_ENABLED
         value: "true"
       - key: KEEP_ALIVE_INTERVAL
         value: "600"
 
-      # ── AI Cache ───────────────────────────────────────────────────────────
+      # â”€â”€ AI Cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: AI_CACHE_ENABLED
         value: "true"
       - key: AI_CACHE_DURATION_HOURS
         value: "24"
 
-      # ── Advanced Features ──────────────────────────────────────────────────
+      # â”€â”€ Advanced Features â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: EMAIL_WARMUP_ENABLED
         value: "true"
       - key: FOLLOWUP_ENABLED
