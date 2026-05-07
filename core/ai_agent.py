@@ -550,49 +550,91 @@ class OmniIntelligence:
         return 'THE_LOYALIST'
 
     def _apex_static_fallback(self, job_title: str, news_headline: str = None, executive_names: str = None, location: str = "Global") -> Tuple[bool, str, str, str, int, str, list, str, str, str]:
-        """[👑 APEX DEITY] Elite Procedural Engine (Non-AI Human-Equivalent)."""
-        is_uk = any(x in location.lower() for x in ["dubai", "london", "uk", "emirates", "qatar", "riyadh"])
+        """[👑 APEX DEITY] Elite Procedural Engine - Network Engineer Specialist."""
+        is_uk = any(x in location.lower() for x in ["dubai", "london", "uk", "emirates", "qatar", "riyadh", "beirut", "lebanon"])
         org = "organisation" if is_uk else "organization"
-        prog = "programme" if is_uk else "program"
         specialise = "specialise" if is_uk else "specialize"
-        
-        # ELITE TEMPLATE REPOSITORY
+
+        # Smart variant rotation based on job title and location
+        title_lower = job_title.lower()
+        if any(k in title_lower for k in ['security', 'firewall', 'fortinet', 'noc', 'cyber']):
+            variant = "ANALYTICAL"
+        elif any(k in title_lower for k in ['manager', 'director', 'head', 'lead', 'architect']):
+            variant = "VISIONARY"
+        elif any(k in title_lower for k in ['engineer', 'administrator', 'specialist', 'consultant']):
+            variant = random.choice(["AGGRESSIVE", "EMPATHETIC"])
+        else:
+            variant = random.choice(["AGGRESSIVE", "EMPATHETIC", "ANALYTICAL", "VISIONARY"])
+
+        # ELITE NETWORK ENGINEER TEMPLATE REPOSITORY
         templates = [
-            # T1: The Strategic Defector (Aggressive/Analytical)
+            # T1: The Technical Authority (Analytical/Aggressive)
             f"""<p>Dear Hiring Team,</p>
-            <p>I am reaching out regarding the {job_title} role at your {org}. My decision to move is a <b>Strategic Defection</b> from top-tier industry rivals; I am looking to bring my success blueprints to an elite team with your specific market trajectory.</p>
-            <p>With 15+ years in Operations & HR Management, I {specialise} in creating high-velocity, metric-driven environments. I am not looking for a vacancy; I am looking to drive a competitive pivot for your team through a comprehensive automation {prog}.</p>
-            <p>I have attached my CV which details my history of streamlining complex workflows. Are you free for a 15-minute briefing on Tuesday?</p>""",
-            
-            # T2: The Growth Multiplier (Scaling/Visionary)
-            f"""<p>To the {job_title} Hiring Manager,</p>
-            <p>I have been tracking your firm's growth for some time. It is clear that scaling at your current velocity requires more than administration—it requires an <b>Operational Multiplier</b>.</p>
-            <p>I specialize in building the "Engine Room" that allows leadership to focus on vision while I handle the structural integrity of the {org}. I bring a 10x mentality to talent acquisition and process automation.</p>
-            <p>My background in managing teams of 50+ and budgets exceeding $5M makes me the ideal partner for your next phase of expansion.</p>""",
-            
-            # T3: The Direct Human (Grit/Bold)
+            <p>I am writing to express my strong interest in the <b>{job_title}</b> position at your {org}. With over 15 years of hands-on experience designing, implementing, and managing enterprise-grade network infrastructure, I bring a proven track record of delivering zero-downtime environments across complex multi-site deployments.</p>
+            <p>My expertise spans <b>Cisco IOS/CCNP, MikroTik RouterOS, Fortinet FortiGate, and Ubiquiti UniFi</b> platforms. I have successfully deployed BGP/OSPF routing protocols, configured IPSec/SSL VPN solutions, and managed fiber optic installations for ISPs and enterprise clients across Lebanon and the GCC region.</p>
+            <p>What sets me apart is my ability to translate complex network challenges into reliable, scalable solutions — achieving 99.9% uptime across all managed environments. I am confident I can bring this same level of excellence to your team.</p>
+            <p>I have attached my CV for your review. I would welcome the opportunity to discuss how my technical background aligns with your infrastructure goals.</p>""",
+
+            # T2: The Problem Solver (Empathetic/Direct)
+            f"""<p>Dear Hiring Manager,</p>
+            <p>I came across the <b>{job_title}</b> opportunity and immediately recognized the alignment with my 15+ years of network engineering experience. I {specialise} in building resilient network infrastructure that keeps businesses running — no matter what.</p>
+            <p>Throughout my career, I have managed enterprise networks for 20+ clients including ISPs, educational institutions, and corporate environments. My core strengths include <b>network security hardening</b> (Fortinet/Cisco ASA), <b>wireless network design</b> (Ubiquiti/Cisco), and <b>structured cabling & fiber optic</b> installations.</p>
+            <p>I hold certifications in <b>Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA</b> — and I continuously update my skills to stay ahead of evolving network threats and technologies.</p>
+            <p>I would be delighted to bring this expertise to your {org}. Please find my CV attached, and I look forward to connecting.</p>""",
+
+            # T3: The Results Driver (Aggressive/Visionary)
+            f"""<p>To the {job_title} Hiring Team,</p>
+            <p>Networks are the backbone of every modern business — and I have spent 15+ years making sure that backbone never breaks. I am a Senior Network Engineer with deep expertise in <b>Cisco, MikroTik, Fortinet, and Ubiquiti</b> platforms, and a reputation for delivering infrastructure that performs under pressure.</p>
+            <p>My recent work includes designing and deploying enterprise networks for 20+ clients, implementing VPN solutions that reduced security incidents by 100%, and conducting network audits that achieved 99.9% uptime SLAs. I bring both the technical depth and the strategic mindset to elevate your network operations.</p>
+            <p>I am not just looking for a job — I am looking for an {org} where I can make a measurable impact on network reliability, security, and performance. Based on what I know about your operations, I believe that {org} is exactly that place.</p>
+            <p>My CV is attached. Let's discuss how I can contribute to your infrastructure goals.</p>""",
+
+            # T4: The Trusted Expert (Empathetic/Analytical) - for Lebanon/GCC
             f"""<p>Dear Hiring Team,</p>
-            <p>Truth be told, I don't believe in long-winded applications. You need someone who can step into the {job_title} role and deliver process excellence from Day 1. That is exactly what I do.</p>
-            <p>I have spent my career purging operational inefficiency and building high-trust HR {prog}s. I am looking for a challenge that rewards bold decision-making and structural precision.</p>
-            <p>If you are looking for 'safe' and 'generic', I am not your candidate. If you are looking for 'Elite' and 'Effective', let's talk.</p>"""
+            <p>I am a Senior Network Engineer based in Beirut, Lebanon, with 15+ years of experience delivering enterprise-grade network solutions across Lebanon and the GCC region. I am reaching out regarding the <b>{job_title}</b> position, which closely matches my technical background and career aspirations.</p>
+            <p>My expertise includes full-lifecycle network management: from initial design and hardware procurement through deployment, configuration, and ongoing maintenance. I am proficient in <b>Cisco IOS (CCNA certified), MikroTik RouterOS (MTCNA certified), Fortinet FortiGate (NSE certified)</b>, and Ubiquiti UniFi systems.</p>
+            <p>I have a strong track record of providing 24/7 technical support for critical infrastructure, resolving complex connectivity issues with under 1-hour MTTR, and training technical teams on best practices. I am available for relocation and hold a valid passport.</p>
+            <p>I would be honored to bring my expertise to your team. Please review my attached CV and let me know if you would like to schedule a technical interview.</p>"""
         ]
-        
+
         body = random.choice(templates)
+
         # Inject personalized news if exists
         if news_headline:
-            body = body.replace("<p>Dear Hiring Team,</p>", f"<p>Dear Hiring Team,</p><p>Given your recent news regarding <b>{news_headline}</b>, I felt compelled to reach out.</p>")
+            body = body.replace("<p>Dear Hiring Team,</p>",
+                f"<p>Dear Hiring Team,</p><p>I noted your recent development regarding <b>{news_headline}</b> — this reinforces my belief that your {org} is exactly where I want to contribute my network engineering expertise.</p>")
+            body = body.replace("<p>Dear Hiring Manager,</p>",
+                f"<p>Dear Hiring Manager,</p><p>Your recent news about <b>{news_headline}</b> caught my attention and prompted me to reach out immediately.</p>")
+
+        # Inject executive name if available
+        if executive_names:
+            exec_name = executive_names if isinstance(executive_names, str) else str(executive_names)
+            if exec_name and exec_name != "Hiring Manager":
+                body = body.replace("Dear Hiring Team,", f"Dear {exec_name},")
+                body = body.replace("Dear Hiring Manager,", f"Dear {exec_name},")
 
         highlights = [
-            {"title": "01. OPERATIONS LIFECYCLE", "desc": "Proven expertise in managing high-volume recruitment logistics and payroll synchronization with 100% data integrity."},
-            {"title": "02. SERVICE & RETENTION", "desc": "A track record of resolving complex technical and billing inquiries while maintaining strict SLA compliance."},
-            {"title": "03. WORKFLOW OPTIMIZATION", "desc": "Experience in standardizing onboarding templates and operational diagnostics to significantly reduce overhead."}
+            {
+                "title": "01. NETWORK INFRASTRUCTURE",
+                "desc": "15+ years designing and managing enterprise networks: Cisco, MikroTik, Fortinet, Ubiquiti — achieving 99.9% uptime across all deployments."
+            },
+            {
+                "title": "02. SECURITY & VPN",
+                "desc": "Expert in network security hardening, firewall configuration (FortiGate/Cisco ASA), and VPN deployment (IPSec/SSL) — reducing security incidents by 100%."
+            },
+            {
+                "title": "03. CERTIFIED PROFESSIONAL",
+                "desc": "Cisco CCNA | Fortinet NSE | MikroTik MTCNA | Ubiquiti UBWA — continuously updated certifications with hands-on enterprise experience."
+            }
         ]
 
         return (
-            True, "Sovereign Elite Fallback (Procedural Engine)",
+            True, "Sovereign Elite Fallback (Network Engineer Engine)",
             body.strip(),
-            "0", 85, "Elite Operations Professional.", ["Operations", "Strategy", "HR", "Efficiency"],
-            "Modern", "AGGRESSIVE", "VISIONARY_TECH",
+            "0", 87,
+            "Senior Network Engineer with 15+ years enterprise experience — Cisco, MikroTik, Fortinet certified.",
+            ["Network Engineering", "Cisco", "MikroTik", "Fortinet", "VPN", "Security", "Infrastructure"],
+            "Modern", variant, "VISIONARY_TECH",
             highlights
         )
 
@@ -687,7 +729,7 @@ class OmniIntelligence:
                         parsed.get("cover_letter_body", ""),
                         parsed.get("extracted_salary", "0"),
                         parsed.get("lead_score", 0),
-                        parsed.get("competitive_advantage", "Proven Operations expert."),
+                        parsed.get("competitive_advantage", "Senior Network Engineer — Cisco CCNA, Fortinet NSE, MikroTik MTCNA certified with 15+ years enterprise experience."),
                         parsed.get("keywords", []),
                         parsed.get("culture_persona", "Modern"),
                         parsed.get("psychological_variant", "EMPATHETIC"),

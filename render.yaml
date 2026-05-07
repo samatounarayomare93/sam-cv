@@ -30,6 +30,8 @@
       # â”€â”€ Email: Brevo (primary HTTP API â€” works on Render) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       - key: BREVO_API_KEY
         sync: false
+      - key: BREVO_SENDER_EMAIL
+        value: "samsalameh.cv@gmail.com"
       - key: BREVO_SMTP_LOGIN
         sync: false
       - key: BREVO_SMTP_PASSWORD
