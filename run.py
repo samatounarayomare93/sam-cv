@@ -32,6 +32,7 @@ except Exception:
 from core.keep_alive import keep_alive
 from core.main_bot import AlphaOrchestrator
 from core.telegram_dashboard import SovereignDashboard
+from core.auto_queue_refill import auto_refill_loop
 
 # [💎 CLOUD-PERFECTION]: Unified Swarm Orchestrator (Single-Process)
 # This prevents the 512MB OOM crash on Render by sharing memory between components.
@@ -221,6 +222,8 @@ async def main():
                 asyncio.create_task(dashboard.run_headless(), name="Dashboard"),
                 asyncio.create_task(resource_watchdog(), name="Watchdog"),
                 asyncio.create_task(health_monitor(), name="HealthMonitor"),
+                # [🔄 AUTO-REFILL]: Keeps queue ALWAYS full - never runs dry!
+                asyncio.create_task(auto_refill_loop(), name="AutoQueueRefill"),
                 # [🔥 REVOLUTIONARY]: Continuous background scrapers - NEVER stop feeding leads!
                 # Each runs independently so queue is ALWAYS full
                 asyncio.create_task(continuous_scraper_background(engine, interval_seconds=300, scraper_name="MAIN"), name="Scraper-Main"),
