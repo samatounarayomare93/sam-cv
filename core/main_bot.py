@@ -840,10 +840,11 @@ class AlphaOrchestrator:
                 archetype = "Technical Expert"
                 highlights = fallback_result['highlights']
             
-            # ELITE SCORE THRESHOLD: 70 minimum for quality applications
-            # Jitter prevents "Hard Blocking" on close matches
+            # SCORE THRESHOLD: Read from env for flexibility
+            # Default 55 to ensure most quality leads pass
             jitter = random.randint(-3, 3)
-            strike_threshold = (75 if lead.get("mission_type") == "Founding_Strike" else 70) + jitter
+            base_threshold = int(os.getenv("MIN_MATCH_SCORE", "55"))
+            strike_threshold = (base_threshold + 5 if lead.get("mission_type") == "Founding_Strike" else base_threshold) + jitter
             
             if not is_relevant or score < strike_threshold:
                 logging.info(f"❌ Target Denied by Intelligence: {company_name} | Score: {score}/{strike_threshold} | Reason: {reason[:100]}...")
