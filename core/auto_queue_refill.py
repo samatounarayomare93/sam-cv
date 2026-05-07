@@ -217,8 +217,14 @@ async def auto_refill_loop():
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates,return=representation"
     }
+    patch_headers = {
+        "apikey": sb_key,
+        "Authorization": "Bearer " + sb_key,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+    }
     
-    logging.info("AUTO-REFILL: Started. Monitoring queue every 2 minutes...")
+    logging.info("AUTO-REFILL: Started. Monitoring queue every 60 seconds...")
     
     async with httpx.AsyncClient(timeout=20) as c:
         while True:
@@ -227,9 +233,28 @@ async def auto_refill_loop():
                 logging.info(f"Queue check: {pending} pending leads")
                 
                 if pending < REFILL_THRESHOLD:
-                    logging.info(f"Queue low ({pending} < {REFILL_THRESHOLD}). Refilling...")
-                    injected = await inject_batch(c, sb_url, headers, count=60)
-                    logging.info(f"Injected {injected} new leads. Queue refilled!")
+                    logging.info(f"Queue low ({pending} < {REFILL_THRESHOLD}). Recycling + refilling...")
+                    
+                    # 1. Recycle error/rate_limited leads back to pending first
+                    for status in ('error', 'rate_limited', 'stale_expired'):
+                        try:
+                            await c.patch(
+                                sb_url + f"/rest/v1/leads?status=eq.{status}",
+                                json={"status": "pending"},
+                                headers=patch_headers
+                            )
+                        except Exception as e:
+                            logging.warning(f"Recycle {status} error: {e}")
+                    
+                    # 2. Check again after recycling
+                    pending_after = await get_pending_count(c, sb_url, headers)
+                    
+                    # 3. If still low, inject fresh leads
+                    if pending_after < REFILL_THRESHOLD:
+                        injected = await inject_batch(c, sb_url, headers, count=80)
+                        logging.info(f"Injected {injected} new leads. Queue refilled!")
+                    else:
+                        logging.info(f"Queue refilled via recycling: {pending_after} pending")
                 else:
                     logging.info(f"Queue healthy ({pending} leads). No refill needed.")
                     
