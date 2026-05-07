@@ -11,9 +11,9 @@ services:
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
-        sync: false
+        value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2lhemJhZHltZWlrbXhlc2l0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzMxNzE1NSwiZXhwIjoyMDkyODkzMTU1fQ.NWdt3IcKs60M-6T_syPLQU4m22msqugqGA7wZpCXNbg"
       - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
+        value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2lhemJhZHltZWlrbXhlc2l0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzMxNzE1NSwiZXhwIjoyMDkyODkzMTU1fQ.NWdt3IcKs60M-6T_syPLQU4m22msqugqGA7wZpCXNbg"
 
       # ── AI Services ────────────────────────────────────────────────────────
       - key: GROQ_API_KEY
