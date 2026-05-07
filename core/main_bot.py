@@ -831,6 +831,29 @@ class AlphaOrchestrator:
                     email = emails[0]
                     logging.info(f"✅ RECON SUCCESS: Found {email} for {company_name}")
             
+            # [🔥 FIX]: If still no email, guess it from company name / job URL
+            # This handles LinkedIn/Daleel leads that never expose emails
+            if not email:
+                guessed = None
+                if job_url:
+                    try:
+                        from urllib.parse import urlparse
+                        domain = urlparse(job_url).netloc.replace("www.", "")
+                        JOB_BOARDS = {'linkedin.com', 'indeed.com', 'bayt.com', 'naukrigulf.com',
+                                      'glassdoor.com', 'daleel-madani.org', 'gulftalent.com',
+                                      'dubizzle.com', 'founditgulf.com', 'monster.com', 'ae.linkedin.com'}
+                        if domain and not any(jb in domain for jb in JOB_BOARDS):
+                            guessed = f"hr@{domain}"
+                    except Exception:
+                        pass
+                if not guessed and company_name:
+                    clean = company_name.lower().replace(" ", "").replace("'", "").replace(".", "")[:20]
+                    guessed = f"hr@{clean}.com"
+                if guessed:
+                    email = guessed
+                    lead["email"] = email
+                    logging.info(f"📧 EMAIL GUESSED for '{company_name}': {email}")
+
             if not email:
                 logging.warning(f"⚠️ No contact info for {company_name}. Strike Aborted.")
                 if self.db and job_url: await self.db.update_lead_status(job_url, 'no_contact')

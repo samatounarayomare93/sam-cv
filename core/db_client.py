@@ -118,26 +118,40 @@ class RealityShapingDB:
         await self._request_with_retry("PATCH", endpoint, {"last_active": "now()"})
 
     async def claim_bot_leadership(self) -> bool:
-        if not self.enabled: return True 
+        if not self.enabled: return True
         endpoint = f"{self.url}/rest/v1/system_settings"
         await self.send_heartbeat()
-        success, current = await self._request_with_retry("GET", f"{endpoint}?key=eq.active_bot_heartbeat&select=value")
         current_time = datetime.now()
+
+        # [🔥 FIX]: Always claim leadership on Render (single-instance deployment)
+        # On Render free tier there is only ONE instance running at a time.
+        # The old logic caused permanent STANDBY because the heartbeat was always fresh.
+        is_render = os.getenv("RENDER") is not None
+        if is_render:
+            try:
+                await self.update_setting("active_bot_leader", self.node_id)
+                await self.update_setting("active_bot_heartbeat", current_time.isoformat())
+                return True
+            except Exception as e:
+                logging.warning(f"🏰 SOVEREIGN MODE: Leadership sync error: {e}. Acting as Solo Master.")
+                return True
+
+        # Local/multi-instance: use staleness check (>60s = stale, was 30s - too aggressive)
+        success, current = await self._request_with_retry("GET", f"{endpoint}?key=eq.active_bot_heartbeat&select=value")
         is_stale = True
         if success and isinstance(current, list) and current:
             try:
                 last_hb = datetime.fromisoformat(current[0]['value'].replace('Z', '+00:00'))
-                # [👑 HYPER-AGGRESSIVE TAKEOVER]: If current leader is stale (>30s), we hijack immediately
-                if (current_time - last_hb.replace(tzinfo=None)).total_seconds() < 30:
+                if (current_time - last_hb.replace(tzinfo=None)).total_seconds() < 60:
                     is_stale = False
             except: pass
-        
+
         success, leader_node = await self._request_with_retry("GET", f"{endpoint}?key=eq.active_bot_leader&select=value")
         we_are_leader = False
         if success and isinstance(leader_node, list) and leader_node:
             if leader_node[0]['value'] == self.node_id:
                 we_are_leader = True
-        
+
         if we_are_leader or is_stale:
             try:
                 await self.update_setting("active_bot_leader", self.node_id)
@@ -147,7 +161,7 @@ class RealityShapingDB:
                 return True
             except Exception as e:
                 logging.warning(f"🏰 SOVEREIGN MODE: Leadership sync error: {e}. Acting as Solo Master.")
-                return True # Fail upwards to ensure operations continue
+                return True
         return we_are_leader
 
     async def is_bot_leader(self) -> Optional[bool]:
@@ -626,21 +640,50 @@ class RealityShapingDB:
         
         company = lead_data.get("company_name", "").strip()
         email = lead_data.get("email", "").strip()
+        job_url = lead_data.get("url") or lead_data.get("link") or lead_data.get("job_url", "")
         
-        # [🚫 SAVE GATE]: Filter out absolute garbage, but ALLOW 'Unknown' if we have an email
-        JUNK_COMPANIES = {'target node', 'none', '', 'automatic target', 'oracle lead', 'null'}
+        # [🚫 SAVE GATE]: Filter out absolute garbage
+        JUNK_COMPANIES = {'target node', 'none', '', 'automatic target', 'oracle lead', 'null',
+                          'daleel madani', 'unknown', 'jobs | دليل مدني', 'دليل مدني'}
         if not company or company.lower() in JUNK_COMPANIES:
             logging.debug(f"🚫 SAVE BLOCKED: Refusing to save junk lead '{company}'")
             return
-        if not email and not lead_data.get("url"):
+        if not email and not job_url:
             logging.debug(f"🚫 SAVE BLOCKED: Missing critical data for lead '{company}' — skipping")
             return
-        
+
+        # [🔥 FIX]: If no email but we have a company name, guess common HR emails
+        # This allows LinkedIn/Daleel leads (which never show emails) to be saved and processed
+        if not email and company:
+            # Try to extract domain from job_url
+            guessed_email = None
+            if job_url:
+                try:
+                    from urllib.parse import urlparse
+                    domain = urlparse(job_url).netloc.replace("www.", "")
+                    # Skip job board domains - only guess for company domains
+                    JOB_BOARDS = {'linkedin.com', 'indeed.com', 'bayt.com', 'naukrigulf.com',
+                                  'glassdoor.com', 'daleel-madani.org', 'gulftalent.com',
+                                  'dubizzle.com', 'founditgulf.com', 'monster.com'}
+                    if domain and not any(jb in domain for jb in JOB_BOARDS):
+                        guessed_email = f"hr@{domain}"
+                except Exception:
+                    pass
+            
+            # If still no email, use company name to guess
+            if not guessed_email and company:
+                clean = company.lower().replace(" ", "").replace("'", "").replace(".", "")[:20]
+                guessed_email = f"hr@{clean}.com"
+            
+            if guessed_email:
+                email = guessed_email
+                logging.info(f"📧 EMAIL GUESSED for '{company}': {email}")
+
         payload = {
             "company_name": company.lower(),
             "job_title": lead_data.get("job_title", "").strip(),
             "email": email,
-            "job_url": lead_data.get("url") or lead_data.get("link"),
+            "job_url": job_url,
             "status": "pending",
             "priority_score": score
         }
