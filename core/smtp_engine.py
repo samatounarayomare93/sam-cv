@@ -158,23 +158,27 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
     
     logging.info(f"🧪 TEST STRIKE: Sending to {recipient_email}")
     
-    # [👑 VIP REALISM]: Matching the CEO's requested industry example
+    # [👑 VIP REALISM]: Matching the reference .eml format exactly
     company_name = 'Future Tech Industries'
     job_title = 'Lead Automation Engineer'
     
-    # Define actual highly-professional dummy body instead of a test string
-    body = (
-        "I am formally reaching out to express my high-level interest in the Lead Automation Engineer position.\n\n"
-        "My methodology is built specifically for organizations that focus heavily on automation, "
-        "KPIs, and scaling corporate culture."
-    )
+    # Full professional cover letter body — matches reference .eml format
+    body = """<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">Dear Future Tech Industries Hiring Team,</p>
+
+<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">I am writing to express my strong interest in the <strong>Lead Automation Engineer</strong> position at Future Tech Industries. With <strong>15+ years</strong> of enterprise network engineering experience and active certifications in <strong>Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA</strong>, I am confident I can deliver immediate value to your automation and infrastructure team.</p>
+
+<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">Throughout my career, I have deployed and managed enterprise networks for <strong>20+ clients</strong> achieving <strong>99.9% uptime SLA</strong>, reduced security incidents by 100% through FortiGate/Cisco ASA hardening, and configured IPSec/SSL VPN infrastructure for 50+ branch offices. My expertise spans Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, and Ubiquiti UniFi — with deep knowledge in OSPF/BGP/EIGRP routing protocols and fiber optic infrastructure spanning 500km+.</p>
+
+<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">I am particularly drawn to Future Tech Industries' focus on automation and scalable infrastructure. My background in network automation, monitoring systems, and cross-functional team leadership aligns directly with the requirements of this role.</p>
+
+<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">I am available for immediate relocation to the UAE, KSA, Qatar, Kuwait, or Europe, and I welcome the opportunity to discuss how my background can contribute to your organization's goals.</p>
+
+<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">Please find my <strong>CV</strong> and <strong>Cover Letter</strong> attached for your review.</p>
+
+<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">Best regards,<br><strong>Sam Salameh</strong></p>"""
     
-    # [👑 VIP FIX] Ensure highlights are passed so they render in the email (Screenshot 3 Parity)
-    dynamic_highlights = highlights or [
-        {"title": "OPERATIONS LIFECYCLE", "desc": "Proven expertise in managing high-volume recruitment logistics, employee records, and payroll synchronization with 100% data integrity."},
-        {"title": "SERVICE & RETENTION", "desc": "A track record of resolving 50+ daily complex technical and billing inquiries while maintaining strict SLA compliance."},
-        {"title": "WORKFLOW OPTIMIZATION", "desc": "Experience in standardizing onboarding templates and operational diagnostics to significantly reduce departmental overhead."}
-    ]
+    # No highlights for test — keep it clean like the reference
+    dynamic_highlights = highlights or []
     
     # Send test using exact structural parity with the lead's instruction
     if not attachment_paths:
@@ -334,19 +338,23 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         if test_recv:
             to_email = test_recv
     
-    # 5 subject line variants — A/B tested per recipient (deterministic via MD5 hash)
+    # Subject line — clean professional format matching reference .eml
+    # Format: "Application: {job_title} - {company_name} [{strike_id}]"
     import hashlib
     _ab_seed = int(hashlib.md5(f"{to_email}{company_name}".encode()).hexdigest()[:8], 16) % 5
     
+    # Build strike_id suffix if available
+    _strike_suffix = f" [{strike_id}]" if strike_id else ""
+    
     _subject_variants = [
-        # Variant 0: Direct value proposition
+        # Variant 0: Standard application format (matches reference .eml)
+        f"Application: {job_title} - {company_name}{_strike_suffix}",
+        
+        # Variant 1: Name + certifications
         f"{job_title} Application - Sam Salameh | CCNA, NSE, MTCNA | {company_name}",
         
-        # Variant 1: Personal name first
-        f"Sam Salameh - Senior Network Engineer | {company_name}",
-        
         # Variant 2: Experience-led
-        f"15+ Years Network Engineering - {job_title} at {company_name}",
+        f"15+ Years Network Engineering - {job_title} | {company_name}",
         
         # Variant 3: Achievement-led
         f"{job_title} | 99.9% Uptime, 20+ Enterprise Clients | {company_name}",
@@ -1461,12 +1469,14 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
             r'<html[^>]*>|</html>|<body[^>]*>|</body>|<head[^>]*>.*?</head>',
             '', body_text, flags=_re.DOTALL | _re.IGNORECASE
         ).strip()
-        # Ensure paragraph styling
-        clean_body = _re.sub(
-            r'<p([^>]*)>',
-            r'<p\1 style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">',
-            clean_body
-        )
+        # Only add paragraph styling if the <p> tags don't already have a style attribute
+        # (avoids double-styling pre-formatted HTML bodies)
+        def _ensure_p_style(m):
+            tag_attrs = m.group(1)
+            if 'style=' in tag_attrs:
+                return m.group(0)  # already has style, leave it alone
+            return f'<p{tag_attrs} style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">'
+        clean_body = _re.sub(r'<p([^>]*)>', _ensure_p_style, clean_body)
         email_body_html = clean_body
     else:
         email_body_html = f"""<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">Dear {company_name} Hiring Team,</p>
