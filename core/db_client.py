@@ -36,8 +36,8 @@ class RealityShapingDB:
         self._initialized = True
         
         self.url = os.getenv("SUPABASE_URL", "").rstrip('/')
-        self.key = os.getenv("SUPABASE_KEY")
-        self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        self.key = os.getenv("SUPABASE_KEY") or ""
+        self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or ""
         self.local_db = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sam_ultimate.db")
         
         # Initialize SQLite Mirror
@@ -50,8 +50,8 @@ class RealityShapingDB:
             self.enabled = True
             
         # [👑 MILLION-PERCENT STABILITY]: Increased retries for absolute cloud immortality
-        self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        active_key = self.service_role_key or self.key
+        self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or ""
+        active_key = self.service_role_key or self.key or "placeholder"
         self.headers = {
             "apikey": active_key,
             "Authorization": f"Bearer {active_key}",

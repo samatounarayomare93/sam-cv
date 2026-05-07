@@ -1570,8 +1570,8 @@ class SovereignDashboard:
 
         # Build the Application ONCE
         self.app = ApplicationBuilder().token(self.token).build()
-        await self.app.initialize() # Essential for Standby UI sync
-        await self._sync_ui_standalone(self.app)
+        # NOTE: Do NOT call self.app.initialize() here — async with self.app: handles it automatically.
+        # Calling it twice causes a "Timed out" error on Render.
         self.app.add_handler(CommandHandler("start", self.handle_command))
         self.app.add_handler(MessageHandler(filters.COMMAND, self.handle_command))
         self.app.add_handler(CallbackQueryHandler(self.handle_callback))
@@ -1581,6 +1581,8 @@ class SovereignDashboard:
 
         async with self.app:
             # async with handles initialize() automatically. Only call start() once.
+            await self.app.initialize()
+            await self._sync_ui_standalone(self.app)
             await self.app.start()
             poller_running = False
 

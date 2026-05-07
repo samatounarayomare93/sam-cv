@@ -409,8 +409,16 @@ async def inject_batch(c, url, headers, count=80):
     return success
 
 async def auto_refill_loop():
-    sb_url = os.getenv("SUPABASE_URL")
-    sb_key = os.getenv("SUPABASE_KEY")
+    sb_url = os.getenv("SUPABASE_URL", "").strip()
+    sb_key = os.getenv("SUPABASE_KEY", "").strip()
+
+    # Guard: if Supabase is not configured, run in local-only mode (no crash)
+    if not sb_url or not sb_key:
+        logging.warning("AUTO-REFILL: SUPABASE_URL or SUPABASE_KEY not set. Running in local-only mode.")
+        while True:
+            await asyncio.sleep(CHECK_INTERVAL)
+        return
+
     headers = {
         "apikey": sb_key,
         "Authorization": "Bearer " + sb_key,
