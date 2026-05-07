@@ -136,17 +136,75 @@ services:
 
       # ── Throughput Controls ────────────────────────────────────────────────
       - key: MAX_EMAILS_PER_DAY
-        value: "800"
+        value: "1900"
       - key: MAX_EMAILS_PER_HOUR
-        value: "33"
+        value: "80"
       - key: BREVO_DAILY_LIMIT
         value: "300"
       - key: ZOHO_DAILY_LIMIT
         value: "500"
-      - key: MAX_PARALLEL_STRIKES
-        value: "3"
-      - key: MAX_QUALIFIED_LEADS_PER_CYCLE
+      - key: GMAIL_DAILY_LIMIT
+        value: "500"
+      - key: RESEND_DAILY_LIMIT
         value: "100"
+      - key: MAX_PARALLEL_STRIKES
+        value: "15"
+      - key: MAX_QUALIFIED_LEADS_PER_CYCLE
+        value: "300"
+      - key: MAX_APPLICATIONS_PER_DAY
+        value: "1500"
+      - key: MAX_APPLICATIONS_PER_HOUR
+        value: "120"
+      - key: MIN_MATCH_SCORE
+        value: "55"
+      - key: QUALITY_THRESHOLD
+        value: "55"
+      - key: BATCH_SIZE
+        value: "75"
+      - key: BATCH_PROCESSING_ENABLED
+        value: "true"
+      - key: SCRAPE_INTERVAL_MINUTES
+        value: "90"
+      - key: MAX_PARALLEL_SCRAPERS
+        value: "7"
+      - key: MAX_SCRAPER_PAGES
+        value: "120"
+      - key: SCRAPER_DELAY_MIN
+        value: "2"
+      - key: SCRAPER_DELAY_MAX
+        value: "6"
+      - key: DELAY_BETWEEN_EMAILS_MIN
+        value: "2"
+      - key: DELAY_BETWEEN_EMAILS_MAX
+        value: "8"
+      - key: POISSON_MEAN_DELAY
+        value: "4"
+      - key: ENABLE_POISSON_TIMING
+        value: "true"
+      - key: BUSINESS_HOURS_START
+        value: "5"
+      - key: BUSINESS_HOURS_END
+        value: "23"
+      - key: ENABLE_CIRCADIAN_TIMING
+        value: "true"
+      - key: NATURAL_BREAK_PROBABILITY
+        value: "0.05"
+      - key: NATURAL_BREAK_MINUTES_MIN
+        value: "2"
+      - key: NATURAL_BREAK_MINUTES_MAX
+        value: "5"
+      - key: ENABLE_NATURAL_BREAKS
+        value: "true"
+      - key: KILL_SWITCH_ACTIVE
+        value: "false"
+      - key: SIMILARITY_THRESHOLD
+        value: "0.90"
+      - key: MIN_AI_CONFIDENCE
+        value: "65"
+      - key: GC_INTERVAL
+        value: "90"
+      - key: MEMORY_THRESHOLD_MB
+        value: "450"
 
       # ── Keep-Alive (prevents Render free-tier sleep) ───────────────────────
       - key: KEEP_ALIVE_ENABLED
