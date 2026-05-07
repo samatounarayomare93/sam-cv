@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Auto Log Cleanup",
+  "description": "Automatically cleans old log files when the agent stops, keeping logs folder under 50MB forever",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "powershell -Command \"$logDir = 'logs'; if (Test-Path $logDir) { $totalMB = (Get-ChildItem $logDir -File | Measure-Object -Property Length -Sum).Sum / 1MB; if ($totalMB -gt 50) { Get-ChildItem $logDir -File | Sort-Object LastWriteTime | Select-Object -First ([Math]::Max(1, (Get-ChildItem $logDir -File).Count - 3)) | Remove-Item -Force; Write-Host \\\"Cleaned logs: was $([math]::Round($totalMB,1))MB\\\" } }\"",
+    "timeout": 30
+  }
+}

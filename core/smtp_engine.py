@@ -1423,9 +1423,8 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
 
 def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
     """
-    Professional WHITE email template — deliverability optimized.
-    Uses the AI-generated cover letter body (body_text) as the main content.
-    White background avoids spam filters that flag dark HTML emails.
+    Simple, clean white email template - professional and deliverable.
+    Matches standard business email format.
     """
     # Get candidate info
     linkedin_url = os.getenv("LINKEDIN_URL", "https://www.linkedin.com/in/sam-salameh")
@@ -1434,202 +1433,61 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
     candidate_name = os.getenv("SENDER_NAME", "Sam Salameh")
     candidate_profession = os.getenv("CANDIDATE_PROFESSION", "Senior Network Engineer")
 
-    # ── Build highlights section ──────────────────────────────────────────
-    highlights_html = ""
-    if highlights:
-        highlights_html = """
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0;">"""
-        for h in highlights[:3]:
-            title = h.get('title', '')
-            desc = h.get('desc', '')
-            if title and desc:
-                highlights_html += f"""
-          <tr>
-            <td style="padding: 12px 16px; border-left: 3px solid #0077b6; background: #f8fafc; margin-bottom: 8px; display: block;">
-              <div style="font-weight: 700; font-size: 12px; color: #0077b6; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">{title}</div>
-              <div style="font-size: 14px; color: #374151; line-height: 1.6;">{desc}</div>
-            </td>
-          </tr>
-          <tr><td style="height: 8px;"></td></tr>"""
-        highlights_html += "\n        </table>"
-
-    # ── Use AI cover letter body if available, else fallback ─────────────
+    # ── Use AI cover letter body if available ────────────────────────────
     if body_text and len(body_text.strip()) > 100:
-        # AI-generated personalized body — use it directly
-        # Strip any outer <html>/<body> tags if present
         import re as _re
-        clean_body = _re.sub(r'<html[^>]*>|</html>|<body[^>]*>|</body>|<head[^>]*>.*?</head>', '', body_text, flags=_re.DOTALL | _re.IGNORECASE).strip()
-        # Ensure paragraphs are styled
-        if '<p' not in clean_body.lower():
-            # Plain text — wrap in paragraphs
-            paragraphs = [p.strip() for p in clean_body.split('\n\n') if p.strip()]
-            clean_body = ''.join(f'<p style="margin: 0 0 16px 0; font-size: 15px; color: #374151; line-height: 1.8;">{p}</p>' for p in paragraphs)
-        else:
-            # Has HTML — just ensure paragraph styling
-            clean_body = _re.sub(
-                r'<p([^>]*)>',
-                r'<p\1 style="margin: 0 0 16px 0; font-size: 15px; color: #374151; line-height: 1.8;">',
-                clean_body
-            )
+        # Strip outer html/body/head tags
+        clean_body = _re.sub(
+            r'<html[^>]*>|</html>|<body[^>]*>|</body>|<head[^>]*>.*?</head>',
+            '', body_text, flags=_re.DOTALL | _re.IGNORECASE
+        ).strip()
+        # Ensure paragraph styling
+        clean_body = _re.sub(
+            r'<p([^>]*)>',
+            r'<p\1 style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">',
+            clean_body
+        )
         email_body_html = clean_body
     else:
-        # Fallback generic body
-        email_body_html = f"""
-        <p style="margin: 0 0 16px 0; font-size: 15px; color: #374151; line-height: 1.8;">
-          Dear {company_name} Hiring Team,
-        </p>
-        <p style="margin: 0 0 16px 0; font-size: 15px; color: #374151; line-height: 1.8;">
-          I am writing to express my strong interest in the <strong>{job_title}</strong> position at {company_name}.
-        </p>
-        <p style="margin: 0 0 16px 0; font-size: 15px; color: #374151; line-height: 1.8;">
-          With <strong>15+ years</strong> of enterprise network engineering experience and active certifications in
-          <strong>Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA</strong>, I have a proven track record
-          delivering 99.9% uptime for 20+ enterprise clients across ISPs, banks, and educational institutions.
-        </p>
-        <p style="margin: 0 0 16px 0; font-size: 15px; color: #374151; line-height: 1.8;">
-          I specialize in Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, and Ubiquiti UniFi — with deep expertise
-          in OSPF/BGP/EIGRP routing, IPSec/SSL VPN, firewall hardening, and fiber optic infrastructure.
-          I am available for immediate relocation to the UAE, KSA, Qatar, or Europe.
-        </p>
-        <p style="margin: 0 0 16px 0; font-size: 15px; color: #374151; line-height: 1.8;">
-          Please find my CV and cover letter attached. I would welcome the opportunity to discuss how my
-          expertise can contribute to {company_name}'s network infrastructure goals.
-        </p>
-        <p style="margin: 0 0 16px 0; font-size: 15px; color: #374151; line-height: 1.8;">
-          Best regards,<br>
-          <strong>Sam Salameh</strong>
-        </p>"""
+        email_body_html = f"""<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">Dear {company_name} Hiring Team,</p>
+<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">I am writing to express my strong interest in the <strong>{job_title}</strong> position at {company_name}. With <strong>15+ years</strong> of enterprise network engineering experience and active certifications in Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA, I am confident I can deliver immediate value to your team.</p>
+<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">I have deployed enterprise networks for <strong>20+ clients</strong> achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate/Cisco ASA hardening, and configured IPSec VPN for 50+ branch offices. I am available for immediate relocation to the UAE, KSA, Qatar, or Europe.</p>
+<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">Please find my CV and cover letter attached. I would welcome the opportunity to discuss how my background aligns with {company_name}'s infrastructure goals.</p>
+<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">Best regards,<br><strong>{candidate_name}</strong></p>"""
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Application: {job_title}</title>
 </head>
-<body style="margin:0; padding:0; background-color:#f3f4f6; font-family:'Segoe UI',Arial,sans-serif;">
+<body style="margin:0; padding:0; background-color:#ffffff; font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff; padding:20px;">
+<tr><td>
+  
+  <!-- Simple header with name -->
+  <h2 style="margin:0 0 5px 0; font-size:18px; color:#000000; font-weight:600;">{candidate_name}</h2>
+  <p style="margin:0 0 20px 0; font-size:13px; color:#666666;">{candidate_profession}</p>
+  
+  <!-- Email body -->
+  {email_body_html}
+  
+  <!-- Attachments note -->
+  <p style="margin:20px 0 0 0; font-size:13px; color:#666666;">
+    Attachments: CV and Cover Letter (PDF)
+  </p>
+  
+  <!-- Contact footer -->
+  <p style="margin:20px 0 0 0; padding-top:15px; border-top:1px solid #e0e0e0; font-size:13px; color:#666666; line-height:1.6;">
+    <strong style="color:#000000;">{candidate_name}</strong><br>
+    {candidate_profession}<br>
+    Email: <a href="mailto:{candidate_email}" style="color:#0066cc; text-decoration:none;">{candidate_email}</a><br>
+    Phone: {phone}<br>
+    LinkedIn: <a href="{linkedin_url}" style="color:#0066cc; text-decoration:none;">{linkedin_url}</a>
+  </p>
 
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6; padding: 32px 16px;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-
-          <!-- TOP ACCENT BAR -->
-          <tr>
-            <td style="background: linear-gradient(90deg, #0077b6 0%, #00b4d8 100%); height: 4px; font-size:0; line-height:0;">&nbsp;</td>
-          </tr>
-
-          <!-- HEADER -->
-          <tr>
-            <td style="padding: 32px 40px 24px 40px; border-bottom: 1px solid #e5e7eb;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="vertical-align: middle;">
-                    <!-- Avatar circle -->
-                    <table cellpadding="0" cellspacing="0" style="display:inline-table; vertical-align:middle; margin-right:16px;">
-                      <tr>
-                        <td style="width:56px; height:56px; background:#0077b6; border-radius:50%; text-align:center; vertical-align:middle; font-size:20px; font-weight:700; color:#ffffff; line-height:56px;">
-                          SS
-                        </td>
-                      </tr>
-                    </table>
-                    <table cellpadding="0" cellspacing="0" style="display:inline-table; vertical-align:middle;">
-                      <tr>
-                        <td>
-                          <div style="font-size:20px; font-weight:700; color:#111827; line-height:1.2;">{candidate_name}</div>
-                          <div style="font-size:13px; color:#0077b6; font-weight:600; margin-top:3px;">{candidate_profession}</div>
-                          <div style="font-size:12px; color:#6b7280; margin-top:2px;">CCNA · NSE · MTCNA · UBWA</div>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                  <td style="text-align:right; vertical-align:middle;">
-                    <div style="font-size:12px; color:#6b7280; line-height:1.8;">
-                      <a href="mailto:{candidate_email}" style="color:#0077b6; text-decoration:none;">{candidate_email}</a><br>
-                      <a href="tel:{phone}" style="color:#6b7280; text-decoration:none;">{phone}</a><br>
-                      <a href="{linkedin_url}" style="color:#0077b6; text-decoration:none;">LinkedIn Profile</a>
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- SUBJECT LINE -->
-          <tr>
-            <td style="padding: 20px 40px 0 40px;">
-              <div style="font-size:13px; color:#6b7280; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Application for</div>
-              <div style="font-size:22px; font-weight:700; color:#111827;">{job_title}</div>
-              <div style="font-size:14px; color:#0077b6; margin-top:4px;">{company_name}</div>
-            </td>
-          </tr>
-
-          <!-- DIVIDER -->
-          <tr>
-            <td style="padding: 16px 40px;">
-              <div style="height:1px; background:#e5e7eb;"></div>
-            </td>
-          </tr>
-
-          <!-- MAIN BODY — AI-GENERATED COVER LETTER -->
-          <tr>
-            <td style="padding: 0 40px 8px 40px;">
-              {email_body_html}
-            </td>
-          </tr>
-
-          <!-- KEY HIGHLIGHTS -->
-          {f'<tr><td style="padding: 0 40px 8px 40px;"><div style="font-size:13px; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">Key Highlights</div>{highlights_html}</td></tr>' if highlights_html else ''}
-
-          <!-- DIVIDER -->
-          <tr>
-            <td style="padding: 16px 40px 0 40px;">
-              <div style="height:1px; background:#e5e7eb;"></div>
-            </td>
-          </tr>
-
-          <!-- CTA BUTTON -->
-          <tr>
-            <td style="padding: 24px 40px; text-align:center;">
-              <a href="{linkedin_url}"
-                 style="display:inline-block; padding:12px 32px; background:#0077b6; color:#ffffff;
-                        text-decoration:none; border-radius:6px; font-weight:600; font-size:14px;
-                        letter-spacing:0.5px;">
-                View LinkedIn Profile
-              </a>
-              <div style="margin-top:12px; font-size:12px; color:#9ca3af;">
-                CV &amp; Cover Letter attached as PDF
-              </div>
-            </td>
-          </tr>
-
-          <!-- FOOTER -->
-          <tr>
-            <td style="padding: 20px 40px; background:#f9fafb; border-top:1px solid #e5e7eb; text-align:center;">
-              <div style="font-size:13px; color:#6b7280; line-height:1.8;">
-                <strong style="color:#374151;">{candidate_name}</strong> &nbsp;·&nbsp; {candidate_profession}<br>
-                <a href="mailto:{candidate_email}" style="color:#0077b6; text-decoration:none;">{candidate_email}</a>
-                &nbsp;·&nbsp;
-                <a href="tel:{phone}" style="color:#6b7280; text-decoration:none;">{phone}</a>
-                &nbsp;·&nbsp;
-                <a href="{linkedin_url}" style="color:#0077b6; text-decoration:none;">LinkedIn</a>
-              </div>
-              <div style="font-size:11px; color:#d1d5db; margin-top:8px;">
-                Beirut, Lebanon · Available for immediate relocation
-              </div>
-            </td>
-          </tr>
-
-          <!-- BOTTOM ACCENT BAR -->
-          <tr>
-            <td style="background: linear-gradient(90deg, #0077b6 0%, #00b4d8 100%); height: 3px; font-size:0; line-height:0;">&nbsp;</td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-
+</td></tr>
+</table>
 </body>
 </html>"""
 def close_smtp_pool():
