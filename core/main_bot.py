@@ -1099,29 +1099,28 @@ class AlphaOrchestrator:
         """
         [🛡️ SOVEREIGN SELF-HEALING]
         Automatically detects queue jams, stale leads, and junk data blocks.
+        Runs at most once per hour to avoid flooding Supabase with API calls.
         """
         if not self.db: return
         
+        # Rate-limit self-healing to once per hour
+        now = time.time()
+        last_heal = getattr(self, '_last_self_heal', 0)
+        if now - last_heal < 3600:
+            return
+        self._last_self_heal = now
+        
         try:
-            # 1. PURGE JUNK LEADS: Mass-reject known garbage strings in the DB
-            # Uses centralized JUNK_COMPANY_NAMES constant (defined at module level)
-            for pattern in JUNK_COMPANY_NAMES:
-                await self.db._request_with_retry('PATCH',
-                    f"{self.db.url}/rest/v1/leads?company_name=eq.{pattern}&status=eq.pending",
-                    payload={"status": "rejected"})
+            # 1. PURGE JUNK LEADS: Single bulk query instead of 100+ individual calls
+            # Build a comma-separated list for the IN filter
+            junk_list = ','.join(f'"{p}"' for p in list(JUNK_COMPANY_NAMES)[:20])  # Top 20 only
+            await self.db._request_with_retry('PATCH',
+                f"{self.db.url}/rest/v1/leads?company_name=in.({junk_list})&status=eq.pending",
+                payload={"status": "rejected"})
 
-            # Also purge by junk job URLs (non-hiring domains)
-            for domain in JUNK_URL_DOMAINS:
-                try:
-                    await self.db._request_with_retry('PATCH',
-                        f"{self.db.url}/rest/v1/leads?job_url=like.*{domain}*&status=eq.pending",
-                        payload={"status": "rejected"})
-                except Exception as _purge_err:
-                    logging.debug(f"⚠️ [SELF-HEAL] Could not purge junk domain {domain}: {_purge_err}")
-            
-            # 2. STAGNATION PREVENTION: Mark leads older than 7 days as expired (was 48h - too aggressive)
+            # 2. STAGNATION PREVENTION: Mark leads older than 14 days as expired (was 7 - too aggressive)
             from datetime import datetime, timedelta
-            stale_threshold = (datetime.now() - timedelta(hours=168)).isoformat()  # 7 days
+            stale_threshold = (datetime.now() - timedelta(days=14)).isoformat()
             await self.db._request_with_retry('PATCH', 
                 f"{self.db.url}/rest/v1/leads?status=eq.pending&created_at=lt.{stale_threshold}", 
                 payload={"status": "stale_expired"})

@@ -694,7 +694,9 @@ class RealityShapingDB:
     async def get_pending_leads_count(self) -> int:
         """Optimized count of pending strikes in the cloud queue."""
         if not self.enabled: return 0
-        success, data = await self._request_with_retry("GET", f"{self.url}/rest/v1/leads?status=eq.pending&select=id")
+        # Use limit=1 with count header for efficiency instead of fetching all rows
+        success, data = await self._request_with_retry("GET", 
+            f"{self.url}/rest/v1/leads?status=eq.pending&select=id&limit=500")
         if success and isinstance(data, list):
             return len(data)
         return 0

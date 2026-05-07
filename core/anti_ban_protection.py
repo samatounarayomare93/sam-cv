@@ -57,10 +57,10 @@ class AntiBanProtection:
         # Rate limits (applications per company per time period)
         self.max_apps_per_company_per_day = 1  # Only 1 application per company per day
         self.max_apps_per_company_per_week = 2  # Max 2 per week (if they repost)
-        self.max_apps_per_company_total = 3  # Max 3 total (if they keep reposting)
+        self.max_apps_per_company_total = 5  # Max 5 total (if they keep reposting)
         
         # Timing constraints (look human)
-        self.min_time_between_apps = 30   # 30 seconds minimum between applications
+        self.min_time_between_apps = 2    # 2 seconds minimum between applications (was 30 - too slow for parallel)
         self.max_apps_per_hour = 200      # 200 applications per hour
         self.max_apps_per_day = 5000      # 5000 per day (scaled up)
         
