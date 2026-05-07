@@ -21,26 +21,26 @@ def immortal_wrapper():
     while restart_count < max_restarts:
         try:
             restart_count += 1
-            logging.info(f"?? IMMORTAL BOOT (Attempt #{restart_count})")
+            logging.info(f"🔄 IMMORTAL BOOT (Attempt #{restart_count})")
             
             # Run the main bot
             import run
             
             # If run.py exits normally, restart anyway (shouldn't happen)
-            logging.warning("?? Main process exited. Restarting in 5 seconds...")
+            logging.warning("⚠️ Main process exited. Restarting in 5 seconds...")
             time.sleep(5)
             
         except KeyboardInterrupt:
-            logging.info("?? Graceful shutdown requested by user.")
+            logging.info("🛑 Graceful shutdown requested by user.")
             break
             
         except Exception as e:
-            logging.critical(f"?? FATAL ERROR: {e}")
+            logging.critical(f"💀 FATAL ERROR: {e}")
             logging.critical(f"Traceback: {traceback.format_exc()}")
             
             # Wait before restart (exponential backoff up to 1 hour)
             wait_time = min(2 ** min(restart_count, 10), 3600)
-            logging.info(f"?? Restarting in {wait_time} seconds...")
+            logging.info(f"⏳ Restarting in {wait_time} seconds...")
             time.sleep(wait_time)
             
             # Clear memory
