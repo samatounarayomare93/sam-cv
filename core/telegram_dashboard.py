@@ -1036,7 +1036,8 @@ class SovereignDashboard:
             [KeyboardButton("🛰️ Track | التتبع"), KeyboardButton("🎓 Prep | التحضير")],
             [KeyboardButton("⚙️ Settings | الإعدادات"), KeyboardButton("🔄 Reboot | إعادة تشغيل")],
             [KeyboardButton("⏸️ Pause | إيقاف مؤقت"), KeyboardButton("▶️ Resume | استئناف")],
-            [KeyboardButton("🛑 Omega Halt | التوقف التام"), KeyboardButton("📜 Logs | السجلات")]
+            [KeyboardButton("🛑 Omega Halt | التوقف التام"), KeyboardButton("📜 Logs | السجلات")],
+            [KeyboardButton("📧 Test Email | تجربة إيميل")],
         ]
         reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
 
@@ -1190,6 +1191,43 @@ class SovereignDashboard:
                 parse_mode='HTML'
             )
 
+        elif key == "quick_test_email":
+            # One-tap test: sends immediately to TEST_RECEIVER_EMAIL without asking
+            target = os.getenv("TEST_RECEIVER_EMAIL", os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "")))
+            if not target:
+                await msg.reply_text("❌ <b>TEST_RECEIVER_EMAIL not set.</b>\nPlease configure it in your environment variables.", parse_mode='HTML')
+                return
+            status_msg = await msg.reply_text(
+                f"🧬 <b>QUICK TEST STRIKE INITIATED</b>\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"📧 Target: <code>{target}</code>\n"
+                f"<i>Generating CV + Cover Letter package...</i>",
+                parse_mode='HTML'
+            )
+            try:
+                success = await asyncio.to_thread(smtp_engine.send_test_email, target)
+                if success:
+                    await status_msg.edit_text(
+                        f"✅ <b>TEST EMAIL DELIVERED!</b>\n"
+                        f"━━━━━━━━━━━━━━━\n"
+                        f"📧 Sent to: <code>{target}</code>\n"
+                        f"📎 Attachments: CV + Cover Letter\n\n"
+                        f"<i>Check your inbox (and spam folder).\n"
+                        f"Should arrive within 30 seconds.</i>",
+                        parse_mode='HTML'
+                    )
+                else:
+                    await status_msg.edit_text(
+                        f"❌ <b>TEST EMAIL FAILED</b>\n"
+                        f"━━━━━━━━━━━━━━━\n"
+                        f"Target: <code>{target}</code>\n\n"
+                        f"<i>Check /logs for details. Brevo or Gmail may be down.</i>",
+                        parse_mode='HTML'
+                    )
+            except Exception as e:
+                logging.error(f"Quick test email error: {e}")
+                await status_msg.edit_text(f"💥 <b>ERROR:</b> <code>{str(e)[:200]}</code>", parse_mode='HTML')
+
         elif key in ("stats", "status"):
             await self._dispatch_command(f"/{key}", update, context)
 
@@ -1338,6 +1376,7 @@ class SovereignDashboard:
             "evolution": "evolution", "audit": "audit",
             "mock interview": "mock_interview", "ghost": "mock_interview",
             "test strike": "test_strike", "تجربة": "test_strike",
+            "test email": "quick_test_email", "تجربة إيميل": "quick_test_email",
             "synapse": "synapse", "platforms": "platforms", "sources": "platforms", "المواقع": "platforms",
             "logs": "logs", "السجلات": "logs"
         }
