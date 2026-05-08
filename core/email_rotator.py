@@ -19,19 +19,19 @@ PROVIDER_LIMITS = {
     "resend_1":  100,   # Resend #1 (3000/month free)
     "resend_2":  100,   # Resend #2
     "resend_3":  100,   # Resend #3
-    "brevo":     300,   # Brevo free
+    "resend":    100,   # Resend alias (used by smtp_engine record_email_sent)
+    "brevo":     300,   # Brevo free (300/day)
     "mailjet":   200,   # Mailjet free (6000/month)
     "sendpulse": 400,   # SendPulse free (12000/month)
-    "zoho_1":    500,   # Zoho #1 free
-    "zoho_2":    500,   # Zoho #2 free
-    "zoho_3":    500,   # Zoho #3 free
-    "gmail":     500,   # Gmail free
-    "yahoo":     500,   # Yahoo free
-    "outlook":   300,   # Outlook free
+    "zoho_1":    500,   # Zoho #1 (500/day)
+    "zoho_2":    500,   # Zoho #2 (500/day)
+    "zoho_3":    500,   # Zoho #3 (500/day)
+    "gmail":     500,   # Gmail (500/day)
+    "yahoo":     500,   # Yahoo (500/day)
+    "outlook":   300,   # Outlook (300/day)
 }
-# TOTAL with all providers: ~4,000/day FREE
-# Each extra Zoho account adds 500/day
-# 20 Zoho accounts = 10,000/day total
+# TOTAL with all configured providers: ~2200/day
+# brevo(300) + zoho_1(500) + zoho_2(500) + outlook(300) + gmail(500) + resend(100) = 2200
 
 USAGE_FILE = Path("cache/email_usage.json")
 USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -134,10 +134,14 @@ class EmailRotator:
                 providers.append({"name": "outlook", "display_name": "Outlook",
                                    "limit": PROVIDER_LIMITS["outlook"], "priority": 12})
         else:
-            # On Render: Gmail API (OAuth, not SMTP) still works
+            # On Render: Gmail SMTP port 465 and Outlook port 587 are attempted in smtp_engine.py
+            # Register them here so the rotator tracks their usage correctly.
             if os.getenv("GMAIL_SMTP_USER") and os.getenv("GMAIL_APP_PASSWORD"):
-                providers.append({"name": "gmail", "display_name": "Gmail (API)",
+                providers.append({"name": "gmail", "display_name": "Gmail (SMTP-465)",
                                    "limit": PROVIDER_LIMITS["gmail"], "priority": 10})
+            if os.getenv("OUTLOOK_USER") and os.getenv("OUTLOOK_PASSWORD"):
+                providers.append({"name": "outlook", "display_name": "Outlook (SMTP-587)",
+                                   "limit": PROVIDER_LIMITS["outlook"], "priority": 11})
 
         return sorted(providers, key=lambda x: x["priority"])
 

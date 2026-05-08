@@ -437,18 +437,49 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     )
 
     if is_render:
-        logging.info("☁️ [RENDER-MODE] Starting delivery chain...")
+        logging.info("☁️ [RENDER-MODE] Starting 6-step delivery chain...")
+
+        import smtplib as _smtplib, ssl as _ssl
+        from email.mime.multipart import MIMEMultipart as _MMP
+        from email.mime.text import MIMEText as _MMT
+        from email.mime.base import MIMEBase as _MMB
+        from email import encoders as _enc
+        from email.utils import formatdate as _fd
+
+        def _build_mime_msg(from_addr, reply_addr):
+            """Helper: build a MIME message ready to send."""
+            _msg = _MMP('mixed')
+            _msg['Subject'] = subject
+            _msg['From']    = from_addr
+            _msg['To']      = to_email
+            _msg['Reply-To']= reply_addr
+            _msg['Date']    = _fd(localtime=True)
+            _html = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+            _alt  = _MMP('alternative')
+            _alt.attach(_MMT(_html, 'html'))
+            _msg.attach(_alt)
+            if attachment_paths:
+                for _path in attachment_paths:
+                    if _path and os.path.exists(_path):
+                        with open(_path, 'rb') as _f:
+                            _part = _MMB('application', 'octet-stream')
+                            _part.set_payload(_f.read())
+                            _enc.encode_base64(_part)
+                            _fname = os.path.basename(_path)
+                            _part.add_header('Content-Disposition', f'attachment; filename="{_fname}"')
+                            _msg.attach(_part)
+            return _msg
 
         gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or os.getenv("GMAIL_SMTP_USER", "")).strip()
         gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or os.getenv("GMAIL_APP_PASSWORD", "")).strip()
 
-        # ── STEP 0: Brevo HTTP API — PRIMARY, verified sender, delivers to anyone ──
+        # ── STEP 0: Brevo HTTP API — 300/day, verified sender, works on Render ──
         brevo_api_r = os.getenv("BREVO_API_KEY", "").strip()
         if not brevo_api_r:
             brevo_api_r = "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"
         if brevo_api_r:
             try:
-                logging.info("📧 [RENDER-STEP0] Brevo HTTP API (primary)...")
+                logging.info("📧 [RENDER-STEP0] Brevo HTTP API (300/day)...")
                 if send_email_via_brevo_http(to_email, company_name, job_title, custom_body,
                                               attachment_paths, sender_name, highlights,
                                               subject=subject, reply_to=reply_to or gmail_user):
@@ -459,58 +490,103 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                     except: pass
                     return True
                 else:
-                    logging.warning("⚠️ [RENDER-STEP0] Brevo HTTP failed (credits=0?), trying Gmail SMTP...")
+                    logging.warning("⚠️ [RENDER-STEP0] Brevo HTTP failed (credits=0?), trying Zoho SMTP...")
             except Exception as e:
                 logging.warning(f"⚠️ [RENDER-STEP0] Brevo HTTP exception: {e}")
 
-        # ── STEP 1: Gmail SMTP Port 465 SSL ──────────────────────────────────
+        # ── STEP 1: Zoho SMTP #1 — port 465 SSL, 500/day ─────────────────────
+        zoho1_user = (getattr(config, 'ZOHO_SMTP_USER', '') or os.getenv("ZOHO_SMTP_USER", "")).strip()
+        zoho1_pass = (getattr(config, 'ZOHO_APP_PASSWORD', '') or os.getenv("ZOHO_APP_PASSWORD", "")).strip()
+        if zoho1_user and zoho1_pass:
+            try:
+                logging.info(f"📧 [RENDER-STEP1] Zoho SMTP #1 port 465 SSL (500/day) → {zoho1_user}...")
+                _msg1 = _build_mime_msg(
+                    f"{sender_name} <{zoho1_user}>",
+                    f"{sender_name} <{reply_to or zoho1_user}>"
+                )
+                _ctx1 = _ssl.create_default_context()
+                with _smtplib.SMTP_SSL('smtp.zoho.com', 465, context=_ctx1, timeout=10) as _s:
+                    _s.login(zoho1_user, zoho1_pass)
+                    _s.sendmail(zoho1_user, [to_email], _msg1.as_bytes())
+                logging.info("✅ [RENDER-STEP1] Zoho SMTP #1 SUCCESS!")
+                try:
+                    from core.email_rotator import record_email_sent
+                    record_email_sent("zoho_1")
+                except: pass
+                return True
+            except Exception as e:
+                logging.warning(f"⚠️ [RENDER-STEP1] Zoho SMTP #1 failed: {e}")
+
+        # ── STEP 2: Zoho SMTP #2 — port 465 SSL, 500/day ─────────────────────
+        zoho2_user = (getattr(config, 'ZOHO_SMTP_USER_2', '') or os.getenv("ZOHO_SMTP_USER_2", "")).strip()
+        zoho2_pass = (getattr(config, 'ZOHO_APP_PASSWORD_2', '') or os.getenv("ZOHO_APP_PASSWORD_2", "")).strip()
+        if zoho2_user and zoho2_pass:
+            try:
+                logging.info(f"📧 [RENDER-STEP2] Zoho SMTP #2 port 465 SSL (500/day) → {zoho2_user}...")
+                _msg2 = _build_mime_msg(
+                    f"{sender_name} <{zoho2_user}>",
+                    f"{sender_name} <{reply_to or zoho2_user}>"
+                )
+                _ctx2 = _ssl.create_default_context()
+                with _smtplib.SMTP_SSL('smtp.zoho.com', 465, context=_ctx2, timeout=10) as _s:
+                    _s.login(zoho2_user, zoho2_pass)
+                    _s.sendmail(zoho2_user, [to_email], _msg2.as_bytes())
+                logging.info("✅ [RENDER-STEP2] Zoho SMTP #2 SUCCESS!")
+                try:
+                    from core.email_rotator import record_email_sent
+                    record_email_sent("zoho_2")
+                except: pass
+                return True
+            except Exception as e:
+                logging.warning(f"⚠️ [RENDER-STEP2] Zoho SMTP #2 failed: {e}")
+
+        # ── STEP 3: Outlook SMTP — port 587 STARTTLS, 300/day ────────────────
+        outlook_user = (getattr(config, 'OUTLOOK_USER', '') or os.getenv("OUTLOOK_USER", "")).strip()
+        outlook_pass = (getattr(config, 'OUTLOOK_PASSWORD', '') or os.getenv("OUTLOOK_PASSWORD", "")).strip()
+        if outlook_user and outlook_pass:
+            try:
+                logging.info(f"📧 [RENDER-STEP3] Outlook SMTP port 587 STARTTLS (300/day) → {outlook_user}...")
+                _msg3 = _build_mime_msg(
+                    f"{sender_name} <{outlook_user}>",
+                    f"{sender_name} <{reply_to or outlook_user}>"
+                )
+                with _smtplib.SMTP('smtp-mail.outlook.com', 587, timeout=10) as _s:
+                    _s.ehlo()
+                    _s.starttls()
+                    _s.ehlo()
+                    _s.login(outlook_user, outlook_pass)
+                    _s.sendmail(outlook_user, [to_email], _msg3.as_bytes())
+                logging.info("✅ [RENDER-STEP3] Outlook SMTP SUCCESS!")
+                try:
+                    from core.email_rotator import record_email_sent
+                    record_email_sent("outlook")
+                except: pass
+                return True
+            except Exception as e:
+                logging.warning(f"⚠️ [RENDER-STEP3] Outlook SMTP failed: {e}")
+
+        # ── STEP 4: Gmail SMTP — port 465 SSL, 500/day (may be blocked) ──────
         if gmail_user and gmail_pass:
             try:
-                import smtplib as _smtplib, ssl as _ssl
-                from email.mime.multipart import MIMEMultipart as _MMP
-                from email.mime.text import MIMEText as _MMT
-                from email.mime.base import MIMEBase as _MMB
-                from email import encoders as _enc
-                from email.utils import formatdate as _fd
-
-                _msg = _MMP('mixed')
-                _msg['Subject'] = subject
-                _msg['From']    = f"{sender_name} <{gmail_user}>"
-                _msg['To']      = to_email
-                _msg['Reply-To']= f"{sender_name} <{gmail_user}>"
-                _msg['Date']    = _fd(localtime=True)
-
-                _html = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
-                _alt  = _MMP('alternative')
-                _alt.attach(_MMT(_html, 'html'))
-                _msg.attach(_alt)
-
-                if attachment_paths:
-                    for _path in attachment_paths:
-                        if _path and os.path.exists(_path):
-                            with open(_path, 'rb') as _f:
-                                _part = _MMB('application', 'octet-stream')
-                                _part.set_payload(_f.read())
-                                _enc.encode_base64(_part)
-                                _fname = os.path.basename(_path)
-                                _part.add_header('Content-Disposition', f'attachment; filename="{_fname}"')
-                                _msg.attach(_part)
-
-                _ctx = _ssl.create_default_context()
-                with _smtplib.SMTP_SSL('smtp.gmail.com', 465, context=_ctx, timeout=10) as _s:
+                logging.info(f"📧 [RENDER-STEP4] Gmail SMTP port 465 SSL (500/day, may be blocked)...")
+                _msg4 = _build_mime_msg(
+                    f"{sender_name} <{gmail_user}>",
+                    f"{sender_name} <{reply_to or gmail_user}>"
+                )
+                _ctx4 = _ssl.create_default_context()
+                with _smtplib.SMTP_SSL('smtp.gmail.com', 465, context=_ctx4, timeout=10) as _s:
                     _s.login(gmail_user, gmail_pass)
-                    _s.sendmail(gmail_user, [to_email], _msg.as_bytes())
-
-                logging.info(f"✅ [RENDER-STEP1] Gmail SMTP 465 SUCCESS!")
+                    _s.sendmail(gmail_user, [to_email], _msg4.as_bytes())
+                logging.info("✅ [RENDER-STEP4] Gmail SMTP 465 SUCCESS!")
                 try:
                     from core.email_rotator import record_email_sent
                     record_email_sent("gmail")
                 except: pass
                 return True
             except Exception as e:
-                logging.warning(f"⚠️ [RENDER-STEP1] Gmail SMTP 465 failed: {e}")
+                logging.warning(f"⚠️ [RENDER-STEP4] Gmail SMTP 465 failed: {e}")
 
-        # ── STEP 2: Resend API ────────────────────────────────────────────────
+        # ── STEP 5: Resend API — 100/day fallback ────────────────────────────
         resend_key_r = os.getenv("RESEND_API_KEY", "").strip()
         if HAS_RESEND and resend_key_r:
             try:
@@ -543,63 +619,21 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 if resend_att_r:
                     params_r["attachments"] = resend_att_r
 
-                logging.info(f"📧 [RENDER-STEP2] Resend API (from: {from_addr_r}) → {to_email}...")
+                logging.info(f"📧 [RENDER-STEP5] Resend API fallback (100/day, from: {from_addr_r}) → {to_email}...")
                 result_r = resend_lib.Emails.send(params_r)
                 if result_r and result_r.get('id'):
-                    logging.info(f"✅ [RENDER-STEP2] Resend SUCCESS! ID: {result_r['id']}")
+                    logging.info(f"✅ [RENDER-STEP5] Resend SUCCESS! ID: {result_r['id']}")
                     try:
                         from core.email_rotator import record_email_sent
                         record_email_sent("resend")
                     except: pass
                     return True
                 else:
-                    logging.warning(f"⚠️ [RENDER-STEP2] Resend no ID: {result_r}")
+                    logging.warning(f"⚠️ [RENDER-STEP5] Resend no ID: {result_r}")
             except Exception as e:
-                logging.warning(f"⚠️ [RENDER-STEP2] Resend failed: {e}")
+                logging.warning(f"⚠️ [RENDER-STEP5] Resend failed: {e}")
 
-        # ── STEP 4: ZeptoMail (Zoho's transactional API) ─────────────────────
-        zepto_key  = os.getenv("ZEPTO_API_KEY",   "").strip()
-        zepto_from = os.getenv("ZEPTO_FROM_EMAIL", os.getenv("ZOHO_SMTP_USER", "")).strip()
-        if zepto_key and zepto_from:
-            try:
-                html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
-                resp = requests.post(
-                    "https://api.zeptomail.com/v1.1/email",
-                    json={
-                        "from": {"address": zepto_from, "name": sender_name},
-                        "to": [{"email_address": {"address": to_email}}],
-                        "subject": subject,
-                        "htmlbody": html_content,
-                        "reply_to": [{"address": reply_to or zepto_from}],
-                    },
-                    headers={
-                        "Authorization": f"Zoho-enczapikey {zepto_key}",
-                        "Content-Type": "application/json",
-                    },
-                    timeout=20
-                )
-                if resp.status_code in (200, 201, 202):
-                    logging.info("✅ [RENDER-STEP4] ZeptoMail SUCCESS")
-                    return True
-                else:
-                    logging.warning(f"⚠️ [RENDER-STEP4] ZeptoMail failed: {resp.status_code} {resp.text[:100]}")
-            except Exception as e:
-                logging.warning(f"⚠️ [RENDER-STEP4] ZeptoMail exception: {e}")
-
-        # ── STEP 5: Gmail API (OAuth) ─────────────────────────────────────────
-        if get_gmail_service:
-            try:
-                service = get_gmail_service()
-                if service:
-                    if send_email_via_gmail_api(to_email, company_name, job_title, custom_body,
-                                                attachment_paths, sender_name, highlights,
-                                                subject=subject, service=service, reply_to=reply_to):
-                        logging.info("✅ [RENDER-STEP5] Gmail API SUCCESS")
-                        return True
-            except Exception as e:
-                logging.warning(f"⚠️ [RENDER-STEP5] Gmail API failed: {e}")
-
-        logging.error("❌ [RENDER] ALL DELIVERY STEPS FAILED. Check Brevo credentials and sender verification.")
+        logging.error("❌ [RENDER] ALL 6 DELIVERY STEPS FAILED. Check provider credentials.")
         return False
 
     # ============================================================
@@ -1142,16 +1176,17 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     if not api_key: return False
 
     # Active verified senders in Brevo (in priority order):
-    # PRIORITY 1: samsalameh.cv@gmail.com — Sam's real email (verified in Brevo dashboard)
-    # FALLBACK:   samatou683@gmail.com — Brevo account owner (always active)
+    # PRIMARY:  samatou683@gmail.com — Brevo account owner (always active, always verified)
+    # FALLBACK: samsalameh.cv@gmail.com — Sam's real email (only if separately verified in Brevo)
     brevo_account = os.getenv("BREVO_ACCOUNT_EMAIL", "samatou683@gmail.com").strip()
     gmail_user    = (getattr(config, 'GMAIL_SMTP_USER', '') or os.getenv("GMAIL_SMTP_USER", "samsalameh.cv@gmail.com")).strip()
 
-    # [👑 SENDER]: Always try Sam's real Gmail first (samsalameh.cv@gmail.com).
-    # If Brevo rejects it (not yet verified), the smart recovery below retries with account email.
-    sender_email = gmail_user if gmail_user else brevo_account
+    # [👑 SENDER FIX]: Use the Brevo account email (samatou683@gmail.com) as the primary sender.
+    # This is the verified account owner — Brevo always accepts it.
+    # samsalameh.cv@gmail.com is NOT verified in Brevo and will be rejected with 400 unauthorized.
+    sender_email = brevo_account
     
-    logging.info(f"📧 [BREVO] Using authenticated sender: {sender_email}")
+    logging.info(f"📧 [BREVO] Using verified account sender: {sender_email}")
 
     # Reply-To: always use the real Gmail so replies go to Sam's inbox
     if not reply_to:

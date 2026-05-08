@@ -554,26 +554,31 @@
   @media print {
     body { background: white; margin: 0; }
     .page-wrapper { margin: 0; box-shadow: none; border-radius: 0; max-width: 100%; }
+    /* WeasyPrint: remove unsupported box-shadow and text-shadow */
+    .avatar { box-shadow: none !important; text-shadow: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .cert-icon { box-shadow: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section-icon { box-shadow: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .avail-dot { box-shadow: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    /* WeasyPrint: replace min-height: 100vh with fixed page height */
+    .cv-layout { min-height: 297mm !important; }
+    /* WeasyPrint: ensure color backgrounds are preserved */
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     .sidebar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .metric-card::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .exp-period { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .top-accent { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .skill-bar-fill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .cert-icon { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .section-icon { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .title-line { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .summary-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .edu-icon { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .edu-year { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .avail-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .lang-dot.filled { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .avatar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .tech-card-title::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .exp-item::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .exp-item::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .cert-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .avail-tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .avail-dot { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 </head>
