@@ -1163,16 +1163,14 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     if not api_key: return False
 
     # Active verified senders in Brevo (in priority order):
-    # PRIORITY 1: samsalameh.cv@gmail.com — Sam's real email (activate in Brevo dashboard)
+    # PRIORITY 1: samsalameh.cv@gmail.com — Sam's real email (verified in Brevo dashboard)
     # FALLBACK:   samatou683@gmail.com — Brevo account owner (always active)
-    brevo_account    = os.getenv("BREVO_ACCOUNT_EMAIL", "samatou683@gmail.com").strip()
-    gmail_user       = (getattr(config, 'GMAIL_SMTP_USER', 'samsalameh.cv@gmail.com')).strip()
+    brevo_account = os.getenv("BREVO_ACCOUNT_EMAIL", "samatou683@gmail.com").strip()
+    gmail_user    = (getattr(config, 'GMAIL_SMTP_USER', '') or os.getenv("GMAIL_SMTP_USER", "samsalameh.cv@gmail.com")).strip()
 
-    # [👑 SENDER SAFE-CHECK]: Use Sam's real Gmail if it's verified, 
-    # but fallback to the account owner email to ENSURE delivery.
-    # On Render, we use samatou683@gmail.com as it's guaranteed to work.
-    brevo_primary_sender = os.getenv("BREVO_PRIMARY_SENDER", brevo_account).strip()
-    sender_email = brevo_primary_sender if brevo_primary_sender else brevo_account
+    # [👑 SENDER]: Always try Sam's real Gmail first (samsalameh.cv@gmail.com).
+    # If Brevo rejects it (not yet verified), the smart recovery below retries with account email.
+    sender_email = gmail_user if gmail_user else brevo_account
     
     logging.info(f"📧 [BREVO] Using authenticated sender: {sender_email}")
 
