@@ -15,6 +15,13 @@ except ImportError:
 try:
     import weasyprint
     HAS_WEASYPRINT = True
+    # Suppress WeasyPrint CSS warnings — they spam the logs with hundreds of lines
+    # for unsupported properties like box-shadow, print-color-adjust, etc.
+    logging.getLogger("weasyprint").setLevel(logging.ERROR)
+    logging.getLogger("weasyprint.css").setLevel(logging.ERROR)
+    logging.getLogger("weasyprint.document").setLevel(logging.ERROR)
+    logging.getLogger("weasyprint.html").setLevel(logging.ERROR)
+    logging.getLogger("fontTools").setLevel(logging.ERROR)
 except ImportError:
     HAS_WEASYPRINT = False
 

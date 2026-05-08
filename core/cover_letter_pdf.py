@@ -273,6 +273,10 @@ def generate_cover_letter_pdf(company_name, job_title, hiring_manager="Hiring Ma
         from playwright.sync_api import sync_playwright
         import tempfile, concurrent.futures
 
+        # Suppress WeasyPrint warnings if it gets imported later
+        logging.getLogger("weasyprint").setLevel(logging.ERROR)
+        logging.getLogger("weasyprint.css").setLevel(logging.ERROR)
+
         html_content = _build_cover_letter_html(company_name, job_title, hiring_manager)
 
         def _playwright_render():

@@ -10,6 +10,7 @@ from tenacity import retry, wait_exponential, stop_after_attempt
 import subprocess
 import socket
 import requests
+import threading
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
@@ -18,6 +19,9 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - [SUPABASE/SQLITE] %(levelname)s - %(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+# Global SQLite write lock — prevents "database is locked" from concurrent threads
+_SQLITE_WRITE_LOCK = threading.Lock()
 
 class RealityShapingDB:
     """Supabase PostgreSQL native client with exponential backoff, session reuse, and local SQLite mirroring."""
@@ -688,11 +692,12 @@ class RealityShapingDB:
 
         # 2. Local Shadow Mirror
         try:
-            conn = self._sqlite_connect()
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO tasks (type, target, meta, status) VALUES (?, ?, ?, ?)", (ttype, target, meta, status))
-            conn.commit()
-            conn.close()
+            with _SQLITE_WRITE_LOCK:
+                conn = self._sqlite_connect()
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO tasks (type, target, meta, status) VALUES (?, ?, ?, ?)", (ttype, target, meta, status))
+                conn.commit()
+                conn.close()
             return True
         except Exception as e:
             logging.error(f"Failed to save task locally: {e}")
@@ -1042,11 +1047,12 @@ class RealityShapingDB:
 
     def sync_add_task(self, task_type: str, target: str = "", meta: str = ""):
         try:
-            conn = self._sqlite_connect()
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO tasks (type, target, meta, status) VALUES (?, ?, ?, ?)", (task_type, target, meta, 'PENDING'))
-            conn.commit()
-            conn.close()
+            with _SQLITE_WRITE_LOCK:
+                conn = self._sqlite_connect()
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO tasks (type, target, meta, status) VALUES (?, ?, ?, ?)", (task_type, target, meta, 'PENDING'))
+                conn.commit()
+                conn.close()
             return True
         except: return False
 

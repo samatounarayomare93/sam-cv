@@ -33,6 +33,13 @@ from core.main_bot import AlphaOrchestrator
 from core.telegram_dashboard import SovereignDashboard
 from core.auto_queue_refill import auto_refill_loop
 
+# Suppress WeasyPrint CSS warnings globally — they spam logs with hundreds of lines
+# for unsupported CSS properties (box-shadow, print-color-adjust, min-height: 100vh, etc.)
+for _wp_logger in ["weasyprint", "weasyprint.css", "weasyprint.document",
+                   "weasyprint.html", "weasyprint.layout", "fontTools",
+                   "fontTools.subset", "fontTools.ttLib"]:
+    logging.getLogger(_wp_logger).setLevel(logging.ERROR)
+
 # Ensure logs directory exists
 os.makedirs("logs", exist_ok=True)
 os.makedirs("pdf_cache", exist_ok=True)
