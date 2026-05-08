@@ -162,22 +162,11 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
     company_name = 'Future Tech Industries'
     job_title = 'Lead Automation Engineer'
     
-    # Full professional cover letter body — matches reference .eml format
-    body = """<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">Dear Future Tech Industries Hiring Team,</p>
-
-<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">I am writing to express my strong interest in the <strong>Lead Automation Engineer</strong> position at Future Tech Industries. With <strong>15+ years</strong> of enterprise network engineering experience and active certifications in <strong>Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA</strong>, I am confident I can deliver immediate value to your automation and infrastructure team.</p>
-
-<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">Throughout my career, I have deployed and managed enterprise networks for <strong>20+ clients</strong> achieving <strong>99.9% uptime SLA</strong>, reduced security incidents by 100% through FortiGate/Cisco ASA hardening, and configured IPSec/SSL VPN infrastructure for 50+ branch offices. My expertise spans Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, and Ubiquiti UniFi — with deep knowledge in OSPF/BGP/EIGRP routing protocols and fiber optic infrastructure spanning 500km+.</p>
-
-<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">I am particularly drawn to Future Tech Industries' focus on automation and scalable infrastructure. My background in network automation, monitoring systems, and cross-functional team leadership aligns directly with the requirements of this role.</p>
-
-<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">I am available for immediate relocation to the UAE, KSA, Qatar, Kuwait, or Europe, and I welcome the opportunity to discuss how my background can contribute to your organization's goals.</p>
-
-<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">Please find my <strong>CV</strong> and <strong>Cover Letter</strong> attached for your review.</p>
-
-<p style="margin: 0 0 14px 0; font-size: 15px; color: #374151; line-height: 1.7;">Best regards,<br><strong>Sam Salameh</strong></p>"""
+    # Pass empty body so _wrap_in_sovereign_template uses the default dark-theme template
+    # which matches the reference .eml exactly (color: #e2e8f0 on dark background)
+    body = ""
     
-    # No highlights for test — keep it clean like the reference
+    # No highlights for test — template will use the default 3 sections
     dynamic_highlights = highlights or []
     
     # Send test using exact structural parity with the lead's instruction
@@ -1379,12 +1368,12 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
         </p>
         """
 
-    # Highlights sections (default if none provided)
+    # Highlights sections (default if none provided) — matches reference .eml exactly
     if not highlights:
         highlights = [
-            {'title': '01. OPERATIONS LIFECYCLE', 'desc': 'Proven expertise in managing high-volume network logistics and infrastructure design with 99.9% uptime.'},
-            {'title': '02. SERVICE & RETENTION', 'desc': 'A track record of resolving complex technical escalations while maintaining strict SLA compliance.'},
-            {'title': '03. WORKFLOW OPTIMIZATION', 'desc': 'Experience in standardizing automation templates and diagnostics to significantly reduce operational overhead.'}
+            {'title': '01. OPERATIONS LIFECYCLE', 'desc': 'Proven expertise in managing high-volume recruitment logistics, employee records, and payroll synchronization with 100% data integrity.'},
+            {'title': '02. SERVICE & RETENTION',  'desc': 'A track record of resolving 50+ daily complex technical and billing inquiries while maintaining strict SLA compliance.'},
+            {'title': '03. WORKFLOW OPTIMIZATION','desc': 'Experience in standardizing onboarding templates and operational diagnostics to significantly reduce departmental overhead.'}
         ]
 
     highlights_html = ""
