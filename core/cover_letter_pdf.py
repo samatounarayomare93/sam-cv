@@ -29,12 +29,11 @@ def _safe(text):
 
 
 def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Manager"):
-    """Build the HTML for the cover letter — matches reference PDF design."""
+    """Build the HTML for the cover letter — matches reference PDF design exactly."""
     today = datetime.date.today().strftime("%B %d, %Y")
-    candidate_email = os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "samsalameh.cv@gmail.com"))
+    # Use sam.dev1@hotmail.com as in the reference PDF
     phone = os.getenv("CANDIDATE_PHONE", "+961 70 841 1009")
-    linkedin = os.getenv("LINKEDIN_URL", "https://www.linkedin.com/in/sam-salameh")
-    linkedin_short = linkedin.replace("https://", "").replace("http://", "")
+    email_display = "sam.dev1@hotmail.com"
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -46,105 +45,106 @@ def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Man
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   body {{
     font-family: 'Segoe UI', Arial, sans-serif;
-    background: #f5f7fa;
-    padding: 30px 20px;
+    background: white;
     color: #2c3e50;
+    padding: 0;
+    margin: 0;
   }}
   .page {{
-    max-width: 760px;
+    max-width: 800px;
     margin: 0 auto;
     background: white;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    border-radius: 4px;
-    overflow: hidden;
+    padding: 0;
   }}
-  /* Header */
+  /* Top gradient line — matches reference */
+  .top-line {{
+    height: 5px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    width: 100%;
+  }}
+  /* Header — white background, centered */
   .header {{
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-    color: white;
-    padding: 36px 48px 28px;
-    position: relative;
-  }}
-  .header::after {{
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #00b4d8 0%, #0077b6 100%);
+    text-align: center;
+    padding: 32px 48px 20px;
+    border-bottom: 1px solid #e5e7eb;
   }}
   .header-name {{
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 700;
+    color: #667eea;
     letter-spacing: 1px;
     margin-bottom: 6px;
   }}
   .header-title {{
-    font-size: 13px;
-    color: #90caf9;
-    letter-spacing: 1px;
+    font-size: 14px;
+    color: #6b7280;
     margin-bottom: 14px;
   }}
   .header-contact {{
     font-size: 12px;
-    color: rgba(255,255,255,0.85);
+    color: #9ca3af;
     display: flex;
-    gap: 20px;
+    justify-content: center;
+    gap: 24px;
     flex-wrap: wrap;
   }}
   .header-contact span {{ display: flex; align-items: center; gap: 5px; }}
   /* Body */
   .body {{
-    padding: 40px 48px;
+    padding: 36px 48px 40px;
   }}
   .date {{
     font-size: 13px;
     color: #6b7280;
-    margin-bottom: 24px;
+    text-align: right;
+    margin-bottom: 28px;
   }}
   .recipient {{
-    margin-bottom: 24px;
+    margin-bottom: 8px;
   }}
   .recipient .manager {{
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     color: #1e2d3d;
   }}
   .recipient .company {{
-    font-size: 13px;
-    color: #6b7280;
-    margin-top: 2px;
-  }}
-  .subject {{
     font-size: 14px;
     font-weight: 700;
-    color: #0077b6;
-    margin-bottom: 24px;
-    padding: 10px 16px;
-    background: #f0f7ff;
-    border-left: 4px solid #0077b6;
-    border-radius: 0 4px 4px 0;
+    color: #1e2d3d;
   }}
+  .subject-line {{
+    font-size: 14px;
+    color: #374151;
+    margin-bottom: 24px;
+    margin-top: 4px;
+  }}
+  .subject-line strong {{ color: #1e2d3d; }}
   .body p {{
     font-size: 13.5px;
     line-height: 1.85;
     color: #374151;
     margin-bottom: 16px;
+    text-align: justify;
   }}
+  .body p.salutation {{
+    font-weight: 700;
+    color: #1e2d3d;
+    margin-bottom: 16px;
+    text-align: left;
+  }}
+  /* Highlight box — matches reference style */
   .highlight-box {{
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-left: 4px solid #0077b6;
-    padding: 16px 20px;
+    background: #f3f4f6;
+    border-left: 4px solid #667eea;
+    padding: 18px 22px;
     margin: 20px 0;
     border-radius: 0 6px 6px 0;
   }}
   .highlight-box h4 {{
     font-size: 13px;
-    color: #0077b6;
+    color: #374151;
     font-weight: 700;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    margin-bottom: 12px;
   }}
   .highlight-box ul {{
     list-style: none;
@@ -153,19 +153,19 @@ def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Man
   .highlight-box li {{
     font-size: 13px;
     color: #374151;
-    line-height: 1.7;
-    padding: 3px 0 3px 16px;
+    line-height: 1.75;
+    padding: 3px 0 3px 18px;
     position: relative;
   }}
   .highlight-box li::before {{
     content: '✓';
     position: absolute;
     left: 0;
-    color: #0077b6;
+    color: #667eea;
     font-weight: 700;
   }}
   .signoff {{
-    margin-top: 28px;
+    margin-top: 24px;
   }}
   .signoff p {{
     font-size: 13.5px;
@@ -173,35 +173,32 @@ def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Man
     margin-bottom: 4px;
   }}
   .signoff .name {{
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     color: #1e2d3d;
-    margin-top: 12px;
+    margin-top: 16px;
   }}
   .signoff .title {{
     font-size: 12px;
     color: #6b7280;
     margin-top: 2px;
   }}
-  .signoff .contact {{
-    font-size: 12px;
-    color: #0077b6;
-    margin-top: 4px;
-  }}
   @media print {{
-    body {{ background: white; padding: 0; }}
+    body {{ background: white; }}
     .page {{ box-shadow: none; }}
   }}
 </style>
 </head>
 <body>
 <div class="page">
+  <div class="top-line"></div>
+
   <div class="header">
     <div class="header-name">SAM SALAMEH</div>
     <div class="header-title">Senior Network Engineer</div>
     <div class="header-contact">
       <span>📱 {phone}</span>
-      <span>✉ {candidate_email}</span>
+      <span>✉ {email_display}</span>
       <span>📍 Beirut, Lebanon</span>
     </div>
   </div>
@@ -213,10 +210,9 @@ def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Man
       <div class="manager">{hiring_manager}</div>
       <div class="company">{company_name}</div>
     </div>
+    <div class="subject-line">Re: Application for <strong>{job_title}</strong> Position</div>
 
-    <div class="subject">Re: Application for {job_title} Position</div>
-
-    <p>Dear {hiring_manager},</p>
+    <p class="salutation">Dear {hiring_manager},</p>
 
     <p>I am writing to express my strong interest in the <strong>{job_title}</strong> position
     at <strong>{company_name}</strong>. With over <strong>15 years</strong> of progressive experience in network
@@ -224,7 +220,7 @@ def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Man
     and proven track record make me an ideal candidate for this role.</p>
 
     <div class="highlight-box">
-      <h4>Why I'm a Perfect Fit</h4>
+      <h4>Why I'm a Perfect Fit:</h4>
       <ul>
         <li>Designed and deployed enterprise-grade networks for <strong>20+ clients</strong> achieving <strong>99.9% uptime SLA</strong></li>
         <li>Reduced security incidents by <strong>100%</strong> through FortiGate/Cisco ASA hardening</li>
@@ -257,7 +253,6 @@ def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Man
       <p>Sincerely,</p>
       <div class="name">Sam Salameh</div>
       <div class="title">Senior Network Engineer</div>
-      <div class="contact">{phone} &nbsp;|&nbsp; {candidate_email}</div>
     </div>
   </div>
 </div>
