@@ -1,13 +1,19 @@
 """
-Generate Cover Letter PDF - Playwright with FPDF fallback
+Generate Cover Letter PDF - FPDF2 (works on Render without browser)
+Simple, reliable, no custom fonts needed.
 """
 import os
 import sys
+import logging
+import datetime
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def _get_pdf_dir():
-    is_cloud = os.getenv("RENDER") or os.getenv("RAILWAY") or os.getenv("HEROKU")
+    is_cloud = (os.getenv("RENDER") or os.getenv("RAILWAY") or
+                os.getenv("HEROKU") or os.getenv("RENDER_EXTERNAL_URL") or
+                os.getenv("RENDER_SERVICE_ID"))
     if is_cloud:
         pdf_dir = "/tmp/pdf_cache"
     else:
@@ -16,159 +22,125 @@ def _get_pdf_dir():
     return pdf_dir
 
 
-def _generate_cover_letter_fpdf(company_name, job_title, hiring_manager="Hiring Manager"):
-    """Generate cover letter PDF using FPDF2 (works everywhere, no browser needed)"""
-    try:
-        from fpdf import FPDF
-        import datetime
-
-        pdf_dir = _get_pdf_dir()
-        safe_company = "".join(c for c in company_name if c.isalnum() or c in ' _-').strip().replace(' ', '_')
-        pdf_path = os.path.join(pdf_dir, f"Cover_Letter_{safe_company}.pdf")
-
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_margins(20, 20, 20)
-        pdf.set_auto_page_break(auto=True, margin=20)
-
-        # Header - Name
-        pdf.set_font("Helvetica", "B", 22)
-        pdf.set_text_color(0, 180, 216)  # Blue
-        pdf.cell(0, 12, "SAM SALAMEH", ln=True, align='C')
-
-        # Contact info
-        pdf.set_font("Helvetica", "", 9)
-        pdf.set_text_color(150, 150, 150)
-        pdf.cell(0, 6, "+961 70 841 100  |  samsalameh.cv@gmail.com  |  linkedin.com/in/sam-salameh", ln=True, align='C')
-        pdf.ln(3)
-
-        # Divider
-        pdf.set_draw_color(0, 180, 216)
-        pdf.set_line_width(0.5)
-        pdf.line(20, pdf.get_y(), 190, pdf.get_y())
-        pdf.ln(8)
-
-        # Date
-        pdf.set_font("Helvetica", "", 10)
-        pdf.set_text_color(100, 100, 100)
-        today = datetime.date.today().strftime("%B %d, %Y")
-        pdf.cell(0, 6, today, ln=True)
-        pdf.ln(4)
-
-        # Recipient
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.set_text_color(30, 30, 30)
-        pdf.cell(0, 6, hiring_manager, ln=True)
-        pdf.set_font("Helvetica", "", 10)
-        pdf.cell(0, 6, f"Hiring Team", ln=True)
-        pdf.cell(0, 6, company_name, ln=True)
-        pdf.ln(6)
-
-        # Subject
-        pdf.set_font("Helvetica", "B", 11)
-        pdf.set_text_color(0, 180, 216)
-        pdf.cell(0, 7, f"Re: Application for {job_title}", ln=True)
-        pdf.ln(4)
-
-        # Body
-        pdf.set_font("Helvetica", "", 10)
-        pdf.set_text_color(50, 50, 50)
-
-        paragraphs = [
-            f"Dear {hiring_manager},",
-            "",
-            f"I am writing to express my strong interest in the {job_title} position at {company_name}. "
-            "With 15+ years of enterprise network engineering experience and active certifications in "
-            "Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA, I am confident I can deliver "
-            "immediate value to your infrastructure team.",
-            "",
-            "Throughout my career, I have designed and deployed enterprise-grade networks for 20+ clients "
-            "achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate and Cisco ASA "
-            "hardening, and configured IPSec/SSL VPN infrastructure for 50+ branch offices. My expertise spans "
-            "Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, and Ubiquiti UniFi — with deep knowledge in "
-            "OSPF/BGP/EIGRP routing protocols and fiber optic infrastructure spanning 500km+.",
-            "",
-            f"I am particularly drawn to {company_name} because of its focus on cutting-edge infrastructure "
-            "and technology excellence. I believe my hands-on technical background and proven track record "
-            "align directly with the requirements of this role.",
-            "",
-            "I am available for immediate relocation to the UAE, KSA, Qatar, Kuwait, or Europe. "
-            "Please find my CV attached for your review. I would welcome the opportunity to discuss "
-            f"how my expertise can contribute to {company_name}'s network infrastructure goals.",
-            "",
-            "Thank you for your time and consideration.",
-            "",
-            "Best regards,",
-            "",
-            "Sam Salameh",
-            "Senior Network Engineer",
-            "+961 70 841 1009  |  samsalameh.cv@gmail.com",
-        ]
-
-        for para in paragraphs:
-            if para == "":
-                pdf.ln(4)
-            else:
-                pdf.multi_cell(0, 6, para)
-
-        pdf.output(pdf_path)
-        print(f"✅ Cover Letter PDF generated (FPDF): {pdf_path}")
-        return pdf_path
-
-    except Exception as e:
-        print(f"❌ FPDF cover letter generation failed: {e}")
-        return None
+def _safe(text):
+    """Encode text safely for FPDF latin-1."""
+    if not text:
+        return ""
+    return str(text).encode('latin-1', errors='replace').decode('latin-1')
 
 
 def generate_cover_letter_pdf(company_name, job_title, hiring_manager="Hiring Manager"):
-    """Generate cover letter PDF - tries Playwright first, falls back to FPDF"""
-
-    pdf_dir = _get_pdf_dir()
-    safe_company = "".join(c for c in company_name if c.isalnum() or c in ' _-').strip().replace(' ', '_')
-    pdf_path = os.path.join(pdf_dir, f"Cover_Letter_{safe_company}.pdf")
-
-    # Try Playwright first (best quality)
+    """Generate cover letter PDF using FPDF2 built-in fonts. Works everywhere."""
     try:
-        from playwright.sync_api import sync_playwright
+        from fpdf import FPDF
+        from fpdf.enums import XPos, YPos
 
-        # Generate HTML content
-        try:
-            from generate_cover_letter import generate_cover_letter
-            html_content = generate_cover_letter(company_name, job_title, hiring_manager)
-        except Exception:
-            html_content = None
+        pdf_dir = _get_pdf_dir()
+        safe_company = "".join(
+            c for c in company_name if c.isalnum() or c in ' _-'
+        ).strip().replace(' ', '_')[:40]
+        pdf_path = os.path.join(pdf_dir, f"Cover_Letter_{safe_company}.pdf")
 
-        if html_content:
-            temp_html = os.path.join(pdf_dir, "temp_cover_letter.html")
-            with open(temp_html, 'w', encoding='utf-8') as f:
-                f.write(html_content)
+        pdf = FPDF()
+        pdf.set_margins(25, 20, 25)
+        pdf.set_auto_page_break(auto=True, margin=20)
+        pdf.add_page()
 
-            with sync_playwright() as p:
-                browser = p.chromium.launch()
-                page = browser.new_page()
-                page.goto(f'file:///{os.path.abspath(temp_html).replace(os.sep, "/")}')
-                page.wait_for_load_state('networkidle')
-                page.pdf(
-                    path=pdf_path,
-                    format='A4',
-                    print_background=True,
-                    margin={'top': '10mm', 'right': '15mm', 'bottom': '10mm', 'left': '15mm'}
-                )
-                browser.close()
+        # ── Header ────────────────────────────────────────────────────────────
+        pdf.set_font("Helvetica", "B", 18)
+        pdf.set_text_color(0, 120, 180)
+        pdf.cell(0, 10, "SAM SALAMEH",
+                 align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-            if os.path.exists(temp_html):
-                os.remove(temp_html)
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(100, 100, 100)
+        pdf.cell(0, 5, "Senior Network Engineer  |  CCNA  |  NSE  |  MTCNA  |  UBWA",
+                 align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 5, "+961 70 841 1009  |  samsalameh.cv@gmail.com  |  linkedin.com/in/sam-salameh",
+                 align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(3)
 
-            print(f"✅ Cover Letter PDF generated (Playwright): {pdf_path}")
-            return pdf_path
+        # Divider
+        pdf.set_draw_color(0, 120, 180)
+        pdf.set_line_width(0.4)
+        pdf.line(25, pdf.get_y(), 185, pdf.get_y())
+        pdf.ln(7)
+
+        # ── Date ──────────────────────────────────────────────────────────────
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(80, 80, 80)
+        pdf.cell(0, 6, datetime.date.today().strftime("%B %d, %Y"),
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(4)
+
+        # ── Recipient ─────────────────────────────────────────────────────────
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(30, 30, 30)
+        pdf.cell(0, 6, _safe(hiring_manager),
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 6, "Hiring Team",
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 6, _safe(company_name[:60]),
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(6)
+
+        # ── Subject ───────────────────────────────────────────────────────────
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(0, 120, 180)
+        pdf.cell(0, 7, _safe(f"Re: Application for {job_title}"[:80]),
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(4)
+
+        # ── Body ──────────────────────────────────────────────────────────────
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(40, 40, 40)
+
+        body_paragraphs = [
+            f"Dear {hiring_manager},",
+            (f"I am writing to express my strong interest in the {job_title} position "
+             f"at {company_name}. With 15+ years of enterprise network engineering experience "
+             "and active certifications in Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and "
+             "Ubiquiti UBWA, I am confident I can deliver immediate value to your team."),
+            ("Throughout my career, I have deployed enterprise-grade networks for 20+ clients "
+             "achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate "
+             "and Cisco ASA hardening, and configured IPSec/SSL VPN for 50+ branch offices. "
+             "My expertise spans Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, and Ubiquiti "
+             "UniFi with deep knowledge in OSPF/BGP/EIGRP routing and fiber optic infrastructure "
+             "spanning 500km+."),
+            (f"I am available for immediate relocation to the UAE, KSA, Qatar, Kuwait, or Europe. "
+             f"Please find my CV attached. I would welcome the opportunity to discuss how my "
+             f"background aligns with {company_name}'s infrastructure goals."),
+            "Thank you for your time and consideration.",
+        ]
+
+        for para in body_paragraphs:
+            pdf.multi_cell(0, 6, _safe(para))
+            pdf.ln(4)
+
+        # ── Sign-off ──────────────────────────────────────────────────────────
+        pdf.ln(4)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 6, "Best regards,",
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(2)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(0, 6, "Sam Salameh",
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(80, 80, 80)
+        pdf.cell(0, 5, "Senior Network Engineer",
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 5, "+961 70 841 1009  |  samsalameh.cv@gmail.com",
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+        pdf.output(pdf_path)
+        size = os.path.getsize(pdf_path)
+        logging.info(f"✅ Cover Letter PDF: {pdf_path} ({size:,} bytes)")
+        return pdf_path
 
     except Exception as e:
-        print(f"⚠️ Playwright cover letter failed: {e}, falling back to FPDF...")
-
-    # Fallback: FPDF (works on Render without browser)
-    return _generate_cover_letter_fpdf(company_name, job_title, hiring_manager)
-
-
-if __name__ == "__main__":
-    result = generate_cover_letter_pdf("Future Tech Industries", "Lead Automation Engineer")
-    print("Result:", result)
+        logging.error(f"❌ Cover letter PDF failed: {type(e).__name__}: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return None

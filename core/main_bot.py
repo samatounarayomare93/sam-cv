@@ -1047,6 +1047,8 @@ class AlphaOrchestrator:
         # 🛡️ SAFETY NET: If an unhandled exception occurs, ensure lead doesn't stay stuck as 'processing'
         except Exception as _lead_err:
             logging.error(f"💥 [PROCESS-LEAD] Unhandled error for '{company_name}': {type(_lead_err).__name__}: {_lead_err}")
+            import traceback as _tb
+            logging.error(f"💥 [PROCESS-LEAD] Traceback:\n{_tb.format_exc()}")
             if _marked_processing and self.db and identifier:
                 try:
                     await self.db.update_lead_status(identifier, 'error')
