@@ -19,8 +19,8 @@ except ImportError:
 
 
 def _get_html_path() -> str | None:
-    """Find the CV HTML file."""
-    for name in ('Sam_Salameh_CV_Enhanced.html', 'Sam_Salameh_CV.html'):
+    """Find the CV HTML file — always prefer Sam_Salameh_CV.html (latest design)."""
+    for name in ('Sam_Salameh_CV.html', 'Sam_Salameh_CV_Enhanced.html'):
         path = os.path.abspath(name)
         if os.path.exists(path):
             return path
