@@ -1061,34 +1061,40 @@ class SovereignDashboard:
         
         reply_keyboard = [
             # ── Monitoring ──────────────────────────────────────────────────
-            [KeyboardButton("🖥️ Status | الحالة"),           KeyboardButton("📊 Stats | الإحصائيات")],
-            [KeyboardButton("📈 Today Report | تقرير اليوم"), KeyboardButton("📅 Weekly Report | تقرير أسبوعي")],
-            [KeyboardButton("📧 Email Stats | إحصاء الإيميل"), KeyboardButton("📉 Failure Rate | نسبة الفشل")],
-            [KeyboardButton("🗂️ Queue | الطابور"),            KeyboardButton("📜 Logs | السجلات")],
-            [KeyboardButton("🌡️ Memory | الذاكرة"),           KeyboardButton("⏱️ Uptime | وقت التشغيل")],
-            [KeyboardButton("🧠 AI Status | حالة الذكاء"),    KeyboardButton("📬 Inbox Check | فحص الردود")],
-            [KeyboardButton("🏆 Best Day | أفضل يوم"),        KeyboardButton("🔔 Notify Me | أخبرني")],
+            [KeyboardButton("🖥️ Status | الحالة"),             KeyboardButton("📊 Stats | الإحصائيات")],
+            [KeyboardButton("📈 Today Report | تقرير اليوم"),   KeyboardButton("📅 Weekly Report | تقرير أسبوعي")],
+            [KeyboardButton("🗓️ Monthly Report | تقرير شهري"),  KeyboardButton("🏆 Best Day | أفضل يوم")],
+            [KeyboardButton("📧 Email Stats | إحصاء الإيميل"),  KeyboardButton("📉 Failure Rate | نسبة الفشل")],
+            [KeyboardButton("📊 Provider Health | صحة المزودين"), KeyboardButton("⚡ Speed Test | اختبار السرعة")],
+            [KeyboardButton("🗂️ Queue | الطابور"),              KeyboardButton("📜 Logs | السجلات")],
+            [KeyboardButton("🌡️ Memory | الذاكرة"),             KeyboardButton("⏱️ Uptime | وقت التشغيل")],
+            [KeyboardButton("🧠 AI Status | حالة الذكاء"),      KeyboardButton("📬 Inbox Check | فحص الردود")],
+            [KeyboardButton("🔔 Notify Me | أخبرني"),           KeyboardButton("📡 Ping Render | اختبار الخادم")],
+            [KeyboardButton("🔑 Env Check | فحص المتغيرات"),    KeyboardButton("🌍 Countries | الدول")],
+            [KeyboardButton("💼 Job Titles | المسميات"),        KeyboardButton("🗑️ Clear Queue | مسح الطابور")],
             # ── Leads & Tasks ────────────────────────────────────────────────
-            [KeyboardButton("📋 Leads | الفرص"),              KeyboardButton("🧬 Tasks | المهام")],
-            [KeyboardButton("🏢 Companies | الشركات"),        KeyboardButton("🛰️ Track | التتبع")],
-            [KeyboardButton("📊 Top Companies | أفضل شركات"), KeyboardButton("⛔ Blacklist | القائمة السوداء")],
-            [KeyboardButton("🌍 Scrape Now | اسكان فوري"),    KeyboardButton("🔁 Retry Failed | إعادة الفاشلين")],
+            [KeyboardButton("📋 Leads | الفرص"),                KeyboardButton("🧬 Tasks | المهام")],
+            [KeyboardButton("🏢 Companies | الشركات"),          KeyboardButton("🛰️ Track | التتبع")],
+            [KeyboardButton("📊 Top Companies | أفضل شركات"),   KeyboardButton("⛔ Blacklist | القائمة السوداء")],
+            [KeyboardButton("🌍 Scrape Now | اسكان فوري"),      KeyboardButton("🔁 Retry Failed | إعادة الفاشلين")],
+            [KeyboardButton("🔎 Find Emails | ابحث عن إيميلات"), KeyboardButton("📌 Pin Lead | تثبيت")],
+            [KeyboardButton("🚫 Skip Lead | تخطي"),             KeyboardButton("🎪 Mass Strike | ضربة جماعية")],
             # ── System Health ────────────────────────────────────────────────
-            [KeyboardButton("🛡️ Shield | الدرع"),             KeyboardButton("📜 Pulse | النبض")],
-            [KeyboardButton("🔍 Audit | مراجعة"),             KeyboardButton("💪 Synapse | قوة")],
-            [KeyboardButton("🧹 Clean Disk | تنظيف"),         KeyboardButton("💾 Backup | نسخة احتياطية")],
+            [KeyboardButton("🛡️ Shield | الدرع"),               KeyboardButton("📜 Pulse | النبض")],
+            [KeyboardButton("🔍 Audit | مراجعة"),               KeyboardButton("💪 Synapse | قوة")],
+            [KeyboardButton("🧹 Clean Disk | تنظيف"),           KeyboardButton("💾 Backup | نسخة احتياطية")],
             # ── Controls ────────────────────────────────────────────────────
-            [KeyboardButton("🚀 Run Now | شغّل"),             KeyboardButton("🔧 Fix | إصلاح")],
-            [KeyboardButton("🎯 Force Strike | ضربة فورية"),  KeyboardButton("📨 Follow-ups | متابعات")],
-            [KeyboardButton("🔥 Boost Mode | وضع تسريع"),     KeyboardButton("🌙 Night Mode | وضع الليل")],
-            [KeyboardButton("🧪 Dry Run | تجربة بدون إرسال"), KeyboardButton("⏸️ Pause | إيقاف مؤقت")],
-            [KeyboardButton("▶️ Resume | استئناف"),           KeyboardButton("🔄 Reboot | إعادة تشغيل")],
-            [KeyboardButton("⚙️ Settings | الإعدادات"),       KeyboardButton("🛑 Omega Halt | التوقف التام")],
-            [KeyboardButton("💀 Kill Switch | إيقاف كامل"),   KeyboardButton("📖 Guide | الدليل")],
+            [KeyboardButton("🚀 Run Now | شغّل"),               KeyboardButton("🔧 Fix | إصلاح")],
+            [KeyboardButton("🎯 Force Strike | ضربة فورية"),    KeyboardButton("📨 Follow-ups | متابعات")],
+            [KeyboardButton("🔥 Boost Mode | وضع تسريع"),       KeyboardButton("🌙 Night Mode | وضع الليل")],
+            [KeyboardButton("🧪 Dry Run | تجربة بدون إرسال"),   KeyboardButton("⏸️ Pause | إيقاف مؤقت")],
+            [KeyboardButton("▶️ Resume | استئناف"),             KeyboardButton("🔄 Reboot | إعادة تشغيل")],
+            [KeyboardButton("⚙️ Settings | الإعدادات"),         KeyboardButton("🛑 Omega Halt | التوقف التام")],
+            [KeyboardButton("💀 Kill Switch | إيقاف كامل"),     KeyboardButton("📖 Guide | الدليل")],
             # ── Tools ───────────────────────────────────────────────────────
-            [KeyboardButton("🎓 Prep | التحضير"),             KeyboardButton("📝 CV Preview | معاينة السيرة")],
-            [KeyboardButton("✉️ Cover Letter | رسالة التغطية"), KeyboardButton("📧 Test Email | تجربة إيميل")],
-            [KeyboardButton("🧪 Test Strike | تجربة ضربة"),   KeyboardButton("🔮 Oracle | أوراكل")],
+            [KeyboardButton("🎓 Prep | التحضير"),               KeyboardButton("📝 CV Preview | معاينة السيرة")],
+            [KeyboardButton("✉️ Cover Letter | رسالة التغطية"),  KeyboardButton("📧 Test Email | تجربة إيميل")],
+            [KeyboardButton("🧪 Test Strike | تجربة ضربة"),     KeyboardButton("🔮 Oracle | أوراكل")],
         ]
         reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
 
@@ -1815,6 +1821,341 @@ class SovereignDashboard:
             except Exception as e:
                 await status_msg.edit_text(f"❌ <b>Cover letter error:</b> {e}", parse_mode='HTML')
 
+        elif key == "monthly_report":
+            try:
+                from datetime import datetime, timedelta, timezone
+                from collections import Counter
+                now = datetime.now(timezone.utc)
+                month_start = (now - timedelta(days=30)).isoformat().replace("+", "%2B")
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=timestamp,status&order=timestamp.desc&limit=2000&timestamp=gte.{month_start}"
+                )
+                apps = data if succ and isinstance(data, list) else []
+                week_counts = Counter()
+                for a in apps:
+                    ts = a.get('timestamp', '')
+                    if ts:
+                        try:
+                            d = datetime.fromisoformat(ts.replace('Z','+00:00'))
+                            week_num = (now - d).days // 7
+                            label = f"Week -{week_num}" if week_num > 0 else "This week"
+                            week_counts[label] += 1
+                        except Exception:
+                            pass
+                lines = [f"📅 <b>{w}:</b> {c}" for w, c in sorted(week_counts.items())]
+                await msg.reply_text(
+                    f"🗓️ <b>MONTHLY REPORT (Last 30 Days)</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"🚀 <b>Total:</b> {len(apps)} applications\n"
+                    f"📊 <b>Daily avg:</b> {len(apps)//30}/day\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    + ("\n".join(lines) if lines else "<i>No data.</i>") +
+                    "\n━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Monthly report error:</b> {e}", parse_mode='HTML')
+
+        elif key == "provider_health":
+            status_msg = await msg.reply_text("📊 <b>TESTING ALL EMAIL PROVIDERS...</b>", parse_mode='HTML')
+            try:
+                lines = []
+                # Brevo HTTP
+                brevo_key = os.getenv("BREVO_API_KEY","").strip()
+                if brevo_key:
+                    try:
+                        import requests as _req
+                        r = _req.get("https://api.brevo.com/v3/account",
+                                     headers={"api-key": brevo_key}, timeout=5)
+                        plan = r.json().get('plan',[{}])
+                        credits = plan[0].get('credits', '?') if plan else '?'
+                        lines.append(f"🟢 <b>Brevo:</b> Online ✅ | Credits: {credits}")
+                    except Exception as e:
+                        lines.append(f"🔴 <b>Brevo:</b> Error — {str(e)[:40]}")
+                else:
+                    lines.append("⚪ <b>Brevo:</b> Not configured")
+                # Gmail
+                gmail = os.getenv("GMAIL_SMTP_USER","")
+                lines.append(f"{'🟢' if gmail else '⚪'} <b>Gmail:</b> {'Configured ✅' if gmail else 'Not configured'}")
+                # Zoho
+                zoho = os.getenv("ZOHO_SMTP_USER","")
+                lines.append(f"{'🟢' if zoho else '⚪'} <b>Zoho:</b> {'Configured ✅' if zoho else 'Not configured'}")
+                # Resend
+                resend = os.getenv("RESEND_API_KEY","")
+                lines.append(f"{'🟢' if resend else '⚪'} <b>Resend:</b> {'Configured ✅' if resend else 'Not configured'}")
+                await status_msg.edit_text(
+                    "📊 <b>PROVIDER HEALTH CHECK</b>\n━━━━━━━━━━━━━━━\n" +
+                    "\n".join(lines) + "\n━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>Provider health error:</b> {e}", parse_mode='HTML')
+
+        elif key == "speed_test":
+            status_msg = await msg.reply_text("⚡ <b>SPEED TEST RUNNING...</b>\n<i>Measuring email throughput...</i>", parse_mode='HTML')
+            try:
+                from datetime import datetime, timedelta, timezone
+                now = datetime.now(timezone.utc)
+                hour_ago = (now - timedelta(hours=1)).isoformat().replace("+", "%2B")
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=id&timestamp=gte.{hour_ago}",
+                    headers={"Prefer": "count=exact"}
+                )
+                per_hour = data.get("count", 0) if succ and isinstance(data, dict) else 0
+                per_min  = round(per_hour / 60, 1)
+                icon = "🔴" if per_hour < 10 else "🟡" if per_hour < 50 else "🟢"
+                await status_msg.edit_text(
+                    f"⚡ <b>SPEED TEST RESULTS</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"{icon} <b>Last hour:</b> {per_hour} emails\n"
+                    f"📊 <b>Per minute:</b> {per_min}\n"
+                    f"🎯 <b>Target:</b> 80/hour\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"{'✅ On target' if per_hour >= 50 else '⚠️ Below target — check queue & providers'}",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>Speed test error:</b> {e}", parse_mode='HTML')
+
+        elif key == "ping_render":
+            status_msg = await msg.reply_text("📡 <b>PINGING RENDER SERVER...</b>", parse_mode='HTML')
+            try:
+                import requests as _req, time as _time
+                url = os.getenv("RENDER_EXTERNAL_URL", "https://sam-job-automator.onrender.com")
+                t0 = _time.time()
+                r  = _req.get(url, timeout=10)
+                ms = int((_time.time() - t0) * 1000)
+                icon = "🟢" if r.status_code == 200 else "🟡"
+                await status_msg.edit_text(
+                    f"📡 <b>RENDER PING RESULT</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"{icon} <b>Status:</b> {r.status_code}\n"
+                    f"⚡ <b>Latency:</b> {ms}ms\n"
+                    f"🌐 <b>URL:</b> <code>{url}</code>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"{'✅ Server is alive' if r.status_code == 200 else '⚠️ Unexpected status'}",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(
+                    f"📡 <b>PING FAILED</b>\n━━━━━━━━━━━━━━━\n❌ {str(e)[:100]}\n<i>Server may be sleeping.</i>",
+                    parse_mode='HTML'
+                )
+
+        elif key == "env_check":
+            required = {
+                "SUPABASE_URL": os.getenv("SUPABASE_URL",""),
+                "SUPABASE_KEY": os.getenv("SUPABASE_KEY",""),
+                "TELEGRAM_BOT_TOKEN": os.getenv("TELEGRAM_BOT_TOKEN",""),
+                "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY",""),
+                "GROQ_API_KEY": os.getenv("GROQ_API_KEY",""),
+                "BREVO_API_KEY": os.getenv("BREVO_API_KEY",""),
+                "GMAIL_SMTP_USER": os.getenv("GMAIL_SMTP_USER",""),
+                "GMAIL_APP_PASSWORD": os.getenv("GMAIL_APP_PASSWORD",""),
+                "SENDER_EMAIL": os.getenv("SENDER_EMAIL",""),
+                "RENDER_EXTERNAL_URL": os.getenv("RENDER_EXTERNAL_URL",""),
+            }
+            lines = []
+            missing = 0
+            for k, v in required.items():
+                if v:
+                    lines.append(f"✅ <code>{k}</code>")
+                else:
+                    lines.append(f"❌ <code>{k}</code> — MISSING")
+                    missing += 1
+            await msg.reply_text(
+                f"🔑 <b>ENV CHECK ({len(required)-missing}/{len(required)} OK)</b>\n"
+                f"━━━━━━━━━━━━━━━\n" +
+                "\n".join(lines) +
+                f"\n━━━━━━━━━━━━━━━\n"
+                f"{'✅ All keys configured' if missing == 0 else f'⚠️ {missing} key(s) missing!'}",
+                parse_mode='HTML'
+            )
+
+        elif key == "countries_report":
+            try:
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/leads?select=company_name,job_title&limit=500&status=eq.pending"
+                )
+                leads = data if succ and isinstance(data, list) else []
+                from collections import Counter
+                country_map = {
+                    "uae": "🇦🇪 UAE", "dubai": "🇦🇪 UAE", "abu dhabi": "🇦🇪 UAE",
+                    "saudi": "🇸🇦 KSA", "riyadh": "🇸🇦 KSA", "jeddah": "🇸🇦 KSA",
+                    "qatar": "🇶🇦 Qatar", "doha": "🇶🇦 Qatar",
+                    "kuwait": "🇰🇼 Kuwait", "bahrain": "🇧🇭 Bahrain",
+                    "oman": "🇴🇲 Oman", "muscat": "🇴🇲 Oman",
+                    "lebanon": "🇱🇧 Lebanon", "beirut": "🇱🇧 Lebanon",
+                    "jordan": "🇯🇴 Jordan", "egypt": "🇪🇬 Egypt",
+                    "uk": "🇬🇧 UK", "london": "🇬🇧 UK",
+                    "germany": "🇩🇪 Germany", "france": "🇫🇷 France",
+                }
+                counts = Counter()
+                for l in leads:
+                    text = (l.get('company_name','') + ' ' + l.get('job_title','')).lower()
+                    matched = False
+                    for kw, country in country_map.items():
+                        if kw in text:
+                            counts[country] += 1
+                            matched = True
+                            break
+                    if not matched:
+                        counts["🌍 Other/Unknown"] += 1
+                lines = [f"<b>{c}:</b> {n}" for c, n in counts.most_common(10)]
+                await msg.reply_text(
+                    "🌍 <b>LEADS BY COUNTRY</b>\n━━━━━━━━━━━━━━━\n" +
+                    ("\n".join(lines) if lines else "<i>No data.</i>") +
+                    "\n━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Countries error:</b> {e}", parse_mode='HTML')
+
+        elif key == "job_titles_report":
+            try:
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/leads?select=job_title&limit=500&status=eq.pending"
+                )
+                leads = data if succ and isinstance(data, list) else []
+                from collections import Counter
+                counts = Counter(l.get('job_title','Unknown')[:35] for l in leads if l.get('job_title'))
+                lines = [f"💼 <b>{t}:</b> {n}" for t, n in counts.most_common(10)]
+                await msg.reply_text(
+                    "💼 <b>TOP JOB TITLES IN QUEUE</b>\n━━━━━━━━━━━━━━━\n" +
+                    ("\n".join(lines) if lines else "<i>No data.</i>") +
+                    "\n━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Job titles error:</b> {e}", parse_mode='HTML')
+
+        elif key == "clear_queue":
+            await msg.reply_text(
+                "⚠️ <b>CLEAR QUEUE — CONFIRM?</b>\n"
+                "━━━━━━━━━━━━━━━\n"
+                "This will remove ALL pending leads from the queue.\n\n"
+                "To confirm, type: <code>CONFIRM CLEAR</code>\n"
+                "To cancel, ignore this message.",
+                parse_mode='HTML'
+            )
+            context.user_data['state'] = 'WAITING_CLEAR_CONFIRM'
+
+        elif key == "find_emails":
+            status_msg = await msg.reply_text(
+                "🔎 <b>FINDING EMAILS...</b>\n"
+                "<i>Scanning leads without email addresses...</i>",
+                parse_mode='HTML'
+            )
+            try:
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/leads?select=id,company_name,job_title&email=is.null&limit=10&status=eq.pending"
+                )
+                no_email = data if succ and isinstance(data, list) else []
+                if not no_email:
+                    await status_msg.edit_text(
+                        "🔎 <b>FIND EMAILS</b>\n━━━━━━━━━━━━━━━\n✅ All leads in queue have email addresses!",
+                        parse_mode='HTML'
+                    )
+                    return
+                lines = [f"🏢 {l.get('company_name','?')[:25]} — {l.get('job_title','?')[:20]}" for l in no_email]
+                await status_msg.edit_text(
+                    f"🔎 <b>LEADS WITHOUT EMAIL ({len(no_email)})</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    + "\n".join(lines) +
+                    f"\n━━━━━━━━━━━━━━━\n"
+                    f"<i>Bot will attempt to find emails via scraping in next cycle.</i>",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>Find emails error:</b> {e}", parse_mode='HTML')
+
+        elif key == "pin_lead":
+            context.user_data['state'] = 'WAITING_PIN_COMPANY'
+            await msg.reply_text(
+                "📌 <b>PIN LEAD</b>\n"
+                "━━━━━━━━━━━━━━━\n"
+                "Enter the <b>company name</b> to pin as top priority.\n"
+                "<i>It will be moved to the front of the queue.</i>",
+                parse_mode='HTML'
+            )
+
+        elif key == "skip_lead":
+            status_msg = await msg.reply_text("🚫 <b>SKIPPING TOP LEAD...</b>", parse_mode='HTML')
+            try:
+                leads = await self.db.get_pending_leads(limit=1) if self.db else []
+                if not leads:
+                    await status_msg.edit_text("🚫 <b>SKIP LEAD</b>\n━━━━━━━━━━━━━━━\n❌ Queue is empty.", parse_mode='HTML')
+                    return
+                lead = leads[0]
+                company = lead.get('company_name', 'Unknown')
+                lead_id = lead.get('id')
+                if lead_id:
+                    await self.db._request_with_retry(
+                        "PATCH",
+                        f"{self.db.url}/rest/v1/leads?id=eq.{lead_id}",
+                        json={"status": "skipped"}
+                    )
+                await status_msg.edit_text(
+                    f"🚫 <b>LEAD SKIPPED</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"⏭️ Skipped: <b>{company}</b>\n"
+                    f"✅ Next lead is now at the front of the queue.",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>Skip error:</b> {e}", parse_mode='HTML')
+
+        elif key == "mass_strike":
+            status_msg = await msg.reply_text(
+                "🎪 <b>MASS STRIKE LOADING...</b>\n"
+                "<i>Fetching top 10 leads from queue...</i>",
+                parse_mode='HTML'
+            )
+            try:
+                leads = await self.db.get_pending_leads(limit=10) if self.db else []
+                valid = [l for l in leads if l.get('email')]
+                if not valid:
+                    await status_msg.edit_text(
+                        "🎪 <b>MASS STRIKE</b>\n━━━━━━━━━━━━━━━\n"
+                        "❌ No leads with email addresses found.\nUse 🌍 Scrape Now to fill the queue.",
+                        parse_mode='HTML'
+                    )
+                    return
+                await status_msg.edit_text(
+                    f"🎪 <b>MASS STRIKE FIRING</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"🎯 Targeting <b>{len(valid)}</b> companies simultaneously...\n"
+                    f"<i>This may take 30-60 seconds.</i>",
+                    parse_mode='HTML'
+                )
+                from core import smtp_engine as _smtp
+                results = await asyncio.gather(
+                    *[asyncio.to_thread(_smtp.send_strike, lead) for lead in valid],
+                    return_exceptions=True
+                )
+                sent    = sum(1 for r in results if r is True)
+                failed  = len(results) - sent
+                lines   = []
+                for i, lead in enumerate(valid):
+                    ok = results[i] is True
+                    lines.append(f"{'✅' if ok else '❌'} {lead.get('company_name','?')[:25]}")
+                await status_msg.edit_text(
+                    f"🎪 <b>MASS STRIKE COMPLETE</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"✅ Sent: {sent} | ❌ Failed: {failed}\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    + "\n".join(lines) +
+                    "\n━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(f"💥 <b>Mass strike error:</b> {e}", parse_mode='HTML')
+
         elif key in ("stats", "status"):
             await self._dispatch_command(f"/{key}", update, context)
 
@@ -1829,6 +2170,50 @@ class SovereignDashboard:
         # [🧪 TEST-STRIKE STATE MACHINE]
         is_test_state = context.user_data.get('state') == 'WAITING_TEST_EMAIL'
         is_email_only = "@" in user_text and "." in user_text and len(user_text.split()) == 1
+
+        # [🗑️ CLEAR QUEUE CONFIRM STATE]
+        if context.user_data.get('state') == 'WAITING_CLEAR_CONFIRM':
+            context.user_data['state'] = None
+            if user_text.strip().upper() == "CONFIRM CLEAR":
+                status_msg = await update.message.reply_text("🗑️ <b>CLEARING QUEUE...</b>", parse_mode='HTML')
+                try:
+                    await self.db._request_with_retry(
+                        "PATCH",
+                        f"{self.db.url}/rest/v1/leads?status=eq.pending",
+                        json={"status": "cleared"}
+                    )
+                    await status_msg.edit_text(
+                        "🗑️ <b>QUEUE CLEARED</b>\n━━━━━━━━━━━━━━━\n"
+                        "✅ All pending leads removed.\n"
+                        "Use 🌍 Scrape Now to refill.",
+                        parse_mode='HTML'
+                    )
+                except Exception as e:
+                    await status_msg.edit_text(f"❌ <b>Clear error:</b> {e}", parse_mode='HTML')
+            else:
+                await update.message.reply_text("❌ <b>CANCELLED.</b> Queue was not cleared.", parse_mode='HTML')
+            return
+
+        # [📌 PIN LEAD STATE]
+        if context.user_data.get('state') == 'WAITING_PIN_COMPANY':
+            context.user_data['state'] = None
+            company_name = user_text.strip()
+            status_msg = await update.message.reply_text(f"📌 <b>PINNING:</b> {company_name}...", parse_mode='HTML')
+            try:
+                await self.db._request_with_retry(
+                    "PATCH",
+                    f"{self.db.url}/rest/v1/leads?company_name=ilike.*{company_name}*&status=eq.pending",
+                    json={"priority_score": 999}
+                )
+                await status_msg.edit_text(
+                    f"📌 <b>LEAD PINNED</b>\n━━━━━━━━━━━━━━━\n"
+                    f"✅ <b>{company_name}</b> set to max priority (999).\n"
+                    f"It will be processed first in the next cycle.",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>Pin error:</b> {e}", parse_mode='HTML')
+            return
         
         if is_test_state or is_email_only:
             email = user_text.strip()
@@ -1995,6 +2380,18 @@ class SovereignDashboard:
             "dry run": "dry_run", "تجربة بدون إرسال": "dry_run",
             "cv preview": "cv_preview", "معاينة السيرة": "cv_preview",
             "cover letter": "cover_letter_preview", "رسالة التغطية": "cover_letter_preview",
+            "monthly report": "monthly_report",   "تقرير شهري": "monthly_report",
+            "provider health": "provider_health", "صحة المزودين": "provider_health",
+            "speed test": "speed_test",           "اختبار السرعة": "speed_test",
+            "ping render": "ping_render",         "اختبار الخادم": "ping_render",
+            "env check": "env_check",             "فحص المتغيرات": "env_check",
+            "countries": "countries_report",      "الدول": "countries_report",
+            "job titles": "job_titles_report",    "المسميات": "job_titles_report",
+            "clear queue": "clear_queue",         "مسح الطابور": "clear_queue",
+            "find emails": "find_emails",         "ابحث عن إيميلات": "find_emails",
+            "pin lead": "pin_lead",               "تثبيت": "pin_lead",
+            "skip lead": "skip_lead",             "تخطي": "skip_lead",
+            "mass strike": "mass_strike",         "ضربة جماعية": "mass_strike",
             "synapse": "synapse", "platforms": "platforms", "sources": "platforms", "المواقع": "platforms",
             "logs": "logs", "السجلات": "logs"
         }
