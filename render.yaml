@@ -212,6 +212,8 @@
         value: "true"
       - key: KEEP_ALIVE_INTERVAL
         value: "600"
+      - key: RENDER
+        value: "true"
 
       # ── AI Cache ───────────────────────────────────────────────────────────
       - key: AI_CACHE_ENABLED
