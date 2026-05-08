@@ -1029,15 +1029,25 @@ class SovereignDashboard:
         from telegram import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
         
         reply_keyboard = [
-            [KeyboardButton("🖥️ Status | الحالة"), KeyboardButton("📊 Stats | الإحصائيات")],
-            [KeyboardButton("📋 Leads | الفرص"), KeyboardButton("🧬 Tasks | المهام")],
-            [KeyboardButton("🛡️ Shield | الدرع"), KeyboardButton("📜 Pulse | النبض")],
-            [KeyboardButton("🏢 Companies | الشركات"), KeyboardButton("📖 Guide | الدليل")],
-            [KeyboardButton("🛰️ Track | التتبع"), KeyboardButton("🎓 Prep | التحضير")],
-            [KeyboardButton("⚙️ Settings | الإعدادات"), KeyboardButton("🔄 Reboot | إعادة تشغيل")],
-            [KeyboardButton("⏸️ Pause | إيقاف مؤقت"), KeyboardButton("▶️ Resume | استئناف")],
-            [KeyboardButton("🛑 Omega Halt | التوقف التام"), KeyboardButton("📜 Logs | السجلات")],
-            [KeyboardButton("📧 Test Email | تجربة إيميل")],
+            # ── Monitoring ──────────────────────────────────────────────────
+            [KeyboardButton("🖥️ Status | الحالة"),        KeyboardButton("📊 Stats | الإحصائيات")],
+            [KeyboardButton("📈 Today Report | تقرير اليوم"), KeyboardButton("📧 Email Stats | إحصاء الإيميل")],
+            [KeyboardButton("🗂️ Queue | الطابور"),         KeyboardButton("📜 Logs | السجلات")],
+            # ── Leads & Tasks ────────────────────────────────────────────────
+            [KeyboardButton("📋 Leads | الفرص"),           KeyboardButton("🧬 Tasks | المهام")],
+            [KeyboardButton("🏢 Companies | الشركات"),     KeyboardButton("🛰️ Track | التتبع")],
+            # ── System Health ────────────────────────────────────────────────
+            [KeyboardButton("🛡️ Shield | الدرع"),          KeyboardButton("📜 Pulse | النبض")],
+            [KeyboardButton("🔍 Audit | مراجعة"),          KeyboardButton("💪 Synapse | قوة")],
+            [KeyboardButton("🧹 Clean Disk | تنظيف"),      KeyboardButton("💾 Backup | نسخة احتياطية")],
+            # ── Controls ────────────────────────────────────────────────────
+            [KeyboardButton("🚀 Run Now | شغّل"),          KeyboardButton("🔧 Fix | إصلاح")],
+            [KeyboardButton("⏸️ Pause | إيقاف مؤقت"),     KeyboardButton("▶️ Resume | استئناف")],
+            [KeyboardButton("🔄 Reboot | إعادة تشغيل"),   KeyboardButton("⚙️ Settings | الإعدادات")],
+            [KeyboardButton("🛑 Omega Halt | التوقف التام"), KeyboardButton("💀 Kill Switch | إيقاف كامل")],
+            # ── Tools ───────────────────────────────────────────────────────
+            [KeyboardButton("📖 Guide | الدليل"),          KeyboardButton("🎓 Prep | التحضير")],
+            [KeyboardButton("📧 Test Email | تجربة إيميل"), KeyboardButton("🧪 Test Strike | تجربة ضربة")],
         ]
         reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
 
@@ -1228,10 +1238,103 @@ class SovereignDashboard:
                 logging.error(f"Quick test email error: {e}")
                 await status_msg.edit_text(f"💥 <b>ERROR:</b> <code>{str(e)[:200]}</code>", parse_mode='HTML')
 
+        elif key == "today_report":
+            try:
+                from datetime import datetime, timedelta, timezone
+                now = datetime.now(timezone.utc)
+                today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat().replace("+", "%2B")
+                app_succ, app_data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=company_name,job_title,status&order=timestamp.desc&limit=20&timestamp=gte.{today_start}"
+                )
+                apps = app_data if app_succ and isinstance(app_data, list) else []
+                lines = [f"✅ {a.get('company_name','?')[:22]} — {a.get('job_title','?')[:20]}" for a in apps[:15]]
+                report = (
+                    f"📈 <b>TODAY'S REPORT</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"🚀 <b>Applications sent today:</b> {len(apps)}\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    + ("\n".join(lines) if lines else "<i>No applications sent yet today.</i>") +
+                    f"\n━━━━━━━━━━━━━━━\n"
+                    f"🕐 <i>{now.strftime('%Y-%m-%d %H:%M UTC')}</i>"
+                )
+                await msg.reply_text(report, parse_mode='HTML')
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Error:</b> {e}", parse_mode='HTML')
+
+        elif key == "email_stats":
+            try:
+                from core.email_rotator import get_email_stats
+                stats = get_email_stats()
+                lines = []
+                for name, data in stats.get("providers", {}).items():
+                    pct = data.get('percentage', 0)
+                    filled = int(pct / 10)
+                    bar = "█" * filled + "░" * (10 - filled)
+                    lines.append(f"<b>{name}</b>\n  {bar} {data['used']}/{data['limit']} ({pct}%)")
+                report = (
+                    f"📧 <b>EMAIL STATS TODAY</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"📤 <b>Total sent:</b> {stats.get('total_sent', 0)}\n"
+                    f"📦 <b>Remaining:</b> {stats.get('total_remaining', 0)}\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    + "\n\n".join(lines) +
+                    "\n━━━━━━━━━━━━━━━"
+                )
+                await msg.reply_text(report, parse_mode='HTML')
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Email stats error:</b> {e}", parse_mode='HTML')
+
+        elif key == "queue_status":
+            try:
+                count = await self.db.get_pending_leads_count() if self.db else 0
+                leads = await self.db.get_pending_leads(limit=5) if self.db else []
+                lines = [f"🎯 {l.get('company_name','?')[:25]} — {l.get('job_title','?')[:20]}" for l in leads]
+                report = (
+                    f"🗂️ <b>QUEUE STATUS</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"📦 <b>Pending leads:</b> {count}\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    + ("\n".join(lines) if lines else "<i>Queue is empty — scrapers are hunting...</i>") +
+                    "\n━━━━━━━━━━━━━━━"
+                )
+                await msg.reply_text(report, parse_mode='HTML')
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Queue error:</b> {e}", parse_mode='HTML')
+
+        elif key == "clean_disk":
+            status_msg = await msg.reply_text("🧹 <b>DISK JANITOR RUNNING...</b>", parse_mode='HTML')
+            try:
+                import shutil, glob
+                cleaned = 0
+                for cache_dir in ["pdf_cache", "core/pdf_cache", "core/temp_cvs", "cover_letters"]:
+                    if os.path.exists(cache_dir):
+                        files = sorted(
+                            [f for f in glob.glob(f"{cache_dir}/*") if os.path.isfile(f)],
+                            key=os.path.getmtime
+                        )
+                        for f in files[:-5]:
+                            try: os.remove(f); cleaned += 1
+                            except: pass
+                if os.path.exists("temp_mirror"):
+                    shutil.rmtree("temp_mirror", ignore_errors=True)
+                    os.makedirs("temp_mirror", exist_ok=True)
+                    cleaned += 1
+                await status_msg.edit_text(
+                    f"🧹 <b>DISK CLEAN COMPLETE</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"🗑️ Removed: {cleaned} files\n"
+                    f"✅ Cache directories cleaned\n"
+                    f"━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>Clean error:</b> {e}", parse_mode='HTML')
+
         elif key in ("stats", "status"):
             await self._dispatch_command(f"/{key}", update, context)
 
-        elif key in ("menu", "guide", "reboot", "launch_single", "settings"):
+        elif key in ("menu", "guide", "reboot", "launch_single", "settings", "fix", "backup", "audit", "synapse"):
             await self._dispatch_command(f"/{key}", update, context)
 
     async def handle_text_oracle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1377,6 +1480,17 @@ class SovereignDashboard:
             "mock interview": "mock_interview", "ghost": "mock_interview",
             "test strike": "test_strike", "تجربة": "test_strike",
             "test email": "quick_test_email", "تجربة إيميل": "quick_test_email",
+            "test strike": "test_strike", "تجربة ضربة": "test_strike",
+            "today report": "today_report", "تقرير اليوم": "today_report",
+            "email stats": "email_stats", "إحصاء الإيميل": "email_stats",
+            "queue": "queue_status", "الطابور": "queue_status",
+            "run now": "launch_single", "شغل": "launch_single", "شغّل": "launch_single",
+            "fix": "fix", "إصلاح": "fix",
+            "audit": "audit", "مراجعة": "audit",
+            "synapse": "synapse", "قوة": "synapse",
+            "clean disk": "clean_disk", "تنظيف": "clean_disk",
+            "backup": "backup", "نسخة احتياطية": "backup",
+            "kill switch": "kill", "إيقاف كامل": "kill",
             "synapse": "synapse", "platforms": "platforms", "sources": "platforms", "المواقع": "platforms",
             "logs": "logs", "السجلات": "logs"
         }
@@ -1404,7 +1518,8 @@ class SovereignDashboard:
         if mapped:
             slash_cmds = {"launch_single", "menu", "pause", "resume", "track", "kill",
                           "lazarus", "repair", "hygiene", "reboot", "status",
-                          "guide", "evolution", "audit", "hud", "backup", "oracle", "mock_interview", "synapse", "logs", "settings"}
+                          "guide", "evolution", "audit", "hud", "backup", "oracle",
+                          "mock_interview", "synapse", "logs", "settings", "fix"}
             if mapped in slash_cmds:
                 return await self._dispatch_command(f"/{mapped}", update, context)
             else:
