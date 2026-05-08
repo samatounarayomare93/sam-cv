@@ -2653,25 +2653,28 @@ class SovereignDashboard:
             # Single infinite loop - ALL recovery happens here, no outer retry
             while True:
                 try:
-                    await asyncio.sleep(15)  # Check leadership every 15s (was 2s - too aggressive)
-                    # Removed backoff logic
+                    await asyncio.sleep(15)  # Check leadership every 15s
 
-                    claimed = await self.db.claim_bot_leadership()
-                    
-                    # Brief settle time before verifying
-                    await asyncio.sleep(1)
-                    
-                    verified = await self.db.is_bot_leader()
-
-                    if verified is None:
-                        logging.debug("⚠️ LEADERSHIP VERIFY FAILED: Network error. Falling back to claim.")
-                        self.is_leader = claimed
-                    elif claimed and not verified:
-                        logging.warning("⚠️ LEADERSHIP RACED: Claimed but verify failed (another node won). Yielding.")
-                        self._leader_verify_degraded = False
-                        self.is_leader = False
+                    # On Render: always leader (single instance)
+                    import os as _os
+                    if _os.getenv("RENDER"):
+                        self.is_leader = True
+                        claimed = True
+                        verified = True
                     else:
-                        self.is_leader = bool(claimed and verified)
+                        claimed = await self.db.claim_bot_leadership()
+                        await asyncio.sleep(1)
+                        verified = await self.db.is_bot_leader()
+
+                        if verified is None:
+                            logging.debug("⚠️ LEADERSHIP VERIFY FAILED: Network error. Falling back to claim.")
+                            self.is_leader = claimed
+                        elif claimed and not verified:
+                            logging.warning("⚠️ LEADERSHIP RACED: Claimed but verify failed. Yielding.")
+                            self._leader_verify_degraded = False
+                            self.is_leader = False
+                        else:
+                            self.is_leader = bool(claimed and verified)
 
                     # [👑 SOVEREIGN RECOVERY]: Only start poller if we ARE the verified leader
                     if self.is_leader and not poller_running:

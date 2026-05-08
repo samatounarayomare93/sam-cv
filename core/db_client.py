@@ -183,6 +183,9 @@ class RealityShapingDB:
         return we_are_leader
 
     async def is_bot_leader(self) -> Optional[bool]:
+        # On Render: always leader (single instance)
+        if os.getenv("RENDER"):
+            return True
         if not self.enabled: return True
         # Use service role for settings check to bypass RLS
         success, data = await self._request_with_retry(
