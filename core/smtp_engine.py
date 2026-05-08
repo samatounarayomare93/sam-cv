@@ -426,12 +426,15 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # ============================================================
     # 🌟 CLOUD-OPTIMIZED PRIORITY
     # On Render: SMTP ports 465/587 are blocked. Port 2525 works.
-    # Detection: RENDER env var OR RENDER_EXTERNAL_URL (set in render.yaml)
+    # Detection: multiple indicators — any one is enough
     # ============================================================
+    import platform as _platform
     is_render = bool(
         os.getenv("RENDER") or
         os.getenv("RENDER_EXTERNAL_URL") or
-        os.getenv("RENDER_SERVICE_ID")
+        os.getenv("RENDER_SERVICE_ID") or
+        # On Linux (Render/cloud) but not Windows — use Render path
+        (_platform.system() == "Linux" and not os.getenv("LOCAL_DEV"))
     )
 
     if is_render:
