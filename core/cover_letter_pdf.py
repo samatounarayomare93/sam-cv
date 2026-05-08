@@ -1,6 +1,6 @@
 """
-Generate Cover Letter PDF - FPDF2 (works on Render without browser)
-Simple, reliable, no custom fonts needed.
+Generate Cover Letter PDF - matches the reference PDF exactly.
+Uses Playwright (HTML→PDF) when available, falls back to FPDF2.
 """
 import os
 import sys
@@ -23,120 +23,434 @@ def _get_pdf_dir():
 
 
 def _safe(text):
-    """Encode text safely for FPDF latin-1."""
     if not text:
         return ""
     return str(text).encode('latin-1', errors='replace').decode('latin-1')
 
 
+def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Manager"):
+    """Build the HTML for the cover letter — matches reference PDF design."""
+    today = datetime.date.today().strftime("%B %d, %Y")
+    candidate_email = os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "samsalameh.cv@gmail.com"))
+    phone = os.getenv("CANDIDATE_PHONE", "+961 70 841 1009")
+    linkedin = os.getenv("LINKEDIN_URL", "https://www.linkedin.com/in/sam-salameh")
+    linkedin_short = linkedin.replace("https://", "").replace("http://", "")
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cover Letter - Sam Salameh</title>
+<style>
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f5f7fa;
+    padding: 30px 20px;
+    color: #2c3e50;
+  }}
+  .page {{
+    max-width: 760px;
+    margin: 0 auto;
+    background: white;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+  }}
+  /* Header */
+  .header {{
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    padding: 36px 48px 28px;
+    position: relative;
+  }}
+  .header::after {{
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #00b4d8 0%, #0077b6 100%);
+  }}
+  .header-name {{
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }}
+  .header-title {{
+    font-size: 13px;
+    color: #90caf9;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }}
+  .header-contact {{
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }}
+  .header-contact span {{ display: flex; align-items: center; gap: 5px; }}
+  /* Body */
+  .body {{
+    padding: 40px 48px;
+  }}
+  .date {{
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 24px;
+  }}
+  .recipient {{
+    margin-bottom: 24px;
+  }}
+  .recipient .manager {{
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e2d3d;
+  }}
+  .recipient .company {{
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 2px;
+  }}
+  .subject {{
+    font-size: 14px;
+    font-weight: 700;
+    color: #0077b6;
+    margin-bottom: 24px;
+    padding: 10px 16px;
+    background: #f0f7ff;
+    border-left: 4px solid #0077b6;
+    border-radius: 0 4px 4px 0;
+  }}
+  .body p {{
+    font-size: 13.5px;
+    line-height: 1.85;
+    color: #374151;
+    margin-bottom: 16px;
+  }}
+  .highlight-box {{
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #0077b6;
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 6px 6px 0;
+  }}
+  .highlight-box h4 {{
+    font-size: 13px;
+    color: #0077b6;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }}
+  .highlight-box ul {{
+    list-style: none;
+    padding: 0;
+  }}
+  .highlight-box li {{
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.7;
+    padding: 3px 0 3px 16px;
+    position: relative;
+  }}
+  .highlight-box li::before {{
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: #0077b6;
+    font-weight: 700;
+  }}
+  .signoff {{
+    margin-top: 28px;
+  }}
+  .signoff p {{
+    font-size: 13.5px;
+    color: #374151;
+    margin-bottom: 4px;
+  }}
+  .signoff .name {{
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e2d3d;
+    margin-top: 12px;
+  }}
+  .signoff .title {{
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+  }}
+  .signoff .contact {{
+    font-size: 12px;
+    color: #0077b6;
+    margin-top: 4px;
+  }}
+  @media print {{
+    body {{ background: white; padding: 0; }}
+    .page {{ box-shadow: none; }}
+  }}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="header-name">SAM SALAMEH</div>
+    <div class="header-title">Senior Network Engineer</div>
+    <div class="header-contact">
+      <span>📱 {phone}</span>
+      <span>✉ {candidate_email}</span>
+      <span>📍 Beirut, Lebanon</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="date">{today}</div>
+
+    <div class="recipient">
+      <div class="manager">{hiring_manager}</div>
+      <div class="company">{company_name}</div>
+    </div>
+
+    <div class="subject">Re: Application for {job_title} Position</div>
+
+    <p>Dear {hiring_manager},</p>
+
+    <p>I am writing to express my strong interest in the <strong>{job_title}</strong> position
+    at <strong>{company_name}</strong>. With over <strong>15 years</strong> of progressive experience in network
+    engineering and infrastructure management, I am confident that my technical expertise
+    and proven track record make me an ideal candidate for this role.</p>
+
+    <div class="highlight-box">
+      <h4>Why I'm a Perfect Fit</h4>
+      <ul>
+        <li>Designed and deployed enterprise-grade networks for <strong>20+ clients</strong> achieving <strong>99.9% uptime SLA</strong></li>
+        <li>Reduced security incidents by <strong>100%</strong> through FortiGate/Cisco ASA hardening</li>
+        <li>Configured IPSec/SSL VPN infrastructure for <strong>50+ branch offices</strong></li>
+        <li>Deep expertise in Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, and Ubiquiti UniFi</li>
+        <li>Advanced routing protocols: <strong>OSPF, BGP, EIGRP</strong> — ISP-grade topologies</li>
+        <li>Fiber optic infrastructure spanning <strong>500km+</strong> with OTDR testing</li>
+      </ul>
+    </div>
+
+    <p>My technical proficiency includes advanced routing protocols (OSPF, BGP, EIGRP), VPN
+    configurations, firewall management, fiber optic installations, and traffic analysis. I have a
+    proven track record of resolving 50+ daily complex technical issues while maintaining strict
+    SLA compliance and customer satisfaction.</p>
+
+    <p>What sets me apart is my ability to combine deep technical knowledge with strong
+    problem-solving skills and effective communication. I excel at translating complex technical
+    concepts into actionable business solutions, and I am committed to staying current with
+    emerging technologies and industry best practices.</p>
+
+    <p>I am particularly drawn to <strong>{company_name}</strong> because of your reputation for
+    innovation and excellence in the industry. I am excited about the opportunity to contribute
+    my expertise to your team and help drive your network infrastructure initiatives forward.</p>
+
+    <p>I am available for <strong>immediate relocation</strong> to the UAE, KSA, Qatar, Kuwait, or Europe.
+    I would welcome the opportunity to discuss how my experience and skills align with your
+    needs. Thank you for considering my application. I look forward to speaking with you soon.</p>
+
+    <div class="signoff">
+      <p>Sincerely,</p>
+      <div class="name">Sam Salameh</div>
+      <div class="title">Senior Network Engineer</div>
+      <div class="contact">{phone} &nbsp;|&nbsp; {candidate_email}</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>"""
+
+
 def generate_cover_letter_pdf(company_name, job_title, hiring_manager="Hiring Manager"):
-    """Generate cover letter PDF using FPDF2 built-in fonts. Works everywhere."""
+    """Generate cover letter PDF. Uses Playwright if available, else FPDF2."""
+    pdf_dir = _get_pdf_dir()
+    safe_company = "".join(
+        c for c in company_name if c.isalnum() or c in ' _-'
+    ).strip().replace(' ', '_')[:40]
+    pdf_path = os.path.join(pdf_dir, f"Cover_Letter_{safe_company}.pdf")
+
+    # ── Try Playwright first (best quality, matches reference) ────────────
+    try:
+        from playwright.sync_api import sync_playwright
+        import tempfile, concurrent.futures
+
+        html_content = _build_cover_letter_html(company_name, job_title, hiring_manager)
+
+        def _playwright_render():
+            # Write HTML to temp file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.html',
+                                             delete=False, encoding='utf-8') as tmp:
+                tmp.write(html_content)
+                tmp_path = tmp.name
+            try:
+                with sync_playwright() as p:
+                    browser = p.chromium.launch()
+                    page = browser.new_page()
+                    page.goto(f'file:///{tmp_path.replace(os.sep, "/")}')
+                    page.wait_for_load_state('networkidle')
+                    page.pdf(
+                        path=pdf_path,
+                        format='A4',
+                        print_background=True,
+                        margin={'top': '10mm', 'right': '0mm',
+                                'bottom': '10mm', 'left': '0mm'}
+                    )
+                    browser.close()
+                return pdf_path
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+
+        # Run in thread to avoid event loop conflicts
+        import asyncio
+        try:
+            asyncio.get_running_loop()
+            # We're in async context — use thread pool
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                result = ex.submit(_playwright_render).result(timeout=60)
+        except RuntimeError:
+            # Sync context — run directly
+            result = _playwright_render()
+
+        if result and os.path.exists(result) and os.path.getsize(result) > 5000:
+            size = os.path.getsize(result)
+            logging.info(f"✅ Cover Letter PDF (Playwright): {result} ({size:,} bytes)")
+            return result
+
+    except ImportError:
+        logging.debug("⏭️ Playwright not available for cover letter, using FPDF2")
+    except Exception as e:
+        logging.warning(f"⚠️ Playwright cover letter failed: {e}, falling back to FPDF2")
+
+    # ── Fallback: FPDF2 ───────────────────────────────────────────────────
     try:
         from fpdf import FPDF
         from fpdf.enums import XPos, YPos
 
-        pdf_dir = _get_pdf_dir()
-        safe_company = "".join(
-            c for c in company_name if c.isalnum() or c in ' _-'
-        ).strip().replace(' ', '_')[:40]
-        pdf_path = os.path.join(pdf_dir, f"Cover_Letter_{safe_company}.pdf")
+        today = datetime.date.today().strftime("%B %d, %Y")
+        candidate_email = os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "samsalameh.cv@gmail.com"))
+        phone = os.getenv("CANDIDATE_PHONE", "+961 70 841 1009")
 
         pdf = FPDF()
         pdf.set_margins(25, 20, 25)
         pdf.set_auto_page_break(auto=True, margin=20)
         pdf.add_page()
 
-        # ── Header ────────────────────────────────────────────────────────────
-        pdf.set_font("Helvetica", "B", 18)
-        pdf.set_text_color(0, 120, 180)
-        pdf.cell(0, 10, "SAM SALAMEH",
+        # Header background
+        pdf.set_fill_color(30, 60, 114)
+        pdf.rect(0, 0, 210, 42, 'F')
+
+        # Name
+        pdf.set_y(8)
+        pdf.set_font("Helvetica", "B", 20)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(0, 10, "SAM SALAMEH", align='C',
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+        # Title
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(144, 202, 249)
+        pdf.cell(0, 6, "Senior Network Engineer  |  CCNA  |  NSE  |  MTCNA  |  UBWA",
                  align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
+        # Contact
         pdf.set_font("Helvetica", "", 9)
-        pdf.set_text_color(100, 100, 100)
-        pdf.cell(0, 5, "Senior Network Engineer  |  CCNA  |  NSE  |  MTCNA  |  UBWA",
+        pdf.set_text_color(220, 220, 220)
+        pdf.cell(0, 6,
+                 _safe(f"{phone}  |  {candidate_email}  |  linkedin.com/in/sam-salameh"),
                  align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.cell(0, 5, "+961 70 841 1009  |  samsalameh.cv@gmail.com  |  linkedin.com/in/sam-salameh",
-                 align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.ln(3)
 
-        # Divider
-        pdf.set_draw_color(0, 120, 180)
-        pdf.set_line_width(0.4)
-        pdf.line(25, pdf.get_y(), 185, pdf.get_y())
-        pdf.ln(7)
+        # Blue accent line
+        pdf.set_draw_color(0, 180, 216)
+        pdf.set_line_width(1.0)
+        pdf.line(0, 42, 210, 42)
 
-        # ── Date ──────────────────────────────────────────────────────────────
-        pdf.set_font("Helvetica", "", 10)
-        pdf.set_text_color(80, 80, 80)
-        pdf.cell(0, 6, datetime.date.today().strftime("%B %d, %Y"),
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.ln(4)
-
-        # ── Recipient ─────────────────────────────────────────────────────────
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.set_text_color(30, 30, 30)
-        pdf.cell(0, 6, _safe(hiring_manager),
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.set_font("Helvetica", "", 10)
-        pdf.cell(0, 6, "Hiring Team",
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.cell(0, 6, _safe(company_name[:60]),
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.ln(6)
-
-        # ── Subject ───────────────────────────────────────────────────────────
-        pdf.set_font("Helvetica", "B", 11)
-        pdf.set_text_color(0, 120, 180)
-        pdf.cell(0, 7, _safe(f"Re: Application for {job_title}"[:80]),
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.ln(4)
-
-        # ── Body ──────────────────────────────────────────────────────────────
-        pdf.set_font("Helvetica", "", 10)
+        pdf.set_y(50)
         pdf.set_text_color(40, 40, 40)
 
-        body_paragraphs = [
+        # Date
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(107, 114, 128)
+        pdf.cell(0, 6, today, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(4)
+
+        # Recipient
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(30, 30, 30)
+        pdf.cell(0, 6, _safe(hiring_manager), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(107, 114, 128)
+        pdf.cell(0, 6, _safe(company_name[:60]), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(4)
+
+        # Subject
+        pdf.set_fill_color(240, 247, 255)
+        pdf.set_draw_color(0, 119, 182)
+        pdf.set_line_width(0.8)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(0, 119, 182)
+        pdf.cell(0, 8, _safe(f"Re: Application for {job_title[:60]}"),
+                 fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(6)
+
+        # Body paragraphs
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(55, 65, 81)
+        pdf.set_line_width(0.2)
+
+        paragraphs = [
             f"Dear {hiring_manager},",
             (f"I am writing to express my strong interest in the {job_title} position "
-             f"at {company_name}. With 15+ years of enterprise network engineering experience "
-             "and active certifications in Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and "
-             "Ubiquiti UBWA, I am confident I can deliver immediate value to your team."),
-            ("Throughout my career, I have deployed enterprise-grade networks for 20+ clients "
-             "achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate "
-             "and Cisco ASA hardening, and configured IPSec/SSL VPN for 50+ branch offices. "
-             "My expertise spans Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, and Ubiquiti "
-             "UniFi with deep knowledge in OSPF/BGP/EIGRP routing and fiber optic infrastructure "
-             "spanning 500km+."),
+             f"at {company_name}. With over 15 years of progressive experience in network "
+             "engineering and infrastructure management, I am confident that my technical "
+             "expertise and proven track record make me an ideal candidate for this role."),
+            ("Throughout my career, I have successfully designed, implemented, and maintained "
+             "enterprise-grade networking solutions across diverse platforms including Cisco, "
+             "MikroTik, Ubiquiti, and Fortinet. My experience spans from hands-on technical "
+             "implementation to strategic network planning and optimization."),
+            ("In my current role as a Freelance Network Engineer, I have delivered comprehensive "
+             "networking solutions to over 20 clients, including enterprise businesses, ISPs, and "
+             "educational institutions. I specialize in network design, implementation, "
+             "troubleshooting, and optimization, consistently achieving 100% uptime maintenance "
+             "and exceeding client expectations."),
+            ("My technical proficiency includes advanced routing protocols (OSPF, BGP, EIGRP), "
+             "VPN configurations, firewall management, fiber optic installations, and traffic "
+             "analysis. I have a proven track record of resolving 50+ daily complex technical "
+             "issues while maintaining strict SLA compliance and customer satisfaction."),
             (f"I am available for immediate relocation to the UAE, KSA, Qatar, Kuwait, or Europe. "
-             f"Please find my CV attached. I would welcome the opportunity to discuss how my "
-             f"background aligns with {company_name}'s infrastructure goals."),
-            "Thank you for your time and consideration.",
+             f"I would welcome the opportunity to discuss how my experience and skills align with "
+             f"your needs. Thank you for considering my application. I look forward to speaking "
+             f"with you soon."),
         ]
 
-        for para in body_paragraphs:
+        for para in paragraphs:
             pdf.multi_cell(0, 6, _safe(para))
             pdf.ln(4)
 
-        # ── Sign-off ──────────────────────────────────────────────────────────
+        # Sign-off
         pdf.ln(4)
         pdf.set_font("Helvetica", "", 10)
-        pdf.cell(0, 6, "Best regards,",
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.ln(2)
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, "Sam Salameh",
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 6, "Sincerely,", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(4)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(30, 45, 61)
+        pdf.cell(0, 6, "Sam Salameh", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.set_font("Helvetica", "", 9)
-        pdf.set_text_color(80, 80, 80)
-        pdf.cell(0, 5, "Senior Network Engineer",
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.cell(0, 5, "+961 70 841 1009  |  samsalameh.cv@gmail.com",
+        pdf.set_text_color(107, 114, 128)
+        pdf.cell(0, 5, "Senior Network Engineer", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_text_color(0, 119, 182)
+        pdf.cell(0, 5, _safe(f"{phone}  |  {candidate_email}"),
                  new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
         pdf.output(pdf_path)
         size = os.path.getsize(pdf_path)
-        logging.info(f"✅ Cover Letter PDF: {pdf_path} ({size:,} bytes)")
+        logging.info(f"✅ Cover Letter PDF (FPDF2): {pdf_path} ({size:,} bytes)")
         return pdf_path
 
     except Exception as e:

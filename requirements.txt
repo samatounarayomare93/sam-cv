@@ -27,6 +27,8 @@ google-auth-httplib2>=0.1.0
 
 # PDF Generation
 fpdf2>=2.7.0
+reportlab>=4.0.0
+playwright>=1.40.0
 
 # Telegram Integration
 python-telegram-bot>=20.0
