@@ -1580,8 +1580,8 @@ class SovereignDashboard:
         self.app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, self.handle_web_app_data))
 
         async with self.app:
-            # async with handles initialize() automatically. Only call start() once.
-            await self.app.initialize()
+            # async with handles initialize() AND shutdown() automatically.
+            # Do NOT call self.app.initialize() manually — it causes "Timed out" on Render.
             await self._sync_ui_standalone(self.app)
             await self.app.start()
             poller_running = False

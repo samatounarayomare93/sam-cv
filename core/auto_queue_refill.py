@@ -378,11 +378,16 @@ async def inject_batch(c, url, headers, count=80):
     random.shuffle(companies)
     companies = companies[:count]
     
+    # Use insert-only headers (no merge-duplicates) so new leads always get inserted
+    insert_headers = {k: v for k, v in headers.items()}
+    insert_headers["Prefer"] = "return=minimal"  # just insert, don't merge
+    
     leads = []
     for i, (company_name, email, score) in enumerate(companies):
         title = random.choice(JOB_TITLES)
-        # Unique URL per round+timestamp to avoid duplicates
-        job_url = f"https://careers.{email.split('@')[1]}/{title.lower().replace(' ', '-')}-r{_round_counter}-t{ts}-{i}"
+        # Fully unique URL every time — round + timestamp + random suffix
+        rand_suffix = random.randint(10000, 99999)
+        job_url = f"https://careers.{email.split('@')[1]}/{title.lower().replace(' ', '-')}-r{_round_counter}-t{ts}-{i}-{rand_suffix}"
         leads.append({
             "company_name": company_name,
             "email": email,
@@ -390,16 +395,19 @@ async def inject_batch(c, url, headers, count=80):
             "job_url": job_url,
             "status": "pending",
             "priority_score": score + random.randint(-5, 5),
-            "description": f"We are looking for a {title} to join {company_name}. "
-                          f"5+ years experience in network engineering required. "
-                          f"Cisco/Juniper certifications preferred."
+            "description": (
+                f"We are looking for a {title} to join {company_name}. "
+                f"5+ years experience in network engineering required. "
+                f"Cisco/Juniper/Fortinet certifications preferred. "
+                f"Competitive salary + relocation package."
+            )
         })
     
     success = 0
     batch_size = 10
     for i in range(0, len(leads), batch_size):
         batch = leads[i:i+batch_size]
-        tasks = [c.post(url + "/rest/v1/leads", json=lead, headers=headers) for lead in batch]
+        tasks = [c.post(url + "/rest/v1/leads", json=lead, headers=insert_headers) for lead in batch]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for result in results:
             if not isinstance(result, Exception) and result.status_code in (200, 201):
@@ -444,7 +452,7 @@ async def auto_refill_loop():
                     logging.info(f"Queue low ({pending} < {REFILL_THRESHOLD}). Recycling + refilling...")
                     
                     # 1. Recycle error/rate_limited leads back to pending first
-                    for status in ('error', 'rate_limited', 'stale_expired'):
+                    for status in ('error', 'rate_limited', 'stale_expired', 'failed'):
                         try:
                             await c.patch(
                                 sb_url + f"/rest/v1/leads?status=eq.{status}",
@@ -457,12 +465,9 @@ async def auto_refill_loop():
                     # 2. Check again after recycling
                     pending_after = await get_pending_count(c, sb_url, headers)
                     
-                    # 3. If still low, inject fresh leads
-                    if pending_after < REFILL_THRESHOLD:
-                        injected = await inject_batch(c, sb_url, headers, count=80)
-                        logging.info(f"Injected {injected} new leads. Queue refilled!")
-                    else:
-                        logging.info(f"Queue refilled via recycling: {pending_after} pending")
+                    # 3. Always inject fresh leads (unique URLs = always new entries)
+                    injected = await inject_batch(c, sb_url, headers, count=100)
+                    logging.info(f"Injected {injected} new leads. Queue refilled!")
                 else:
                     logging.info(f"Queue healthy ({pending} leads). No refill needed.")
                     
