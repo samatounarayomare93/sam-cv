@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
 """Force Render to redeploy with latest code."""
-import requests, os, time
+import requests, os, time, sys
 from dotenv import load_dotenv
+
+# [🛡️ WINDOWS UTF-8 FIX]
+if sys.platform == 'win32':
+    import io
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except AttributeError:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 load_dotenv()
 
 api_key = os.getenv('RENDER_API_KEY')
 service_id = os.getenv('RENDER_SERVICE_ID')
 headers = {'Authorization': f'Bearer {api_key}', 'Accept': 'application/json', 'Content-Type': 'application/json'}
 
-print("🚀 Triggering manual redeploy on Render...")
+print("[INFO] Triggering manual redeploy on Render...")
 
 r = requests.post(
     f'https://api.render.com/v1/services/{service_id}/deploys',
@@ -17,15 +28,18 @@ r = requests.post(
     timeout=15
 )
 
-if r.status_code in (200, 201):
-    data = r.json()
-    dep = data.get('deploy', data)
-    print(f"✅ Deploy triggered!")
-    print(f"   ID: {dep.get('id')}")
-    print(f"   Status: {dep.get('status')}")
-    print(f"\n⏳ Waiting for deploy to complete (usually 2-3 minutes)...")
+if r.status_code in (200, 201, 202):
+    try:
+        data = r.json()
+        dep = data.get('deploy', data)
+        print(f"[OK] Deploy triggered!")
+        print(f"   ID: {dep.get('id')}")
+        print(f"   Status: {dep.get('status')}")
+    except:
+        print(f"[OK] Deploy triggered (Status: {r.status_code})")
     
-    dep_id = dep.get('id')
+    print(f"\n[WAIT] Waiting for deploy to complete (usually 2-3 minutes)...")
+    
     for i in range(20):
         time.sleep(15)
         r2 = requests.get(
@@ -39,11 +53,11 @@ if r.status_code in (200, 201):
                 status = latest.get('status', 'unknown')
                 print(f"   [{i*15}s] Status: {status}")
                 if status == 'live':
-                    print(f"\n✅ DEPLOY COMPLETE! Bot is live with new code.")
-                    print(f"   Now test via Telegram: send samsalameh.cv@gmail.com")
+                    print(f"\n[SUCCESS] DEPLOY COMPLETE! Bot is live with new code.")
+                    print(f"   Now test via Telegram.")
                     break
                 elif status in ('failed', 'canceled'):
-                    print(f"\n❌ Deploy {status}!")
+                    print(f"\n[ERROR] Deploy {status}!")
                     break
 else:
-    print(f"❌ Failed to trigger deploy: {r.status_code} - {r.text[:300]}")
+    print(f"[ERROR] Failed to trigger deploy: {r.status_code} - {r.text[:300]}")

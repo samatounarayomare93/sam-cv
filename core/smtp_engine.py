@@ -382,7 +382,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     _resend_domain = resend_from_email.split('@')[-1].lower() if '@' in resend_from_email else ''
     _resend_domain_ok = resend_from_email and _resend_domain not in _FREE_DOMAINS
 
-    if resend_api_key:
+    if resend_api_key and _resend_domain_ok:
         try:
             import resend as resend_lib
             resend_lib.api_key = resend_api_key

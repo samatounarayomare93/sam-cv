@@ -48,8 +48,6 @@ _DEFAULTS = {
     "LINKEDIN_URL":           "https://www.linkedin.com/in/sam-salameh",
     "CANDIDATE_PROFESSION":   "Senior Network Engineer",
     "TEST_RECEIVER_EMAIL":    "samsalameh.cv@gmail.com",
-    "RENDER":                 "true",
-    "RENDER_EXTERNAL_URL":    "https://sam-job-automator.onrender.com",
     "KILL_SWITCH_ACTIVE":     "false",
     "MAX_PARALLEL_STRIKES":   "15",
     "MAX_QUALIFIED_LEADS_PER_CYCLE": "300",
