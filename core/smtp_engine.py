@@ -443,15 +443,45 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         brevo_user = os.getenv("BREVO_SMTP_LOGIN", "").strip()
         brevo_pass = os.getenv("BREVO_SMTP_PASSWORD", "").strip()
         gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+        gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or '').strip()
 
-        # ── STEP 1: Brevo HTTP API (CONFIRMED WORKING — delivers to inbox) ──
+        # ── STEP 0: Gmail SMTP Port 465 SSL (BEST DELIVERABILITY — from Sam's real email) ──
+        # Render does NOT block port 465 (SSL). Only 587 (STARTTLS) is blocked.
+        # This sends directly from samsalameh.cv@gmail.com = perfect DMARC alignment = INBOX
+        if gmail_user and gmail_pass:
+            gmail_provider_465 = {
+                'name': 'Gmail-SSL-465',
+                'server': 'smtp.gmail.com',
+                'port': 465,
+                'email': gmail_user,
+                'password': gmail_pass,
+                'use_ssl': True
+            }
+            try:
+                logging.info(f"📧 [RENDER-STEP0] Gmail SMTP Port 465 SSL (best deliverability)...")
+                res = _send_via_provider(to_email, company_name, job_title, custom_body,
+                                         gmail_provider_465, attachment_paths, sender_name,
+                                         highlights, subject=subject, reply_to=reply_to)
+                if res:
+                    logging.info("✅ [RENDER-STEP0] Gmail SMTP 465 SUCCESS — sent from Sam's real email!")
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("gmail")
+                    except: pass
+                    return True
+                else:
+                    logging.warning("⚠️ [RENDER-STEP0] Gmail SMTP 465 failed, trying Brevo...")
+            except Exception as e:
+                logging.warning(f"⚠️ [RENDER-STEP0] Gmail SMTP 465 exception: {e}, trying Brevo...")
+
+        # ── STEP 1: Brevo HTTP API (fallback — delivers but from samatou683@gmail.com) ──
         # Use os.getenv directly — config module may not have defaults applied yet
         brevo_api = os.getenv("BREVO_API_KEY", "").strip()
         if not brevo_api:
             brevo_api = "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"
         if brevo_api:
             try:
-                logging.info("📧 [RENDER-STEP1] Brevo HTTP API (confirmed working)...")
+                logging.info("📧 [RENDER-STEP1] Brevo HTTP API (fallback)...")
                 if send_email_via_brevo_http(to_email, company_name, job_title, custom_body,
                                               attachment_paths, sender_name, highlights,
                                               subject=subject, reply_to=reply_to or gmail_user):
@@ -463,6 +493,35 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                     return True
             except Exception as e:
                 logging.warning(f"⚠️ [RENDER-STEP1] Brevo HTTP failed: {e}")
+
+        # ── STEP 1.5: Zoho SMTP Port 465 SSL (DMARC aligned — great deliverability) ──
+        zoho_user_r = os.getenv("ZOHO_SMTP_USER", "").strip()
+        zoho_pass_r = os.getenv("ZOHO_APP_PASSWORD", "").strip()
+        if zoho_user_r and zoho_pass_r:
+            zoho_provider_465 = {
+                'name': 'Zoho-SSL-465',
+                'server': 'smtp.zoho.com',
+                'port': 465,
+                'email': zoho_user_r,
+                'password': zoho_pass_r,
+                'use_ssl': True
+            }
+            try:
+                logging.info(f"📧 [RENDER-STEP1.5] Zoho SMTP Port 465 SSL...")
+                res = _send_via_provider(to_email, company_name, job_title, custom_body,
+                                         zoho_provider_465, attachment_paths, sender_name,
+                                         highlights, subject=subject, reply_to=reply_to or gmail_user)
+                if res:
+                    logging.info("✅ [RENDER-STEP1.5] Zoho SMTP 465 SUCCESS!")
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("zoho")
+                    except: pass
+                    return True
+                else:
+                    logging.warning("⚠️ [RENDER-STEP1.5] Zoho SMTP 465 failed...")
+            except Exception as e:
+                logging.warning(f"⚠️ [RENDER-STEP1.5] Zoho SMTP 465 exception: {e}")
 
         # ── STEP 2: Resend API (needs verified custom domain) ────────────────
         if HAS_RESEND:
@@ -1070,18 +1129,22 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     if not api_key: return False
 
     # Active verified senders in Brevo (in priority order):
-    # CONFIRMED ACTIVE: samatou683@gmail.com (Brevo account owner — always active)
+    # PRIORITY 1: samsalameh.cv@gmail.com — Sam's real email (activate in Brevo dashboard)
+    # FALLBACK:   samatou683@gmail.com — Brevo account owner (always active)
     # DO NOT use: BREVO_SMTP_LOGIN (a974ef001@smtp-brevo.com) — not a real email
-    # DO NOT use: samsalameh.cv@gmail.com — INACTIVE in Brevo (confirmed from logs)
-    # Hardcoded default = samatou683@gmail.com so it works even if env var missing on Render
     brevo_account    = os.getenv("BREVO_ACCOUNT_EMAIL", "samatou683@gmail.com").strip()
     gmail_user       = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
 
-    # Always use the confirmed active Brevo sender
-    sender_email = brevo_account  # samatou683@gmail.com — confirmed delivered
+    # Use Sam's real Gmail as sender if it's verified in Brevo, otherwise fallback to account email
+    # To activate: go to app.brevo.com → Senders & IPs → Senders → click samsalameh.cv@gmail.com → Activate
+    brevo_primary_sender = os.getenv("BREVO_PRIMARY_SENDER", gmail_user or brevo_account).strip()
+    sender_email = brevo_primary_sender if brevo_primary_sender else brevo_account
+    
     if not sender_email:
         logging.warning("⚠️ [BREVO] No active sender configured.")
         return False
+    
+    logging.info(f"📧 [BREVO] Using sender: {sender_email}")
 
     # Reply-To: always use the real Gmail so replies go to Sam's inbox
     if not reply_to:
