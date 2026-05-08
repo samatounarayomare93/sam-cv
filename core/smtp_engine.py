@@ -425,333 +425,130 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
 
     # ============================================================
     # 🌟 CLOUD-OPTIMIZED PRIORITY
-    # On Render: SMTP ports are blocked, only HTTP works
+    # On Render: SMTP ports 465/587 are blocked. Port 2525 works.
     # ============================================================
     is_render = os.getenv("RENDER") is not None
-    
+
     if is_render:
-        logging.info("☁️ [RENDER-MODE] Smart rotation: auto-switches when limit reached")
-        
-        # ============================================================
-        # SMART ROTATION ENGINE
-        # Checks daily limits, auto-rotates to next available provider
-        # Order: Resend → Zoho → Brevo → SendPulse → Mailjet → Gmail API
-        # ============================================================
-        
-        def _try_resend():
-            """Try all Resend accounts in order — requires RESEND_FROM_EMAIL (verified custom domain)"""
-            if not HAS_RESEND:
-                return False
-            resend_from = os.getenv("RESEND_FROM_EMAIL", "").strip()
-            _FREE = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
-            _domain = resend_from.split('@')[-1].lower() if '@' in resend_from else ''
-            if not resend_from or _domain in _FREE:
-                # No verified custom domain configured — skip entirely
-                return False
-            for i in range(1, 11):
-                env = "RESEND_API_KEY" if i == 1 else f"RESEND_API_KEY_{i}"
-                k = os.getenv(env, "").strip()
-                if not k:
-                    continue
-                # Check rotator limit
-                provider_name = f"resend_{i}"
-                try:
-                    from core.email_rotator import get_rotator
-                    rotator = get_rotator()
-                    used = rotator.usage.get(provider_name, {}).get("count", 0)
-                    limit = rotator.providers and next((p["limit"] for p in rotator.providers if p["name"] == provider_name), 100) or 100
-                    if used >= limit:
-                        logging.info(f"⏭️ Resend #{i} limit reached ({used}/{limit}), skipping...")
-                        continue
-                except: pass
-                try:
-                    resend_lib.api_key = k
-                    result = send_email_via_resend(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                    if result:
-                        try:
-                            from core.email_rotator import record_email_sent
-                            record_email_sent(provider_name)
-                        except: pass
-                        return True
-                except Exception as e:
-                    logging.warning(f"⚠️ Resend #{i} failed: {e}")
-            return False
+        logging.info("☁️ [RENDER-MODE] Starting delivery chain...")
 
-        def _try_zoho():
-            """Try Zoho — ZeptoMail first (simplest, works on Render), then REST API, then SMTP (local only)."""
+        brevo_user = os.getenv("BREVO_SMTP_LOGIN", "").strip()
+        brevo_pass = os.getenv("BREVO_SMTP_PASSWORD", "").strip()
+        zoho_user  = os.getenv("ZOHO_SMTP_USER",  "").strip()
+        zoho_user2 = os.getenv("ZOHO_SMTP_USER_2","").strip()
+        gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
 
-            # ── 1. ZOHO ZEPTOMAIL (simplest — just a token, works on Render) ──
-            # Setup: zeptomail.zoho.com → Mail Agent → SMTP/API tab → copy Send Mail Token
-            zepto_key = os.getenv("ZEPTO_API_KEY", "").strip()
-            zepto_from = os.getenv("ZEPTO_FROM_EMAIL", os.getenv("ZOHO_SMTP_USER", "")).strip()
-            if zepto_key and zepto_from:
+        # ── STEP 1: Zoho via Brevo port 2525 (MOST RELIABLE on Render) ──────
+        # Zoho address as visible sender, Brevo SMTP as relay.
+        # Brevo port 2525 is NOT blocked by Render.
+        if brevo_user and brevo_pass:
+            for z_sender in [s for s in [zoho_user, zoho_user2, gmail_user] if s]:
                 try:
-                    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
-                    resp = requests.post(
-                        "https://api.zeptomail.com/v1.1/email",
-                        json={
-                            "from": {"address": zepto_from, "name": sender_name},
-                            "to": [{"email_address": {"address": to_email}}],
-                            "subject": subject,
-                            "htmlbody": html_content,
-                            "reply_to": [{"address": reply_to or zepto_from}],
-                        },
-                        headers={
-                            "Authorization": f"Zoho-enczapikey {zepto_key}",
-                            "Content-Type": "application/json",
-                            "Accept": "application/json",
-                        },
-                        timeout=20
+                    provider_2525 = {
+                        'name': f'Zoho-via-Brevo-2525',
+                        'server': 'smtp-relay.brevo.com',
+                        'port': 2525,
+                        'email': brevo_user,
+                        'password': brevo_pass,
+                        'use_ssl': False
+                    }
+                    logging.info(f"📧 [RENDER-STEP1] Trying {z_sender} via Brevo port 2525...")
+                    res = _send_via_provider(
+                        to_email, company_name, job_title, custom_body,
+                        provider_2525, attachment_paths, sender_name, highlights,
+                        subject=subject, reply_to=reply_to or gmail_user,
+                        sender_override=z_sender
                     )
-                    if resp.status_code in (200, 201, 202):
-                        logging.info("✅ [ZEPTO] Email sent via ZeptoMail!")
+                    if res:
+                        logging.info(f"✅ [RENDER-STEP1] SUCCESS via Brevo-2525 (sender: {z_sender})")
                         try:
                             from core.email_rotator import record_email_sent
                             record_email_sent("zoho_1")
                         except: pass
                         return True
-                    else:
-                        logging.warning(f"⚠️ [ZEPTO] Failed: {resp.status_code} — {resp.text[:120]}")
                 except Exception as e:
-                    logging.warning(f"⚠️ [ZEPTO] Exception: {e}")
+                    logging.warning(f"⚠️ [RENDER-STEP1] {z_sender} via Brevo-2525 failed: {e}")
 
-            # ── 2. ZOHO MAIL REST API (OAuth token — works on Render) ───────────
-            zoho_api_key = os.getenv("ZOHO_API_KEY", "").strip()
-            zoho_from = os.getenv("ZOHO_SMTP_USER", "").strip()
-            if zoho_api_key and zoho_from:
-                try:
-                    html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
-                    resp = requests.post(
-                        "https://mail.zoho.com/api/accounts/me/messages",
-                        json={
-                            "fromAddress": zoho_from,
-                            "toAddress": to_email,
-                            "subject": subject,
-                            "htmlBody": html_content,
-                            "replyTo": reply_to or zoho_from,
-                        },
-                        headers={
-                            "Authorization": f"Zoho-oauthtoken {zoho_api_key}",
-                            "Content-Type": "application/json",
-                        },
-                        timeout=20
-                    )
-                    if resp.status_code in (200, 201, 202):
-                        logging.info("✅ [ZOHO-API] Email sent via Zoho REST API!")
-                        try:
-                            from core.email_rotator import record_email_sent
-                            record_email_sent("zoho_1")
-                        except: pass
-                        return True
-                    else:
-                        logging.warning(f"⚠️ [ZOHO-API] Failed: {resp.status_code} — {resp.text[:100]}")
-                except Exception as e:
-                    logging.warning(f"⚠️ [ZOHO-API] Exception: {e}")
-
-            # ── 3. ZOHO SMTP / HIJACK TUNNEL ──
-            is_render = bool(os.getenv("RENDER"))
-            brevo_user = os.getenv("BREVO_SMTP_LOGIN", "").strip()
-            brevo_pass = os.getenv("BREVO_SMTP_PASSWORD", "").strip()
-
-            for i in range(1, 11):
-                u_env = "ZOHO_SMTP_USER" if i == 1 else f"ZOHO_SMTP_USER_{i}"
-                p_env = "ZOHO_APP_PASSWORD" if i == 1 else f"ZOHO_APP_PASSWORD_{i}"
-                z_user = os.getenv(u_env, "").strip()
-                z_pass = os.getenv(p_env, "").strip()
-                
-                if not z_user or not z_pass:
-                    continue
-                    
-                provider_name = f"zoho_{i}"
-                try:
-                    from core.email_rotator import get_rotator
-                    rotator = get_rotator()
-                    used = rotator.usage.get(provider_name, {}).get("count", 0)
-                    if used >= 500:
-                        logging.info(f"⏭️ Zoho #{i} limit reached ({used}/500), skipping...")
-                        continue
-                except: pass
-
-                if is_render:
-                    # [👑 HIJACK FIX]: Tunnel through Brevo
-                    if brevo_user and brevo_pass:
-                        logging.info(f"🚀 [ZOHO-HIJACK] Tunneling {provider_name} via Brevo Port 2525...")
-                        z_provider = {
-                            'name': f'{provider_name}-via-Brevo(2525)', 'server': 'smtp-relay.brevo.com',
-                            'port': 2525, 'email': brevo_user, 'password': brevo_pass, 'use_ssl': False
-                        }
-                        try:
-                            res = _send_via_provider(to_email, company_name, job_title, custom_body, z_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to, sender_override=z_user)
-                            if res:
-                                logging.info(f"✅ [ZOHO-HIJACK] SUCCESS! {provider_name} delivered via Brevo tunnel!")
-                                try:
-                                    from core.email_rotator import record_email_sent
-                                    record_email_sent(provider_name)
-                                except: pass
-                                return True
-                        except Exception as e:
-                            logging.warning(f"⚠️ [ZOHO-HIJACK] {provider_name} Failed: {e}")
-                else:
-                    # Normal local SMTP
-                    for z_port, z_ssl in [(465, True), (587, False)]:
-                        z_provider = {
-                            'name': f'{provider_name}-{z_port}', 'server': 'smtp.zoho.com',
-                            'port': z_port, 'email': z_user, 'password': z_pass, 'use_ssl': z_ssl
-                        }
-                        try:
-                            res = _send_via_provider(to_email, company_name, job_title, custom_body, z_provider, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to)
-                            if res:
-                                logging.info(f"✅ {provider_name.upper()} PORT {z_port} SUCCESS!")
-                                try:
-                                    from core.email_rotator import record_email_sent
-                                    record_email_sent(provider_name)
-                                except: pass
-                                return True
-                            break
-                        except Exception as e:
-                            logging.warning(f"⚠️ {provider_name} port {z_port} failed: {e}")
-            return False
-
-        def _try_brevo():
-            """Try Brevo HTTP API"""
-            if not getattr(config, 'BREVO_API_KEY', None):
-                return False
+        # ── STEP 2: Brevo HTTP API ───────────────────────────────────────────
+        if getattr(config, 'BREVO_API_KEY', None):
             try:
-                from core.email_rotator import get_rotator
-                rotator = get_rotator()
-                used = rotator.usage.get("brevo", {}).get("count", 0)
-                if used >= 300:
-                    logging.info(f"⏭️ Brevo limit reached ({used}/300), skipping...")
-                    return False
-            except: pass
-            try:
-                if send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
+                logging.info("📧 [RENDER-STEP2] Trying Brevo HTTP API...")
+                if send_email_via_brevo_http(to_email, company_name, job_title, custom_body,
+                                              attachment_paths, sender_name, highlights,
+                                              subject=subject, reply_to=reply_to):
+                    logging.info("✅ [RENDER-STEP2] Brevo HTTP SUCCESS")
                     try:
                         from core.email_rotator import record_email_sent
                         record_email_sent("brevo")
                     except: pass
                     return True
             except Exception as e:
-                logging.warning(f"⚠️ Brevo failed: {e}")
-            return False
+                logging.warning(f"⚠️ [RENDER-STEP2] Brevo HTTP failed: {e}")
 
-        def _try_sendpulse():
-            """Try SendPulse API"""
-            sp_key = os.getenv("SENDPULSE_API_KEY", "").strip()
-            sp_id = os.getenv("SENDPULSE_CLIENT_ID", "").strip()
-            sp_secret = os.getenv("SENDPULSE_CLIENT_SECRET", "").strip()
-            if not sp_key and not (sp_id and sp_secret):
-                return False
-            try:
-                from core.email_rotator import get_rotator
-                rotator = get_rotator()
-                used = rotator.usage.get("sendpulse", {}).get("count", 0)
-                if used >= 400:
-                    logging.info(f"⏭️ SendPulse limit reached ({used}/400), skipping...")
-                    return False
-            except: pass
-            try:
-                if send_email_via_sendpulse(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
+        # ── STEP 3: Resend API (needs verified custom domain) ────────────────
+        if HAS_RESEND:
+            resend_from = os.getenv("RESEND_FROM_EMAIL", "").strip()
+            _FREE = {'gmail.com','yahoo.com','hotmail.com','outlook.com','live.com','icloud.com'}
+            _dom  = resend_from.split('@')[-1].lower() if '@' in resend_from else ''
+            if resend_from and _dom not in _FREE:
+                for i in range(1, 6):
+                    k = os.getenv("RESEND_API_KEY" if i == 1 else f"RESEND_API_KEY_{i}", "").strip()
+                    if not k: continue
                     try:
-                        from core.email_rotator import record_email_sent
-                        record_email_sent("sendpulse")
-                    except: pass
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ SendPulse failed: {e}")
-            return False
+                        result = send_email_via_resend(to_email, company_name, job_title, custom_body,
+                                                       attachment_paths, sender_name, highlights,
+                                                       subject=subject, reply_to=reply_to)
+                        if result:
+                            logging.info(f"✅ [RENDER-STEP3] Resend #{i} SUCCESS")
+                            return True
+                    except Exception as e:
+                        logging.warning(f"⚠️ [RENDER-STEP3] Resend #{i} failed: {e}")
+            else:
+                logging.debug("⏭️ [RENDER-STEP3] Resend skipped: no verified custom domain in RESEND_FROM_EMAIL")
 
-        def _try_mailjet():
-            """Try Mailjet API"""
-            mj_key = os.getenv("MAILJET_API_KEY", "").strip()
-            mj_secret = os.getenv("MAILJET_API_SECRET", os.getenv("MAILJET_SECRET_KEY", "")).strip()
-            if not mj_key or not mj_secret:
-                return False
+        # ── STEP 4: ZeptoMail (Zoho's transactional API) ─────────────────────
+        zepto_key  = os.getenv("ZEPTO_API_KEY",   "").strip()
+        zepto_from = os.getenv("ZEPTO_FROM_EMAIL", os.getenv("ZOHO_SMTP_USER", "")).strip()
+        if zepto_key and zepto_from:
             try:
-                from core.email_rotator import get_rotator
-                rotator = get_rotator()
-                used = rotator.usage.get("mailjet", {}).get("count", 0)
-                if used >= 200:
-                    logging.info(f"⏭️ Mailjet limit reached ({used}/200), skipping...")
-                    return False
-            except: pass
-            try:
-                if send_email_via_mailjet(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, reply_to=reply_to):
-                    try:
-                        from core.email_rotator import record_email_sent
-                        record_email_sent("mailjet")
-                    except: pass
+                html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+                resp = requests.post(
+                    "https://api.zeptomail.com/v1.1/email",
+                    json={
+                        "from": {"address": zepto_from, "name": sender_name},
+                        "to": [{"email_address": {"address": to_email}}],
+                        "subject": subject,
+                        "htmlbody": html_content,
+                        "reply_to": [{"address": reply_to or zepto_from}],
+                    },
+                    headers={
+                        "Authorization": f"Zoho-enczapikey {zepto_key}",
+                        "Content-Type": "application/json",
+                    },
+                    timeout=20
+                )
+                if resp.status_code in (200, 201, 202):
+                    logging.info("✅ [RENDER-STEP4] ZeptoMail SUCCESS")
                     return True
+                else:
+                    logging.warning(f"⚠️ [RENDER-STEP4] ZeptoMail failed: {resp.status_code} {resp.text[:100]}")
             except Exception as e:
-                logging.warning(f"⚠️ Mailjet failed: {e}")
-            return False
+                logging.warning(f"⚠️ [RENDER-STEP4] ZeptoMail exception: {e}")
 
-        # ============================================================
-        # ROTATION ORDER: HTTP providers first (work on Render), SMTP last
-        # Render blocks outbound SMTP ports — Brevo/Mailjet/SendPulse use HTTP API
-        # Brevo FIRST on Render — it's the most reliable HTTP provider we have configured
-        # ============================================================
-        is_render = bool(os.getenv("RENDER"))
-        if is_render:
-            rotation_order = [
-                ("Brevo",      _try_brevo),      # ← FIRST: HTTP API, always works on Render
-                ("Resend",     _try_resend),      # ← needs verified custom domain
-                ("Zoho",       _try_zoho),        # ← needs ZOHO_API_KEY or ZEPTO_API_KEY
-                ("SendPulse",  _try_sendpulse),
-                ("Mailjet",    _try_mailjet),
-            ]
-        else:
-            rotation_order = [
-                ("Resend",     _try_resend),
-                ("Zoho",       _try_zoho),
-                ("Brevo",      _try_brevo),
-                ("SendPulse",  _try_sendpulse),
-                ("Mailjet",    _try_mailjet),
-            ]
-
-        for provider_name, try_fn in rotation_order:
-            try:
-                if try_fn():
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ {provider_name} rotation failed: {e}")
-
-        # Last resort: Gmail API
+        # ── STEP 5: Gmail API (OAuth) ─────────────────────────────────────────
         if get_gmail_service:
             try:
                 service = get_gmail_service()
                 if service:
-                    if send_email_via_gmail_api(to_email, company_name, job_title, custom_body, attachment_paths, sender_name, highlights, subject=subject, service=service, reply_to=reply_to):
+                    if send_email_via_gmail_api(to_email, company_name, job_title, custom_body,
+                                                attachment_paths, sender_name, highlights,
+                                                subject=subject, service=service, reply_to=reply_to):
+                        logging.info("✅ [RENDER-STEP5] Gmail API SUCCESS")
                         return True
             except Exception as e:
-                logging.warning(f"⚠️ Gmail API failed: {e}")
+                logging.warning(f"⚠️ [RENDER-STEP5] Gmail API failed: {e}")
 
-        # ── ABSOLUTE LAST RESORT: Zoho SMTP tunneled via Brevo port 2525 ──────
-        # Render blocks 465/587 but allows 2525. Use Zoho address as visible sender.
-        brevo_user_lr = os.getenv("BREVO_SMTP_LOGIN", "").strip()
-        brevo_pass_lr = os.getenv("BREVO_SMTP_PASSWORD", "").strip()
-        zoho_user_lr = os.getenv("ZOHO_SMTP_USER", "").strip()
-        if brevo_user_lr and brevo_pass_lr and zoho_user_lr:
-            try:
-                tunnel_provider = {
-                    'name': 'Zoho-via-Brevo-2525',
-                    'server': 'smtp-relay.brevo.com',
-                    'port': 2525,
-                    'email': brevo_user_lr,
-                    'password': brevo_pass_lr,
-                    'use_ssl': False
-                }
-                logging.info(f"📧 [LAST-RESORT] Trying Zoho via Brevo tunnel port 2525...")
-                res = _send_via_provider(to_email, company_name, job_title, custom_body, tunnel_provider,
-                                         attachment_paths, sender_name, highlights, subject=subject,
-                                         reply_to=reply_to, sender_override=zoho_user_lr)
-                if res:
-                    logging.info("✅ [LAST-RESORT] Zoho-via-Brevo-2525 SUCCESS!")
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ [LAST-RESORT] Tunnel failed: {e}")
-
-        logging.error("❌ ALL PROVIDERS EXHAUSTED for today!")
+        logging.error("❌ [RENDER] ALL DELIVERY STEPS FAILED. Check Brevo credentials and sender verification.")
         return False
 
     # ============================================================
@@ -1281,27 +1078,32 @@ def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, att
 
 
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
-    """[BREVO REST API] 300/day free. Works on Render (HTTP port 443)."""
+    """[BREVO REST API] 300/day free. Works on Render (HTTP port 443).
+    
+    IMPORTANT: The sender email MUST be verified in Brevo dashboard.
+    We use BREVO_SMTP_LOGIN as sender because it is always auto-verified by Brevo.
+    Gmail/Zoho addresses require manual verification in Brevo → Senders & IPs.
+    """
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
 
-    # [👑 FIX] Use a verified sender address — priority:
-    # 1. BREVO_SENDER_EMAIL env var (explicitly verified on Brevo)
-    # 2. GMAIL_SMTP_USER (usually verified)
-    # 3. BREVO_SMTP_LOGIN (the Brevo account login itself — always verified)
-    brevo_sender = os.getenv("BREVO_SENDER_EMAIL", "").strip()
-    gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
     brevo_login = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
+    gmail_user  = (getattr(config, 'GMAIL_SMTP_USER',  '') or '').strip()
+    brevo_sender_env = os.getenv("BREVO_SENDER_EMAIL", "").strip()
 
-    # On Render: prefer Gmail sender (verified by Brevo) over Brevo login
-    # Brevo login (a974ef001@smtp-brevo.com) looks spammy as a sender
-    sender_email = brevo_sender or gmail_user or brevo_login
+    # Sender priority:
+    # 1. BREVO_SMTP_LOGIN — always verified (it's the Brevo account itself)
+    # 2. BREVO_SENDER_EMAIL — only if explicitly set AND verified in Brevo dashboard
+    # 3. GMAIL_SMTP_USER — only if verified in Brevo dashboard
+    # Using an unverified sender causes Brevo to silently drop the email (returns 201 but never delivers)
+    sender_email = brevo_login or brevo_sender_env or gmail_user
     if not sender_email:
-        logging.warning("⚠️ [BREVO] No verified sender email configured. Set BREVO_SENDER_EMAIL in env.")
+        logging.warning("⚠️ [BREVO] No sender email configured.")
         return False
 
+    # Reply-To: use Gmail so replies go to the real inbox
     if not reply_to:
-        reply_to = gmail_user or sender_email
+        reply_to = gmail_user or brevo_sender_env or sender_email
 
     if not subject:
         subject = f"Application: {job_title} - {company_name}"
@@ -1330,7 +1132,7 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
         payload["attachment"] = attachment_list
 
     try:
-        logging.info(f"📤 [BREVO] Sending from {sender_email} to {to_email}...")
+        logging.info(f"📤 [BREVO] Sending from {sender_email} → reply-to {reply_to} → to {to_email}...")
         response = requests.post(
             "https://api.brevo.com/v3/smtp/email",
             headers={"api-key": api_key, "Content-Type": "application/json", "Accept": "application/json"},
@@ -1338,10 +1140,15 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
             timeout=20
         )
         if response.status_code in (201, 200, 202):
-            logging.info(f"✅ [BREVO] Email sent! Status: {response.status_code}")
+            msg_id = ""
+            try:
+                msg_id = response.json().get("messageId", "")
+            except Exception:
+                pass
+            logging.info(f"✅ [BREVO] Accepted! Status: {response.status_code} | MessageId: {msg_id}")
             return True
         else:
-            logging.error(f"❌ [BREVO] Failed: {response.status_code} - {response.text[:200]}")
+            logging.error(f"❌ [BREVO] Failed: {response.status_code} - {response.text[:300]}")
             return False
     except Exception as e:
         logging.error(f"❌ [BREVO] Exception: {e}")
