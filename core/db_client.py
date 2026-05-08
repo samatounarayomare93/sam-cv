@@ -66,10 +66,28 @@ class RealityShapingDB:
         self.node_name = os.getenv("NODE_NAME", socket.gethostname())
         self._semaphore = None # Lazy initialization
 
+    def _sqlite_connect(self) -> sqlite3.Connection:
+        """Create a SQLite connection with WAL mode and timeout to prevent 'database is locked' errors."""
+        conn = sqlite3.connect(self.local_db, timeout=30, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        return conn
+
     @property
     def _request_semaphore(self):
-        """Lazy initialization of semaphore to avoid 'attached to different loop' faults."""
-        if self._semaphore is None:
+        """Lazy initialization of semaphore — always bound to the CURRENT running loop."""
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+
+        # Re-create semaphore if it doesn't exist or is bound to a different/closed loop
+        if self._semaphore is None or (
+            current_loop is not None and
+            getattr(self._semaphore, '_loop', None) is not None and
+            self._semaphore._loop is not current_loop
+        ):
             self._semaphore = asyncio.Semaphore(20)
         return self._semaphore
 
@@ -211,6 +229,37 @@ class RealityShapingDB:
             self._session = httpx.AsyncClient(timeout=20, follow_redirects=True)
         return self._session
 
+    @staticmethod
+    def _safe_run_async(coro):
+        """Safely run a coroutine from any context (sync or async thread).
+        Handles closed loops, running loops, and missing loops gracefully.
+        """
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is None or loop.is_closed():
+            # No usable loop — create a fresh one
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            try:
+                return new_loop.run_until_complete(coro)
+            finally:
+                new_loop.close()
+                asyncio.set_event_loop(None)
+        elif loop.is_running():
+            # Already inside an async context (e.g. called from a thread pool)
+            import concurrent.futures
+            future = asyncio.run_coroutine_threadsafe(coro, loop)
+            try:
+                return future.result(timeout=30)
+            except concurrent.futures.TimeoutError:
+                logging.warning("⚠️ [DB] _safe_run_async timed out after 30s")
+                return None
+        else:
+            return loop.run_until_complete(coro)
+
     async def _request_with_retry(
         self,
         method: str,
@@ -284,6 +333,17 @@ class RealityShapingDB:
                 return False, {"error": f"HTTP {response.status_code}", "detail": text}
             except Exception as e:
                 if retry_count < self._max_retries:
+                    err_msg = str(e)
+                    # [🔥 FIX]: Handle event loop errors — reset session and semaphore
+                    if "event loop" in err_msg.lower() or isinstance(e, RuntimeError):
+                        logging.warning(f"⚠️ [DB] Event loop error detected — resetting session and semaphore")
+                        try:
+                            if self._session and not self._session.is_closed:
+                                pass  # Can't await close here, just drop the reference
+                        except Exception:
+                            pass
+                        self._session = None
+                        self._semaphore = None
                     logging.warning(f"⚠️ [DB] Exception on {method} {endpoint.split('?')[0].split('/')[-1]} — retry {retry_count + 1}/{self._max_retries}: {type(e).__name__}: {e}")
                     await asyncio.sleep(self._base_delay)
                     return await self._request_with_retry(method, endpoint, payload, retry_count + 1)
@@ -298,7 +358,7 @@ class RealityShapingDB:
 
     def _init_sqlite(self):
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.executescript('''
                 CREATE TABLE IF NOT EXISTS applications (
@@ -398,7 +458,7 @@ class RealityShapingDB:
 
     def _log_locally(self, lead: Dict[str, Any]):
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO applications (company_name, job_title, company_email, job_url, status, mission_phase, cheat_sheet)
@@ -411,7 +471,7 @@ class RealityShapingDB:
     async def get_old_applications(self, days: int = 7) -> List[Dict]:
         leads = []
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute('''SELECT * FROM applications WHERE status = 'SENT' AND datetime(timestamp) < datetime('now', ?)''', (f'-{days} days',))
@@ -423,7 +483,7 @@ class RealityShapingDB:
 
     async def mark_follow_up_sent(self, identifier: str):
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute('''UPDATE applications SET status = 'FOLLOWED_UP' WHERE job_url = ? OR company_email = ?''', (identifier, identifier))
             conn.commit()
@@ -432,7 +492,7 @@ class RealityShapingDB:
 
     def _is_dup_locally(self, identifier: str) -> bool:
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute('''SELECT id FROM applications WHERE job_url = ? OR company_email = ?''', (identifier, identifier))
             res = cursor.fetchone()
@@ -471,7 +531,7 @@ class RealityShapingDB:
 
     async def get_site_patch(self, domain: str) -> Optional[Dict]:
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("SELECT patch FROM site_patches WHERE domain = ?", (domain,))
             res = cursor.fetchone()
@@ -487,7 +547,7 @@ class RealityShapingDB:
     async def save_site_patch(self, domain: str, patch_data: Dict):
         patch_json = json.dumps(patch_data)
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("INSERT OR REPLACE INTO site_patches (domain, patch, repaired_at) VALUES (?, ?, ?)", (domain, patch_json, datetime.now().isoformat()))
             conn.commit()
@@ -501,7 +561,7 @@ class RealityShapingDB:
 
     async def get_global_recon(self, company_name: str) -> Optional[Dict]:
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("SELECT manager_name, manager_url FROM global_recon WHERE company_name = ?", (company_name,))
             res = cursor.fetchone()
@@ -516,7 +576,7 @@ class RealityShapingDB:
 
     async def report_recon_success(self, company_name: str, manager_name: str, manager_url: str):
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("INSERT OR REPLACE INTO global_recon (company_name, manager_name, manager_url, last_updated) VALUES (?, ?, ?, ?)", (company_name, manager_name, manager_url, datetime.now().isoformat()))
             conn.commit()
@@ -533,7 +593,7 @@ class RealityShapingDB:
     async def report_blacklisted_domain(self, domain: str, reason: str = "Anti-Bot Detected"):
         expiry = (datetime.now() + timedelta(hours=24)).isoformat()
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("INSERT OR REPLACE INTO adversarial_blacklist (domain, reason, expiry, last_updated) VALUES (?, ?, ?, ?)", (domain, reason, expiry, datetime.now().isoformat()))
             conn.commit()
@@ -547,7 +607,7 @@ class RealityShapingDB:
 
     async def is_globally_blacklisted(self, domain: str) -> bool:
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("SELECT expiry FROM adversarial_blacklist WHERE domain = ?", (domain,))
             res = cursor.fetchone()
@@ -562,7 +622,7 @@ class RealityShapingDB:
 
     async def log_phantom_outreach(self, username: str, group: str, pitch: str):
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("INSERT INTO userbot_outreach (username, group_name, pitch, sent_at) VALUES (?, ?, ?, ?)", (username, group, pitch, datetime.now().isoformat()))
             conn.commit()
@@ -571,7 +631,7 @@ class RealityShapingDB:
 
     async def track_vip_hit(self, target_id: str) -> Optional[str]:
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("SELECT company_name FROM vip_tracking WHERE target_id = ?", (target_id,))
             row = cursor.fetchone()
@@ -587,7 +647,7 @@ class RealityShapingDB:
 
     async def register_vip_target(self, target_id: str, company: str):
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("INSERT OR IGNORE INTO vip_tracking (target_id, company_name) VALUES (?, ?)", (target_id, company))
             conn.commit()
@@ -625,7 +685,7 @@ class RealityShapingDB:
 
         # 2. Local Shadow Mirror
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("INSERT INTO tasks (type, target, meta, status) VALUES (?, ?, ?, ?)", (ttype, target, meta, status))
             conn.commit()
@@ -736,7 +796,7 @@ class RealityShapingDB:
         """[🛰️ REGISTRY] Fetches all active recruitment sources from the Hive-Mind."""
         if not self.enabled:
             try:
-                conn = sqlite3.connect(self.local_db)
+                conn = self._sqlite_connect()
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM platform_registry WHERE status = 'ACTIVE'")
@@ -750,7 +810,7 @@ class RealityShapingDB:
         """[🌐 DISCOVERY] Logs a potential new platform for future validation."""
         if not self.enabled:
             try:
-                conn = sqlite3.connect(self.local_db)
+                conn = self._sqlite_connect()
                 cursor = conn.cursor()
                 cursor.execute("INSERT OR IGNORE INTO discovered_links (url, source) VALUES (?, ?)", (url, source))
                 conn.commit()
@@ -766,7 +826,7 @@ class RealityShapingDB:
     async def get_pending_tasks(self, task_type: str = None, limit: int = 5) -> List[Dict]:
         tasks = []
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
@@ -782,7 +842,7 @@ class RealityShapingDB:
 
     async def mark_task_completed(self, task_id: int):
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("UPDATE tasks SET status = 'COMPLETED' WHERE id = ?", (task_id,))
             conn.commit()
@@ -791,7 +851,7 @@ class RealityShapingDB:
 
     async def stream_log(self, level: str, message: str):
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("INSERT INTO system_logs (level, message) VALUES (?, ?)", (level, message))
             conn.commit()
@@ -801,7 +861,7 @@ class RealityShapingDB:
     async def get_recent_blacklist(self, limit: int = 5) -> List[Dict]:
         blacklist = []
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM adversarial_blacklist ORDER BY last_updated DESC LIMIT ?", (limit,))
@@ -820,7 +880,7 @@ class RealityShapingDB:
         heartbeat_count = 0
         
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM global_recon")
             recon_count = cursor.fetchone()[0]
@@ -854,7 +914,7 @@ class RealityShapingDB:
 
     async def get_settings(self, key: str, default: Any = None) -> Any:
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("SELECT value FROM system_settings WHERE key = ?", (key,))
             res = cursor.fetchone()
@@ -872,7 +932,7 @@ class RealityShapingDB:
     async def update_setting(self, key: str, value: Any):
         val_str = str(value)
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, ?)", (key, val_str, datetime.now().isoformat()))
             conn.commit()
@@ -921,7 +981,7 @@ class RealityShapingDB:
         
         # Local count (for legacy support)
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM applications")
             stats["local_strikes"] = cursor.fetchone()[0]
@@ -954,7 +1014,7 @@ class RealityShapingDB:
 
     async def get_latest_application(self) -> Optional[Dict]:
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM applications ORDER BY timestamp DESC LIMIT 1")
@@ -965,7 +1025,7 @@ class RealityShapingDB:
 
     async def get_latest_logs(self, limit: int = 10) -> List[Dict]:
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT ?", (limit,))
@@ -979,7 +1039,7 @@ class RealityShapingDB:
 
     def sync_add_task(self, task_type: str, target: str = "", meta: str = ""):
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("INSERT INTO tasks (type, target, meta, status) VALUES (?, ?, ?, ?)", (task_type, target, meta, 'PENDING'))
             conn.commit()
@@ -989,7 +1049,7 @@ class RealityShapingDB:
 
     def sync_get_vip_stats(self) -> List[Dict[str, Any]]:
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("SELECT company_name, hit_count FROM vip_tracking ORDER BY last_seen DESC LIMIT 5")
             rows = cursor.fetchall()
@@ -1059,7 +1119,7 @@ class RealityShapingDB:
         else:
             # Fallback to local SQLite if cloud is disabled
             try:
-                conn = sqlite3.connect(self.local_db)
+                conn = self._sqlite_connect()
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM applications")
                 stats["strikes"] = cursor.fetchone()[0]
@@ -1087,7 +1147,7 @@ class RealityShapingDB:
         
         # 2. Local Shadow Mirror
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT OR IGNORE INTO platform_registry (name, url, type)
@@ -1106,7 +1166,7 @@ class RealityShapingDB:
                 return data
         
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM platform_registry WHERE status = "ACTIVE"')
@@ -1120,7 +1180,7 @@ class RealityShapingDB:
         """Returns compact recon counts for dashboards and health views."""
         summary = {"applications": 0, "recon": 0, "tasks": 0}
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM applications")
             summary["applications"] = cursor.fetchone()[0]
@@ -1141,7 +1201,7 @@ class RealityShapingDB:
             await self._request_with_retry("POST", endpoint, payload, headers={"Prefer": "resolution=merge-duplicates"})
         
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute('INSERT OR IGNORE INTO discovered_links (url, source) VALUES (?, ?)', (url, source))
             conn.commit()
@@ -1155,7 +1215,7 @@ class RealityShapingDB:
             if success and isinstance(data, list): return data
             
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM discovered_links WHERE status = "PENDING" LIMIT ?', (limit,))
@@ -1171,7 +1231,7 @@ class RealityShapingDB:
             await self._request_with_retry("PATCH", endpoint, {"status": status, "is_platform": is_platform})
             
         try:
-            conn = sqlite3.connect(self.local_db)
+            conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute('UPDATE discovered_links SET status = ?, is_platform = ? WHERE url = ?', (status, is_platform, url))
             conn.commit()

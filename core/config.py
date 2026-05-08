@@ -49,8 +49,8 @@ _DEFAULTS = {
     "CANDIDATE_PROFESSION":   "Senior Network Engineer",
     "TEST_RECEIVER_EMAIL":    "samsalameh.cv@gmail.com",
     "KILL_SWITCH_ACTIVE":     "false",
-    "MAX_PARALLEL_STRIKES":   "15",
-    "MAX_QUALIFIED_LEADS_PER_CYCLE": "300",
+    "MAX_PARALLEL_STRIKES":   "5",
+    "MAX_QUALIFIED_LEADS_PER_CYCLE": "100",
     "MIN_MATCH_SCORE":        "45",
 }
 

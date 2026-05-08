@@ -153,9 +153,9 @@
       - key: RESEND_DAILY_LIMIT
         value: "100"
       - key: MAX_PARALLEL_STRIKES
-        value: "15"
+        value: "5"
       - key: MAX_QUALIFIED_LEADS_PER_CYCLE
-        value: "500"
+        value: "100"
       - key: MAX_APPLICATIONS_PER_DAY
         value: "1500"
       - key: MAX_APPLICATIONS_PER_HOUR
@@ -165,13 +165,13 @@
       - key: QUALITY_THRESHOLD
         value: "45"
       - key: BATCH_SIZE
-        value: "100"
+        value: "20"
       - key: BATCH_PROCESSING_ENABLED
         value: "true"
       - key: SCRAPE_INTERVAL_MINUTES
         value: "45"
       - key: MAX_PARALLEL_SCRAPERS
-        value: "12"
+        value: "3"
       - key: MAX_SCRAPER_PAGES
         value: "200"
       - key: SCRAPER_DELAY_MIN
