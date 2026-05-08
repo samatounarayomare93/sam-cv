@@ -439,61 +439,27 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
 
         brevo_user = os.getenv("BREVO_SMTP_LOGIN", "").strip()
         brevo_pass = os.getenv("BREVO_SMTP_PASSWORD", "").strip()
-        zoho_user  = os.getenv("ZOHO_SMTP_USER",  "").strip()
-        zoho_user2 = os.getenv("ZOHO_SMTP_USER_2","").strip()
         gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
 
-        # ── STEP 1: Zoho via Brevo port 2525 (MOST RELIABLE on Render) ──────
-        # Zoho address as visible sender, Brevo SMTP as relay.
-        # Brevo port 2525 is NOT blocked by Render.
-        if brevo_user and brevo_pass:
-            # Use active Brevo senders: samatou683@gmail.com or sam.dev1@hotmail.com
-            brevo_account = os.getenv("BREVO_ACCOUNT_EMAIL", "").strip()
-            active_senders = [s for s in [brevo_account, zoho_user, zoho_user2] if s]
-            for z_sender in active_senders:
-                try:
-                    provider_2525 = {
-                        'name': f'Zoho-via-Brevo-2525',
-                        'server': 'smtp-relay.brevo.com',
-                        'port': 2525,
-                        'email': brevo_user,
-                        'password': brevo_pass,
-                        'use_ssl': False
-                    }
-                    logging.info(f"📧 [RENDER-STEP1] Trying {z_sender} via Brevo port 2525...")
-                    res = _send_via_provider(
-                        to_email, company_name, job_title, custom_body,
-                        provider_2525, attachment_paths, sender_name, highlights,
-                        subject=subject, reply_to=reply_to or gmail_user,
-                        sender_override=z_sender
-                    )
-                    if res:
-                        logging.info(f"✅ [RENDER-STEP1] SUCCESS via Brevo-2525 (sender: {z_sender})")
-                        try:
-                            from core.email_rotator import record_email_sent
-                            record_email_sent("zoho_1")
-                        except: pass
-                        return True
-                except Exception as e:
-                    logging.warning(f"⚠️ [RENDER-STEP1] {z_sender} via Brevo-2525 failed: {e}")
-
-        # ── STEP 2: Brevo HTTP API ───────────────────────────────────────────
+        # ── STEP 1: Brevo HTTP API (CONFIRMED WORKING — delivers to inbox) ──
+        # This is the ONLY method confirmed to deliver on Render.
+        # Sender: samatou683@gmail.com (active in Brevo dashboard)
         if getattr(config, 'BREVO_API_KEY', None):
             try:
-                logging.info("📧 [RENDER-STEP2] Trying Brevo HTTP API...")
+                logging.info("📧 [RENDER-STEP1] Brevo HTTP API (confirmed working)...")
                 if send_email_via_brevo_http(to_email, company_name, job_title, custom_body,
                                               attachment_paths, sender_name, highlights,
-                                              subject=subject, reply_to=reply_to):
-                    logging.info("✅ [RENDER-STEP2] Brevo HTTP SUCCESS")
+                                              subject=subject, reply_to=reply_to or gmail_user):
+                    logging.info("✅ [RENDER-STEP1] Brevo HTTP SUCCESS — delivered!")
                     try:
                         from core.email_rotator import record_email_sent
                         record_email_sent("brevo")
                     except: pass
                     return True
             except Exception as e:
-                logging.warning(f"⚠️ [RENDER-STEP2] Brevo HTTP failed: {e}")
+                logging.warning(f"⚠️ [RENDER-STEP1] Brevo HTTP failed: {e}")
 
-        # ── STEP 3: Resend API (needs verified custom domain) ────────────────
+        # ── STEP 2: Resend API (needs verified custom domain) ────────────────
         if HAS_RESEND:
             resend_from = os.getenv("RESEND_FROM_EMAIL", "").strip()
             _FREE = {'gmail.com','yahoo.com','hotmail.com','outlook.com','live.com','icloud.com'}
