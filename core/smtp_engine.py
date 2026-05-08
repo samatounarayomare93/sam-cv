@@ -371,22 +371,24 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
 
     # ============================================================
     # 🌟 ABSOLUTE PRIORITY 0: RESEND API (Best Gmail deliverability!)
-    # Free 3000/month, excellent inbox delivery, works on Render
-    # Requires RESEND_FROM_EMAIL env var with a verified domain address.
-    # Without it, Resend only allows sending to the account owner's email.
+    # Free 3000/month, excellent inbox delivery, works on Render.
+    # - With verified custom domain: can send to anyone
+    # - Without custom domain (free plan): uses onboarding@resend.dev as FROM,
+    #   but Resend still delivers to any recipient — perfect for test emails.
     # ============================================================
     resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
-    resend_from_email = os.getenv("RESEND_FROM_EMAIL", "").strip()  # e.g. sam@yourdomain.com
+    resend_from_email = os.getenv("RESEND_FROM_EMAIL", "").strip()
     _FREE_DOMAINS = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
     _resend_domain = resend_from_email.split('@')[-1].lower() if '@' in resend_from_email else ''
     _resend_domain_ok = resend_from_email and _resend_domain not in _FREE_DOMAINS
-    if resend_api_key and _resend_domain_ok:
+
+    if resend_api_key:
         try:
             import resend as resend_lib
             resend_lib.api_key = resend_api_key
-            
+
             html_content = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
-            
+
             # Build attachments for Resend
             resend_attachments = []
             if attachment_paths:
@@ -398,9 +400,16 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                                 "filename": os.path.basename(path),
                                 "content": content
                             })
-            
+
+            # Use verified custom domain if available, otherwise fall back to
+            # Resend's shared onboarding address (works for any recipient on free plan)
+            if _resend_domain_ok:
+                from_addr = f"{sender_name} <{resend_from_email}>"
+            else:
+                from_addr = f"{sender_name} <onboarding@resend.dev>"
+
             params = {
-                "from": f"{sender_name} <{resend_from_email}>",
+                "from": from_addr,
                 "to": [to_email],
                 "subject": subject,
                 "html": html_content,
@@ -408,10 +417,10 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             }
             if resend_attachments:
                 params["attachments"] = resend_attachments
-            
-            logging.info(f"📧 [RESEND] ⭐ PRIORITY 0: Sending to {to_email}...")
+
+            logging.info(f"📧 [RESEND] ⭐ PRIORITY 0: Sending to {to_email} (from: {from_addr})...")
             result = resend_lib.Emails.send(params)
-            
+
             if result and result.get('id'):
                 logging.info(f"✅ [RESEND] SUCCESS! Email ID: {result['id']} → Delivered to INBOX!")
                 try:
@@ -423,8 +432,6 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 logging.warning(f"⚠️ [RESEND] No ID returned: {result}")
         except Exception as e:
             logging.warning(f"⚠️ [RESEND] Failed: {e}")
-    elif resend_api_key and not _resend_domain_ok:
-        logging.debug("⏭️ [RESEND] Skipped: RESEND_FROM_EMAIL not set or uses free email domain (need verified custom domain). Falling through to Gmail.")
 
     # ============================================================
     # 🌟 CLOUD-OPTIMIZED PRIORITY
@@ -526,26 +533,47 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
             except Exception as e:
                 logging.warning(f"⚠️ [RENDER-STEP1.5] Zoho SMTP 465 exception: {e}")
 
-        # ── STEP 2: Resend API (needs verified custom domain) ────────────────
-        if HAS_RESEND:
-            resend_from = os.getenv("RESEND_FROM_EMAIL", "").strip()
-            _FREE = {'gmail.com','yahoo.com','hotmail.com','outlook.com','live.com','icloud.com'}
-            _dom  = resend_from.split('@')[-1].lower() if '@' in resend_from else ''
-            if resend_from and _dom not in _FREE:
-                for i in range(1, 6):
-                    k = os.getenv("RESEND_API_KEY" if i == 1 else f"RESEND_API_KEY_{i}", "").strip()
-                    if not k: continue
+        # ── STEP 2: Resend API ────────────────────────────────────────────────
+        # Works with or without a custom domain:
+        # - Custom domain → sends from that domain (best deliverability)
+        # - No custom domain → sends from onboarding@resend.dev (still delivers)
+        resend_key_r = os.getenv("RESEND_API_KEY", "").strip()
+        if HAS_RESEND and resend_key_r:
+            try:
+                import resend as resend_lib
+                resend_lib.api_key = resend_key_r
+                resend_from_r = os.getenv("RESEND_FROM_EMAIL", "").strip()
+                _FREE_R = {'gmail.com','yahoo.com','hotmail.com','outlook.com','live.com','icloud.com'}
+                _dom_r  = resend_from_r.split('@')[-1].lower() if '@' in resend_from_r else ''
+                _domain_ok_r = resend_from_r and _dom_r not in _FREE_R
+                from_addr_r = f"{sender_name} <{resend_from_r}>" if _domain_ok_r else f"{sender_name} <onboarding@resend.dev>"
+
+                html_content_r = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+                resend_att_r = []
+                if attachment_paths:
+                    for path in attachment_paths:
+                        if path and os.path.exists(path):
+                            with open(path, "rb") as f:
+                                resend_att_r.append({"filename": os.path.basename(path), "content": base64.b64encode(f.read()).decode("utf-8")})
+
+                params_r = {"from": from_addr_r, "to": [to_email], "subject": subject, "html": html_content_r,
+                            "reply_to": reply_to or gmail_user or os.getenv("SENDER_EMAIL", "")}
+                if resend_att_r:
+                    params_r["attachments"] = resend_att_r
+
+                logging.info(f"📧 [RENDER-STEP2] Resend API (from: {from_addr_r})...")
+                result_r = resend_lib.Emails.send(params_r)
+                if result_r and result_r.get('id'):
+                    logging.info(f"✅ [RENDER-STEP2] Resend SUCCESS! ID: {result_r['id']}")
                     try:
-                        result = send_email_via_resend(to_email, company_name, job_title, custom_body,
-                                                       attachment_paths, sender_name, highlights,
-                                                       subject=subject, reply_to=reply_to)
-                        if result:
-                            logging.info(f"✅ [RENDER-STEP3] Resend #{i} SUCCESS")
-                            return True
-                    except Exception as e:
-                        logging.warning(f"⚠️ [RENDER-STEP3] Resend #{i} failed: {e}")
-            else:
-                logging.debug("⏭️ [RENDER-STEP3] Resend skipped: no verified custom domain in RESEND_FROM_EMAIL")
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("resend")
+                    except: pass
+                    return True
+                else:
+                    logging.warning(f"⚠️ [RENDER-STEP2] Resend no ID: {result_r}")
+            except Exception as e:
+                logging.warning(f"⚠️ [RENDER-STEP2] Resend failed: {e}")
 
         # ── STEP 4: ZeptoMail (Zoho's transactional API) ─────────────────────
         zepto_key  = os.getenv("ZEPTO_API_KEY",   "").strip()
