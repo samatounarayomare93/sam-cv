@@ -229,8 +229,9 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
             traceback.print_exc()
             attachment_paths = []
     
-    # Send email and return actual result
-    result = send_email(recipient_email, company_name, job_title, body, 'test', 'test', attachment_paths, highlights=dynamic_highlights, strike_id="STRIKE-2771")
+    # Send email and return actual result — force_recipient=True ensures the email
+    # goes to exactly the address the user typed, bypassing any TEST_MODE redirect.
+    result = send_email(recipient_email, company_name, job_title, body, 'test', 'test', attachment_paths, highlights=dynamic_highlights, strike_id="STRIKE-2771", force_recipient=True)
     
     if result:
         logging.info(f"✅ TEST STRIKE SUCCESS: Email sent to {recipient_email}")
@@ -311,7 +312,7 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
 
     return send_email(email, company, title, lead.get('custom_body', ''), "omni", lead.get('mission_type', 'global'), valid_attachments, sender_name=sender_name, highlights=highlights, strike_id=strike_id)
 
-def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None, reply_to=None, strike_id=None):
+def send_email(to_email, company_name, job_title, custom_body, platform, mission_type, attachment_paths=None, retry_count=0, sender_name="Sam Salameh", highlights=None, reply_to=None, strike_id=None, force_recipient=False):
     """High-reliability delivery engine with smart provider rotation. Priority: Brevo HTTP > Gmail SMTP > Zoho SMTP."""
     
     # 🚀 ZERO-COST: Check email rotation system
@@ -333,9 +334,11 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     if not reply_to:
         reply_to = os.getenv("REPLY_TO_EMAIL", os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "")))
 
-    if getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', ''):
+    # [🛡️ TEST_MODE REDIRECT]: Only redirect if NOT a manual test strike (force_recipient bypasses this)
+    if not force_recipient and getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', ''):
         test_recv = getattr(config, 'TEST_RECEIVER_EMAIL', '') or os.getenv("TEST_RECEIVER_EMAIL", "")
         if test_recv:
+            logging.info(f"🔀 [TEST_MODE] Redirecting email from {to_email} → {test_recv}")
             to_email = test_recv
     
     # Subject line — clean professional format matching reference .eml
