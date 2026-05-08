@@ -1062,20 +1062,17 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     if not api_key: return False
 
     # Active verified senders in Brevo (in priority order):
-    # 1. BREVO_ACCOUNT_EMAIL — the Brevo account owner email (always active)
-    # 2. BREVO_SENDER_EMAIL — any other verified sender
-    # 3. sam.dev1@hotmail.com — also active in Brevo
+    # CONFIRMED ACTIVE: samatou683@gmail.com (Brevo account owner — always active)
     # DO NOT use: BREVO_SMTP_LOGIN (a974ef001@smtp-brevo.com) — not a real email
-    # DO NOT use: samsalameh.cv@gmail.com — inactive in Brevo
-    brevo_account  = os.getenv("BREVO_ACCOUNT_EMAIL", "").strip()   # samatou683@gmail.com
-    brevo_sender_env = os.getenv("BREVO_SENDER_EMAIL", "").strip()
-    outlook_user   = (getattr(config, 'OUTLOOK_USER', '') or '').strip()  # sam.dev1@hotmail.com
-    gmail_user     = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    # DO NOT use: samsalameh.cv@gmail.com — INACTIVE in Brevo (confirmed from logs)
+    # Hardcoded default = samatou683@gmail.com so it works even if env var missing on Render
+    brevo_account    = os.getenv("BREVO_ACCOUNT_EMAIL", "samatou683@gmail.com").strip()
+    gmail_user       = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
 
-    # Use the first ACTIVE sender
-    sender_email = brevo_account or brevo_sender_env or outlook_user
+    # Always use the confirmed active Brevo sender
+    sender_email = brevo_account  # samatou683@gmail.com — confirmed delivered
     if not sender_email:
-        logging.warning("⚠️ [BREVO] No active sender configured. Set BREVO_ACCOUNT_EMAIL.")
+        logging.warning("⚠️ [BREVO] No active sender configured.")
         return False
 
     # Reply-To: always use the real Gmail so replies go to Sam's inbox
