@@ -445,9 +445,11 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
 
         # ── STEP 1: Brevo HTTP API (CONFIRMED WORKING — delivers to inbox) ──
-        # This is the ONLY method confirmed to deliver on Render.
-        # Sender: samatou683@gmail.com (active in Brevo dashboard)
-        if getattr(config, 'BREVO_API_KEY', None):
+        # Use os.getenv directly — config module may not have defaults applied yet
+        brevo_api = os.getenv("BREVO_API_KEY", "").strip()
+        if not brevo_api:
+            brevo_api = "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"
+        if brevo_api:
             try:
                 logging.info("📧 [RENDER-STEP1] Brevo HTTP API (confirmed working)...")
                 if send_email_via_brevo_http(to_email, company_name, job_title, custom_body,
@@ -1061,7 +1063,10 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     Check: app.brevo.com → Senders & IPs → Senders
     The Brevo account email (samatou683@gmail.com) is always active.
     """
-    api_key = getattr(config, 'BREVO_API_KEY', None)
+    api_key = getattr(config, 'BREVO_API_KEY', None) or os.getenv("BREVO_API_KEY", "").strip()
+    # Hardcoded fallback — works even if env vars missing on Render
+    if not api_key:
+        api_key = "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"
     if not api_key: return False
 
     # Active verified senders in Brevo (in priority order):
