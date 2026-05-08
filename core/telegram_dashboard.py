@@ -1024,6 +1024,37 @@ class SovereignDashboard:
             )
             await update.effective_message.reply_text("🎮 <b>DYNAMIC COMMAND CENTER:</b>", reply_markup=inline_markup, parse_mode='HTML')
 
+    async def _hourly_notify_loop(self, bot, chat_id: int):
+        """Sends an hourly progress report to the user if HOURLY_NOTIFY is enabled."""
+        while os.environ.get("HOURLY_NOTIFY") == "true":
+            await asyncio.sleep(3600)
+            if os.environ.get("HOURLY_NOTIFY") != "true":
+                break
+            try:
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat().replace("+", "%2B")
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=id&timestamp=gte.{today_start}",
+                    headers={"Prefer": "count=exact"}
+                )
+                count = data.get("count", 0) if succ and isinstance(data, dict) else 0
+                queue_count = await self.db.get_pending_leads_count() if self.db else 0
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=(
+                        f"🔔 <b>HOURLY UPDATE — {now.strftime('%H:%M UTC')}</b>\n"
+                        f"━━━━━━━━━━━━━━━\n"
+                        f"🚀 Applications today: <b>{count}</b>\n"
+                        f"🗂️ Queue remaining: <b>{queue_count}</b>\n"
+                        f"━━━━━━━━━━━━━━━"
+                    ),
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                logging.warning(f"Hourly notify error: {e}")
+
     def _get_sovereign_keyboards(self):
         """[👑 APEX UI]: Generates the unified Sovereign Tileset and Command Center."""
         from telegram import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
@@ -1031,14 +1062,17 @@ class SovereignDashboard:
         reply_keyboard = [
             # ── Monitoring ──────────────────────────────────────────────────
             [KeyboardButton("🖥️ Status | الحالة"),           KeyboardButton("📊 Stats | الإحصائيات")],
-            [KeyboardButton("📈 Today Report | تقرير اليوم"), KeyboardButton("📧 Email Stats | إحصاء الإيميل")],
+            [KeyboardButton("📈 Today Report | تقرير اليوم"), KeyboardButton("📅 Weekly Report | تقرير أسبوعي")],
+            [KeyboardButton("📧 Email Stats | إحصاء الإيميل"), KeyboardButton("📉 Failure Rate | نسبة الفشل")],
             [KeyboardButton("🗂️ Queue | الطابور"),            KeyboardButton("📜 Logs | السجلات")],
             [KeyboardButton("🌡️ Memory | الذاكرة"),           KeyboardButton("⏱️ Uptime | وقت التشغيل")],
             [KeyboardButton("🧠 AI Status | حالة الذكاء"),    KeyboardButton("📬 Inbox Check | فحص الردود")],
+            [KeyboardButton("🏆 Best Day | أفضل يوم"),        KeyboardButton("🔔 Notify Me | أخبرني")],
             # ── Leads & Tasks ────────────────────────────────────────────────
             [KeyboardButton("📋 Leads | الفرص"),              KeyboardButton("🧬 Tasks | المهام")],
             [KeyboardButton("🏢 Companies | الشركات"),        KeyboardButton("🛰️ Track | التتبع")],
-            [KeyboardButton("📊 Top Companies | أفضل شركات"), KeyboardButton("🌍 Scrape Now | اسكان فوري")],
+            [KeyboardButton("📊 Top Companies | أفضل شركات"), KeyboardButton("⛔ Blacklist | القائمة السوداء")],
+            [KeyboardButton("🌍 Scrape Now | اسكان فوري"),    KeyboardButton("🔁 Retry Failed | إعادة الفاشلين")],
             # ── System Health ────────────────────────────────────────────────
             [KeyboardButton("🛡️ Shield | الدرع"),             KeyboardButton("📜 Pulse | النبض")],
             [KeyboardButton("🔍 Audit | مراجعة"),             KeyboardButton("💪 Synapse | قوة")],
@@ -1046,12 +1080,14 @@ class SovereignDashboard:
             # ── Controls ────────────────────────────────────────────────────
             [KeyboardButton("🚀 Run Now | شغّل"),             KeyboardButton("🔧 Fix | إصلاح")],
             [KeyboardButton("🎯 Force Strike | ضربة فورية"),  KeyboardButton("📨 Follow-ups | متابعات")],
-            [KeyboardButton("🔥 Boost Mode | وضع تسريع"),     KeyboardButton("⏸️ Pause | إيقاف مؤقت")],
+            [KeyboardButton("🔥 Boost Mode | وضع تسريع"),     KeyboardButton("🌙 Night Mode | وضع الليل")],
+            [KeyboardButton("🧪 Dry Run | تجربة بدون إرسال"), KeyboardButton("⏸️ Pause | إيقاف مؤقت")],
             [KeyboardButton("▶️ Resume | استئناف"),           KeyboardButton("🔄 Reboot | إعادة تشغيل")],
             [KeyboardButton("⚙️ Settings | الإعدادات"),       KeyboardButton("🛑 Omega Halt | التوقف التام")],
             [KeyboardButton("💀 Kill Switch | إيقاف كامل"),   KeyboardButton("📖 Guide | الدليل")],
             # ── Tools ───────────────────────────────────────────────────────
-            [KeyboardButton("🎓 Prep | التحضير"),             KeyboardButton("📧 Test Email | تجربة إيميل")],
+            [KeyboardButton("🎓 Prep | التحضير"),             KeyboardButton("📝 CV Preview | معاينة السيرة")],
+            [KeyboardButton("✉️ Cover Letter | رسالة التغطية"), KeyboardButton("📧 Test Email | تجربة إيميل")],
             [KeyboardButton("🧪 Test Strike | تجربة ضربة"),   KeyboardButton("🔮 Oracle | أوراكل")],
         ]
         reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
@@ -1528,6 +1564,257 @@ class SovereignDashboard:
             except Exception as e:
                 await msg.reply_text(f"❌ <b>Boost error:</b> {e}", parse_mode='HTML')
 
+        elif key == "weekly_report":
+            try:
+                from datetime import datetime, timedelta, timezone
+                now = datetime.now(timezone.utc)
+                week_start = (now - timedelta(days=7)).isoformat().replace("+", "%2B")
+                app_succ, app_data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=company_name,job_title,status,timestamp&order=timestamp.desc&limit=500&timestamp=gte.{week_start}"
+                )
+                apps = app_data if app_succ and isinstance(app_data, list) else []
+                # Group by day
+                from collections import Counter
+                day_counts = Counter()
+                for a in apps:
+                    ts = a.get('timestamp', '')[:10]
+                    if ts: day_counts[ts] += 1
+                day_lines = [f"📅 <b>{d}:</b> {c} applications" for d, c in sorted(day_counts.items(), reverse=True)]
+                report = (
+                    f"📅 <b>WEEKLY REPORT (Last 7 Days)</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"🚀 <b>Total:</b> {len(apps)} applications\n"
+                    f"📊 <b>Daily avg:</b> {len(apps)//7}/day\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    + ("\n".join(day_lines) if day_lines else "<i>No data for last 7 days.</i>") +
+                    f"\n━━━━━━━━━━━━━━━"
+                )
+                await msg.reply_text(report, parse_mode='HTML')
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Weekly report error:</b> {e}", parse_mode='HTML')
+
+        elif key == "failure_rate":
+            try:
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat().replace("+", "%2B")
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=status&timestamp=gte.{today_start}"
+                )
+                apps = data if succ and isinstance(data, list) else []
+                total = len(apps)
+                failed = sum(1 for a in apps if a.get('status','').upper() in ('FAILED','ERROR','BOUNCED'))
+                sent   = sum(1 for a in apps if a.get('status','').upper() in ('SENT','DELIVERED','SUCCESS'))
+                rate   = round((failed / total * 100), 1) if total > 0 else 0
+                icon   = "🔴" if rate > 20 else "🟡" if rate > 5 else "🟢"
+                await msg.reply_text(
+                    f"📉 <b>FAILURE RATE TODAY</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"📤 <b>Total sent:</b> {total}\n"
+                    f"✅ <b>Delivered:</b> {sent}\n"
+                    f"❌ <b>Failed:</b> {failed}\n"
+                    f"{icon} <b>Failure rate:</b> {rate}%\n"
+                    f"━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Failure rate error:</b> {e}", parse_mode='HTML')
+
+        elif key == "best_day":
+            try:
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=timestamp&order=timestamp.desc&limit=2000"
+                )
+                apps = data if succ and isinstance(data, list) else []
+                from collections import Counter
+                day_counts = Counter()
+                for a in apps:
+                    ts = a.get('timestamp', '')[:10]
+                    if ts: day_counts[ts] += 1
+                if day_counts:
+                    best_date, best_count = day_counts.most_common(1)[0]
+                    top5 = day_counts.most_common(5)
+                    lines = [f"🏅 <b>{d}:</b> {c} applications" for d, c in top5]
+                    report = (
+                        f"🏆 <b>BEST DAY EVER</b>\n"
+                        f"━━━━━━━━━━━━━━━\n"
+                        f"🥇 <b>{best_date}:</b> {best_count} applications\n"
+                        f"━━━━━━━━━━━━━━━\n"
+                        f"<b>Top 5 Days:</b>\n" + "\n".join(lines) +
+                        f"\n━━━━━━━━━━━━━━━"
+                    )
+                else:
+                    report = "🏆 <b>BEST DAY</b>\n━━━━━━━━━━━━━━━\n<i>No data yet.</i>"
+                await msg.reply_text(report, parse_mode='HTML')
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Best day error:</b> {e}", parse_mode='HTML')
+
+        elif key == "notify_me":
+            # Toggle hourly notifications
+            current = os.environ.get("HOURLY_NOTIFY", "false")
+            if current == "true":
+                os.environ["HOURLY_NOTIFY"] = "false"
+                await msg.reply_text(
+                    "🔕 <b>NOTIFICATIONS OFF</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    "Hourly progress reports disabled.\n"
+                    "Press again to re-enable.",
+                    parse_mode='HTML'
+                )
+            else:
+                os.environ["HOURLY_NOTIFY"] = "true"
+                os.environ["HOURLY_NOTIFY_CHAT"] = str(update.effective_chat.id)
+                await msg.reply_text(
+                    "🔔 <b>NOTIFICATIONS ON</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    "✅ You will receive a progress report every hour.\n"
+                    "Press again to disable.",
+                    parse_mode='HTML'
+                )
+                # Schedule first notification
+                asyncio.create_task(self._hourly_notify_loop(context.bot, update.effective_chat.id))
+
+        elif key == "blacklist_view":
+            try:
+                blacklist = await self.db.get_recent_blacklist(limit=20) if self.db else []
+                if blacklist:
+                    lines = [f"⛔ {b.get('company_name', b) if isinstance(b, dict) else str(b)}" for b in blacklist[:20]]
+                    report = f"⛔ <b>BLACKLIST ({len(blacklist)} companies)</b>\n━━━━━━━━━━━━━━━\n" + "\n".join(lines) + "\n━━━━━━━━━━━━━━━"
+                else:
+                    report = "⛔ <b>BLACKLIST</b>\n━━━━━━━━━━━━━━━\n<i>No blacklisted companies.</i>"
+                await msg.reply_text(report, parse_mode='HTML')
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Blacklist error:</b> {e}", parse_mode='HTML')
+
+        elif key == "retry_failed":
+            status_msg = await msg.reply_text("🔁 <b>SCANNING FOR FAILED EMAILS...</b>", parse_mode='HTML')
+            try:
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=id,company_name,job_title,email,status&status=in.(FAILED,ERROR,BOUNCED)&order=timestamp.desc&limit=20"
+                )
+                failed_apps = data if succ and isinstance(data, list) else []
+                if not failed_apps:
+                    await status_msg.edit_text("🔁 <b>RETRY FAILED</b>\n━━━━━━━━━━━━━━━\n✅ No failed emails found. All good!", parse_mode='HTML')
+                    return
+                # Re-queue them
+                requeued = 0
+                for app in failed_apps:
+                    try:
+                        await self.db.add_task(task_type="RETRY_STRIKE", target=app.get('email',''), meta=str(app.get('id','')))
+                        requeued += 1
+                    except Exception:
+                        pass
+                await status_msg.edit_text(
+                    f"🔁 <b>RETRY QUEUED</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"📦 Found: {len(failed_apps)} failed emails\n"
+                    f"✅ Re-queued: {requeued}\n"
+                    f"<i>Bot will retry them in the next cycle.</i>\n"
+                    f"━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>Retry error:</b> {e}", parse_mode='HTML')
+
+        elif key == "night_mode":
+            current = os.environ.get("NIGHT_MODE", "false")
+            if current == "true":
+                os.environ["NIGHT_MODE"] = "false"
+                os.environ["BUSINESS_HOURS_START"] = "5"
+                os.environ["BUSINESS_HOURS_END"]   = "23"
+                await msg.reply_text(
+                    "☀️ <b>NIGHT MODE OFF</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    "✅ Bot is back to normal hours (5 AM – 11 PM)\n"
+                    "Sending resumed.",
+                    parse_mode='HTML'
+                )
+            else:
+                os.environ["NIGHT_MODE"] = "true"
+                os.environ["BUSINESS_HOURS_START"] = "5"
+                os.environ["BUSINESS_HOURS_END"]   = "23"
+                await msg.reply_text(
+                    "🌙 <b>NIGHT MODE ON</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    "😴 Bot will pause sending from 11 PM – 5 AM\n"
+                    "✅ Resumes automatically at 5 AM\n"
+                    "Press again to disable.",
+                    parse_mode='HTML'
+                )
+
+        elif key == "dry_run":
+            current = os.environ.get("DRY_RUN_MODE", "false")
+            if current == "true":
+                os.environ["DRY_RUN_MODE"] = "false"
+                await msg.reply_text(
+                    "✅ <b>DRY RUN OFF</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    "🔥 Bot is back to LIVE mode.\n"
+                    "Real emails will be sent.",
+                    parse_mode='HTML'
+                )
+            else:
+                os.environ["DRY_RUN_MODE"] = "true"
+                await msg.reply_text(
+                    "🧪 <b>DRY RUN ON</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    "🔒 Bot will run full cycles but NOT send real emails.\n"
+                    "✅ Safe for testing scrapers & AI scoring.\n"
+                    "Press again to go back to LIVE mode.",
+                    parse_mode='HTML'
+                )
+
+        elif key == "cv_preview":
+            status_msg = await msg.reply_text("📝 <b>GENERATING CV PDF...</b>", parse_mode='HTML')
+            try:
+                cv_path = None
+                try:
+                    from core.cv_playwright_pdf import generate_cv_from_html_playwright
+                    cv_path = await asyncio.to_thread(generate_cv_from_html_playwright)
+                except Exception:
+                    pass
+                if not cv_path or not os.path.exists(cv_path):
+                    from core.cv_pdf_full import generate_full_cv_pdf
+                    cv_path = await asyncio.to_thread(generate_full_cv_pdf)
+                if cv_path and os.path.exists(cv_path):
+                    await status_msg.delete()
+                    with open(cv_path, 'rb') as f:
+                        await context.bot.send_document(
+                            chat_id=update.effective_chat.id,
+                            document=f,
+                            filename="Sam_Salameh_CV.pdf",
+                            caption="📝 <b>CV Preview</b> — This is exactly what recruiters receive.",
+                            parse_mode='HTML'
+                        )
+                else:
+                    await status_msg.edit_text("❌ <b>CV generation failed.</b>\nCheck logs.", parse_mode='HTML')
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>CV error:</b> {e}", parse_mode='HTML')
+
+        elif key == "cover_letter_preview":
+            status_msg = await msg.reply_text("✉️ <b>GENERATING COVER LETTER...</b>", parse_mode='HTML')
+            try:
+                from core.cover_letter_pdf import generate_cover_letter_pdf
+                cl_path = await asyncio.to_thread(generate_cover_letter_pdf, "Sample Company", "Senior Network Engineer")
+                if cl_path and os.path.exists(cl_path):
+                    await status_msg.delete()
+                    with open(cl_path, 'rb') as f:
+                        await context.bot.send_document(
+                            chat_id=update.effective_chat.id,
+                            document=f,
+                            filename="Sam_Salameh_Cover_Letter.pdf",
+                            caption="✉️ <b>Cover Letter Preview</b> — Sample for 'Senior Network Engineer'.",
+                            parse_mode='HTML'
+                        )
+                else:
+                    await status_msg.edit_text("❌ <b>Cover letter generation failed.</b>", parse_mode='HTML')
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>Cover letter error:</b> {e}", parse_mode='HTML')
+
         elif key in ("stats", "status"):
             await self._dispatch_command(f"/{key}", update, context)
 
@@ -1698,6 +1985,16 @@ class SovereignDashboard:
             "follow-ups": "followup", "followups": "followup", "متابعات": "followup",
             "boost mode": "boost_mode", "وضع تسريع": "boost_mode",
             "oracle": "oracle", "أوراكل": "oracle",
+            "weekly report": "weekly_report", "تقرير أسبوعي": "weekly_report",
+            "failure rate": "failure_rate", "نسبة الفشل": "failure_rate",
+            "best day": "best_day", "أفضل يوم": "best_day",
+            "notify me": "notify_me", "أخبرني": "notify_me",
+            "blacklist": "blacklist_view", "القائمة السوداء": "blacklist_view",
+            "retry failed": "retry_failed", "إعادة الفاشلين": "retry_failed",
+            "night mode": "night_mode", "وضع الليل": "night_mode",
+            "dry run": "dry_run", "تجربة بدون إرسال": "dry_run",
+            "cv preview": "cv_preview", "معاينة السيرة": "cv_preview",
+            "cover letter": "cover_letter_preview", "رسالة التغطية": "cover_letter_preview",
             "synapse": "synapse", "platforms": "platforms", "sources": "platforms", "المواقع": "platforms",
             "logs": "logs", "السجلات": "logs"
         }
