@@ -333,30 +333,48 @@ def create_cover_letter_html(company_name, job_title):
 """
 
 def generate_triple_package(lead):
-    """[👑 LEGACY RESTORATION] Generates a 3-file strike package: PDF CV, HTML CV, and HTML Cover Letter."""
-    company = lead.get('company_name', 'Company')
+    """Generates the strike package: PDF CV + PDF Cover Letter.
+    Returns dict with keys 'cl_pdf' and 'cv_html' that main_bot.py expects.
+    """
+    company   = lead.get('company_name', 'Company')
     job_title = lead.get('job_title', 'Professional Role')
-    
-    # 1. PDF CV (Professional V4)
-    cv_pdf_path = generate_cv_pdf(company, job_title, lead)
-    
-    # 2. HTML CV (Legacy Absolute Version)
-    cv_html_path = os.path.join(os.getcwd(), "Sam_Salameh_CV.html")
-    if not os.path.exists(cv_html_path):
-        cv_html_path = None # Fallback if missing
-        
-    # 3. HTML Cover Letter (Personalized)
-    cl_content = create_cover_letter_html(company, job_title)
-    cl_filename = f"Sam_Salameh_Cover_Letter_-_{company.replace(' ', '_')}.html"
-    cl_path = os.path.join(os.path.dirname(cv_pdf_path), cl_filename)
-    with open(cl_path, "w", encoding="utf-8") as f:
-        f.write(cl_content)
-        
-    return {
-        "pdf_cv": cv_pdf_path,
-        "html_cv": cv_html_path,
-        "html_cl": cl_path
-    }
+
+    result = {"cl_pdf": None, "cv_html": None}
+
+    # 1. PDF CV — use ReportLab generator (high quality, works on Render)
+    try:
+        from core.cv_pdf_full import generate_full_cv_pdf
+        cv_pdf = generate_full_cv_pdf()
+        if cv_pdf and os.path.exists(cv_pdf):
+            result["cv_html"] = cv_pdf   # main_bot looks for "cv_html" key
+            logging.info(f"✅ [PACKAGE] CV PDF ready: {cv_pdf}")
+    except Exception as e:
+        logging.warning(f"⚠️ [PACKAGE] ReportLab CV failed: {e}, trying FPDF...")
+        try:
+            cv_pdf = generate_cv_pdf(company, job_title, lead)
+            if cv_pdf and os.path.exists(cv_pdf):
+                result["cv_html"] = cv_pdf
+        except Exception as e2:
+            logging.error(f"❌ [PACKAGE] All CV generators failed: {e2}")
+
+    # 2. Cover Letter PDF — use cover_letter_pdf.py (FPDF, works on Render)
+    try:
+        from core.cover_letter_pdf import generate_cover_letter_pdf as gen_cl
+        cl_pdf = gen_cl(company, job_title)
+        if cl_pdf and os.path.exists(cl_pdf):
+            result["cl_pdf"] = cl_pdf
+            logging.info(f"✅ [PACKAGE] Cover Letter PDF ready: {cl_pdf}")
+    except Exception as e:
+        logging.warning(f"⚠️ [PACKAGE] cover_letter_pdf failed: {e}, trying fallback...")
+        try:
+            cl_pdf = generate_cover_letter_pdf(company, job_title, lead)
+            if cl_pdf and os.path.exists(cl_pdf):
+                result["cl_pdf"] = cl_pdf
+        except Exception as e2:
+            logging.error(f"❌ [PACKAGE] All cover letter generators failed: {e2}")
+
+    logging.info(f"📦 [PACKAGE] Final: cv={result['cv_html']}, cl={result['cl_pdf']}")
+    return result
         
 def generate_cover_letter_pdf(company, job_title, lead=None):
     """[👑 PROFESSIONAL WHITE] Restoring clean, professional PDF Cover Letter parity."""
@@ -401,30 +419,27 @@ def generate_cover_letter_pdf(company, job_title, lead=None):
     ai_body = lead.get('custom_body', '') if lead else ''
     
     if ai_body and len(ai_body.strip()) > 100:
-        # Strip HTML tags for PDF plain text
+        # Strip HTML tags for PDF plain text — no BeautifulSoup needed
         import re as _re
-        from bs4 import BeautifulSoup as _BS
-        try:
-            clean = _BS(ai_body, 'html.parser').get_text(separator='\n')
-            clean = _re.sub(r'\n{3,}', '\n\n', clean).strip()
-            # Remove the sign-off if it's already in the PDF footer
-            clean = _re.sub(r'Best regards.*$', '', clean, flags=_re.DOTALL | _re.IGNORECASE).strip()
-            paragraphs = [p.strip() for p in clean.split('\n\n') if p.strip() and len(p.strip()) > 20]
-        except Exception:
-            paragraphs = []
+        clean = _re.sub(r'<[^>]+>', ' ', ai_body)          # remove all HTML tags
+        clean = _re.sub(r'&[a-z]+;', ' ', clean)           # remove HTML entities
+        clean = _re.sub(r'\s{2,}', ' ', clean).strip()
+        clean = _re.sub(r'Best regards.*$', '', clean, flags=_re.DOTALL | _re.IGNORECASE).strip()
+        paragraphs = [p.strip() for p in clean.split('\n\n') if p.strip() and len(p.strip()) > 20]
+        if not paragraphs:
+            # Try splitting by single newlines
+            paragraphs = [p.strip() for p in clean.split('\n') if p.strip() and len(p.strip()) > 40]
         
         if not paragraphs:
-            # Fallback if parsing fails
             paragraphs = [
                 f"I am writing to express my strong interest in the {job_title} position at {company}. With 15+ years of enterprise network engineering experience and active certifications in Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA, I am confident I can deliver immediate value to your team.",
-                f"Throughout my career, I have deployed enterprise networks for 20+ clients achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate/Cisco ASA hardening, configured IPSec/SSL VPN for 50+ branch offices, and installed 500+ km of fiber optic infrastructure. I am available for immediate relocation to the UAE, KSA, Qatar, or Europe.",
+                f"I have deployed enterprise networks for 20+ clients achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate/Cisco ASA hardening, and configured IPSec/SSL VPN for 50+ branch offices. I am available for immediate relocation to the UAE, KSA, Qatar, or Europe.",
                 f"I would welcome the opportunity to discuss how my expertise aligns with {company}'s infrastructure goals. Please find my CV attached for your review. Thank you for your consideration."
             ]
     else:
-        # Professional fallback with Sam's real achievements
         paragraphs = [
             f"I am writing to express my strong interest in the {job_title} position at {company}. With 15+ years of enterprise network engineering experience and active certifications in Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA, I am confident I can deliver immediate value to your team.",
-            f"Throughout my career, I have deployed enterprise networks for 20+ clients achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate/Cisco ASA hardening, configured IPSec/SSL VPN for 50+ branch offices, and installed 500+ km of fiber optic infrastructure. My expertise spans Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, Ubiquiti UniFi, and monitoring tools including PRTG, SolarWinds, and Zabbix.",
+            f"I have deployed enterprise networks for 20+ clients achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate/Cisco ASA hardening, configured IPSec/SSL VPN for 50+ branch offices, and installed 500+ km of fiber optic infrastructure. My expertise spans Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, Ubiquiti UniFi, and monitoring tools including PRTG, SolarWinds, and Zabbix.",
             f"I am available for immediate relocation to the UAE, KSA, Qatar, or Europe. I would welcome the opportunity to discuss how my background aligns with {company}'s infrastructure goals. Thank you for your consideration."
         ]
     
@@ -459,22 +474,46 @@ def generate_cover_letter_pdf(company, job_title, lead=None):
     return save_path
 
 def generate_ultimate_package(lead):
-    """[👑 ABSOLUTE VMAX] Returns exactly TWO paths: PDF Cover Letter and HTML CV."""
-    company = lead.get('company_name', 'Company')
+    """[👑 ABSOLUTE VMAX] Returns exactly TWO paths: PDF Cover Letter and PDF CV.
+    Keys: 'cl_pdf' (cover letter) and 'cv_html' (CV — PDF on Render, HTML locally).
+    """
+    company   = lead.get('company_name', 'Company')
     job_title = lead.get('job_title', 'Professional Role')
-    
-    # 1. PDF Cover Letter (The 'Byblos' Standard)
-    cl_pdf_path = generate_cover_letter_pdf(company, job_title, lead)
-    
-    # 2. HTML CV (The VMAX Version)
+
+    result = {"cl_pdf": None, "cv_html": None}
+
+    # 1. PDF Cover Letter
+    try:
+        cl_pdf_path = generate_cover_letter_pdf(company, job_title, lead)
+        if cl_pdf_path and os.path.exists(cl_pdf_path):
+            result["cl_pdf"] = cl_pdf_path
+    except Exception as e:
+        logging.error(f"❌ [PACKAGE] Cover letter PDF failed: {e}")
+
+    # 2. CV — try HTML first (local), then ReportLab PDF (Render)
     cv_html_path = os.path.join(os.getcwd(), "Sam_Salameh_CV.html")
-    if not os.path.exists(cv_html_path):
-        cv_html_path = None
-        
-    return {
-        "cl_pdf": cl_pdf_path,
-        "cv_html": cv_html_path
-    }
+    if os.path.exists(cv_html_path):
+        result["cv_html"] = cv_html_path
+    else:
+        # On Render: generate PDF CV with ReportLab
+        try:
+            from core.cv_pdf_full import generate_full_cv_pdf
+            cv_pdf = generate_full_cv_pdf()
+            if cv_pdf and os.path.exists(cv_pdf):
+                result["cv_html"] = cv_pdf
+                logging.info(f"✅ [PACKAGE] Using ReportLab PDF CV (no HTML found)")
+        except Exception as e:
+            logging.warning(f"⚠️ [PACKAGE] ReportLab CV failed: {e}")
+            # Last resort: FPDF CV
+            try:
+                cv_pdf = generate_cv_pdf(company, job_title, lead)
+                if cv_pdf and os.path.exists(cv_pdf):
+                    result["cv_html"] = cv_pdf
+            except Exception as e2:
+                logging.error(f"❌ [PACKAGE] All CV generators failed: {e2}")
+
+    logging.info(f"📦 [PACKAGE] cl_pdf={result['cl_pdf']}, cv={result['cv_html']}")
+    return result
 
 def _safe_text_for_pdf(text, is_unicode=False):
     """
