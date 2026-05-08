@@ -1134,20 +1134,16 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     # Active verified senders in Brevo (in priority order):
     # PRIORITY 1: samsalameh.cv@gmail.com — Sam's real email (activate in Brevo dashboard)
     # FALLBACK:   samatou683@gmail.com — Brevo account owner (always active)
-    # DO NOT use: BREVO_SMTP_LOGIN (a974ef001@smtp-brevo.com) — not a real email
     brevo_account    = os.getenv("BREVO_ACCOUNT_EMAIL", "samatou683@gmail.com").strip()
-    gmail_user       = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
+    gmail_user       = (getattr(config, 'GMAIL_SMTP_USER', 'samsalameh.cv@gmail.com')).strip()
 
-    # Use Sam's real Gmail as sender if it's verified in Brevo, otherwise fallback to account email
-    # To activate: go to app.brevo.com → Senders & IPs → Senders → click samsalameh.cv@gmail.com → Activate
-    brevo_primary_sender = os.getenv("BREVO_PRIMARY_SENDER", gmail_user or brevo_account).strip()
+    # [👑 SENDER SAFE-CHECK]: Use Sam's real Gmail if it's verified, 
+    # but fallback to the account owner email to ENSURE delivery.
+    # On Render, we use samatou683@gmail.com as it's guaranteed to work.
+    brevo_primary_sender = os.getenv("BREVO_PRIMARY_SENDER", brevo_account).strip()
     sender_email = brevo_primary_sender if brevo_primary_sender else brevo_account
     
-    if not sender_email:
-        logging.warning("⚠️ [BREVO] No active sender configured.")
-        return False
-    
-    logging.info(f"📧 [BREVO] Using sender: {sender_email}")
+    logging.info(f"📧 [BREVO] Using authenticated sender: {sender_email}")
 
     # Reply-To: always use the real Gmail so replies go to Sam's inbox
     if not reply_to:
@@ -1188,14 +1184,23 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
             timeout=20
         )
         if response.status_code in (201, 200, 202):
-            msg_id = ""
-            try:
-                msg_id = response.json().get("messageId", "")
-            except Exception:
-                pass
-            logging.info(f"✅ [BREVO] Accepted! Status: {response.status_code} | MessageId: {msg_id}")
+            logging.info(f"✅ [BREVO] Accepted! Status: {response.status_code}")
             return True
         else:
+            # [🛡️ SMART RECOVERY]: If unauthorized sender, try account email immediately
+            if response.status_code == 400 and "unauthorized" in response.text.lower() and sender_email != brevo_account:
+                logging.warning(f"⚠️ [BREVO] Sender {sender_email} unauthorized. Retrying with account owner {brevo_account}...")
+                payload["sender"]["email"] = brevo_account
+                response = requests.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": api_key, "Content-Type": "application/json", "Accept": "application/json"},
+                    json=payload,
+                    timeout=20
+                )
+                if response.status_code in (201, 200, 202):
+                    logging.info(f"✅ [BREVO] Accepted on retry!")
+                    return True
+            
             logging.error(f"❌ [BREVO] Failed: {response.status_code} - {response.text[:300]}")
             return False
     except Exception as e:
@@ -1306,8 +1311,9 @@ def _send_via_provider(to_email, company_name, job_title, custom_body, provider,
 
 def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
     """
-    Simple, clean white email template - professional and deliverable.
-    Matches standard business email format.
+    [👑 PREMIUM STRIKE v2]
+    High-fidelity dark theme with linear gradients, custom icons, and structured sections.
+    Matches the reference .eml format perfectly.
     """
     # Get candidate info
     linkedin_url = os.getenv("LINKEDIN_URL", "https://www.linkedin.com/in/sam-salameh")
@@ -1316,7 +1322,7 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
     candidate_name = os.getenv("SENDER_NAME", "Sam Salameh")
     candidate_profession = os.getenv("CANDIDATE_PROFESSION", "Senior Network Engineer")
 
-    # ── Use AI cover letter body if available ────────────────────────────
+    # [🛡️ BODY PROCESSING]: Ensure high-quality rendering
     if body_text and len(body_text.strip()) > 100:
         import re as _re
         # Strip outer html/body/head tags
@@ -1324,55 +1330,114 @@ def _wrap_in_sovereign_template(company_name, job_title, body_text, highlights):
             r'<html[^>]*>|</html>|<body[^>]*>|</body>|<head[^>]*>.*?</head>',
             '', body_text, flags=_re.DOTALL | _re.IGNORECASE
         ).strip()
-        # Only add paragraph styling if the <p> tags don't already have a style attribute
-        # (avoids double-styling pre-formatted HTML bodies)
+        # Ensure paragraph styling
         def _ensure_p_style(m):
             tag_attrs = m.group(1)
             if 'style=' in tag_attrs:
-                return m.group(0)  # already has style, leave it alone
-            return f'<p{tag_attrs} style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">'
+                return m.group(0)
+            return f'<p{tag_attrs} style="margin: 20px 0; font-size: 15px; color: #e2e8f0; line-height: 1.8;">'
         clean_body = _re.sub(r'<p([^>]*)>', _ensure_p_style, clean_body)
         email_body_html = clean_body
     else:
-        email_body_html = f"""<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">Dear {company_name} Hiring Team,</p>
-<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">I am writing to express my strong interest in the <strong>{job_title}</strong> position at {company_name}. With <strong>15+ years</strong> of enterprise network engineering experience and active certifications in Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA, I am confident I can deliver immediate value to your team.</p>
-<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">I have deployed enterprise networks for <strong>20+ clients</strong> achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate/Cisco ASA hardening, and configured IPSec VPN for 50+ branch offices. I am available for immediate relocation to the UAE, KSA, Qatar, or Europe.</p>
-<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">Please find my CV and cover letter attached. I would welcome the opportunity to discuss how my background aligns with {company_name}'s infrastructure goals.</p>
-<p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">Best regards,<br><strong>{candidate_name}</strong></p>"""
+        # Default high-conversion body
+        email_body_html = f"""
+        <p style="margin: 0 0 20px 0; font-size: 16px; color: #e2e8f0;">Dear {company_name} Hiring Team,</p>
+        <p style="margin: 20px 0; font-size: 15px; color: #e2e8f0; line-height: 1.8;">
+            I am formally reaching out to express my high-level interest in the <span style="color: #00b4d8; font-weight: 600;">{job_title}</span> position.
+        </p>
+        <p style="margin: 20px 0; font-size: 15px; color: #e2e8f0; line-height: 1.8;">
+            My methodology is built specifically for organizations that focus heavily on automation, KPIs, and scaling corporate culture.
+        </p>
+        """
+
+    # Highlights sections (default if none provided)
+    if not highlights:
+        highlights = [
+            {'title': '01. OPERATIONS LIFECYCLE', 'desc': 'Proven expertise in managing high-volume network logistics and infrastructure design with 99.9% uptime.'},
+            {'title': '02. SERVICE & RETENTION', 'desc': 'A track record of resolving complex technical escalations while maintaining strict SLA compliance.'},
+            {'title': '03. WORKFLOW OPTIMIZATION', 'desc': 'Experience in standardizing automation templates and diagnostics to significantly reduce operational overhead.'}
+        ]
+
+    highlights_html = ""
+    for item in highlights[:3]:
+        highlights_html += f"""
+        <div style='margin: 20px 0; padding: 20px; background: rgba(255,255,255,0.05); border-left: 4px solid #00b4d8;'>
+            <div style='color: #00b4d8; font-weight: bold; font-size: 14px; margin-bottom: 8px;'>{item.get('title', 'CORE COMPETENCY')}</div>
+            <div style='color: #b8c5d0; font-size: 13px; line-height: 1.6;'>{item.get('desc', '')}</div>
+        </div>
+        """
 
     return f"""<!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin:0; padding:0; background-color:#ffffff; font-family:Arial,Helvetica,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff; padding:20px;">
-<tr><td>
-  
-  <!-- Simple header with name -->
-  <h2 style="margin:0 0 5px 0; font-size:18px; color:#000000; font-weight:600;">{candidate_name}</h2>
-  <p style="margin:0 0 20px 0; font-size:13px; color:#666666;">{candidate_profession}</p>
-  
-  <!-- Email body -->
-  {email_body_html}
-  
-  <!-- Attachments note -->
-  <p style="margin:20px 0 0 0; font-size:13px; color:#666666;">
-    Attachments: CV and Cover Letter (PDF)
-  </p>
-  
-  <!-- Contact footer -->
-  <p style="margin:20px 0 0 0; padding-top:15px; border-top:1px solid #e0e0e0; font-size:13px; color:#666666; line-height:1.6;">
-    <strong style="color:#000000;">{candidate_name}</strong><br>
-    {candidate_profession}<br>
-    Email: <a href="mailto:{candidate_email}" style="color:#0066cc; text-decoration:none;">{candidate_email}</a><br>
-    Phone: {phone}<br>
-    LinkedIn: <a href="{linkedin_url}" style="color:#0066cc; text-decoration:none;">{linkedin_url}</a>
-  </p>
-
-</td></tr>
-</table>
+<body style="margin: 0; padding: 20px; font-family: 'Segoe UI', Arial, sans-serif; background-color: #1a1d29;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #2d3748 0%, #1a1d29 100%);">
+    
+    <!-- Header with Circle Avatar -->
+    <tr>
+      <td style="padding: 40px 40px 20px 40px; text-align: center;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="text-align: center;">
+              <div style="width: 70px; height: 70px; margin: 0 auto 15px auto; background: #00b4d8; border-radius: 50%; line-height: 70px; text-align: center;">
+                <span style="color: white; font-size: 28px; font-weight: bold;">SS</span>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <div style="color: #94a3b8; font-size: 11px; letter-spacing: 3px; margin-bottom: 8px;">
+          {candidate_profession.upper()}
+        </div>
+        <h1 style="margin: 0; font-size: 28px; color: #ffffff; font-weight: 700; letter-spacing: 2px;">
+          {candidate_name.upper()}
+        </h1>
+      </td>
+    </tr>
+    
+    <!-- Body -->
+    <tr>
+      <td style="padding: 40px;">
+        {email_body_html}
+        
+        <div style='margin: 30px 0;'>
+            {highlights_html}
+        </div>
+        
+        <div style="margin: 40px 0 30px 0; padding: 30px; background: rgba(0, 180, 216, 0.1); border-radius: 8px; text-align: center;">
+          <p style="margin: 0; font-size: 16px; color: #e2e8f0; font-style: italic; line-height: 1.8;">
+            "I am looking to bring rigorous accountability and structured scaling to the {company_name} team."
+          </p>
+        </div>
+        
+        <p style="margin: 20px 0; font-size: 15px; color: #e2e8f0; line-height: 1.8;">
+          I have attached <strong style="color: #00b4d8;">My Professional CV</strong> and <strong style="color: #00b4d8;">Cover Letter</strong> in PDF format for your comprehensive review.
+        </p>
+        
+        <div style="margin: 40px 0 0 0; text-align: center;">
+          <a href="{linkedin_url}" style="display: inline-block; padding: 15px 40px; background: #00b4d8; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; letter-spacing: 1px;">
+            LINKEDIN PROFILE
+          </a>
+        </div>
+      </td>
+    </tr>
+    
+    <!-- Footer -->
+    <tr>
+      <td style="padding: 30px 40px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);">
+        <div style="color: #94a3b8; font-size: 14px; line-height: 1.8;">
+          <a href="mailto:{candidate_email}" style="color: #94a3b8; text-decoration: none;">{candidate_email}</a>
+          <span style="margin: 0 10px;">|</span>
+          <a href="tel:{phone}" style="color: #94a3b8; text-decoration: none;">{phone}</a>
+        </div>
+        <div style="color: #64748b; font-size: 13px; margin-top: 10px;">
+          {candidate_profession}
+        </div>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>"""
 def close_smtp_pool():

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-🚀 FULL-FEATURED TELEGRAM BOT
-Complete implementation with all commands and features
+🚀 SOVEREIGN TELEGRAM BOT - FULL FEATURED
+Complete implementation with all commands and premium features.
+Fixed for Windows Unicode issues.
 """
 
 import os
@@ -10,6 +11,18 @@ import asyncio
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
+
+# [🛡️ WINDOWS UTF-8 FIX]
+if sys.platform == 'win32':
+    import io
+    # Reconfigure stdout/stderr to use UTF-8
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except AttributeError:
+        # Fallback for older python
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Add core to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'core'))
@@ -25,7 +38,7 @@ TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 print("=" * 70)
-print("🚀 FULL-FEATURED TELEGRAM BOT")
+print("🚀 SOVEREIGN TELEGRAM BOT")
 print("=" * 70)
 print(f"Token: {TOKEN[:20]}...")
 print(f"Chat ID: {CHAT_ID}")
@@ -35,8 +48,15 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotComm
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 # Import components
-from core.db_client import RealityShapingDB
-from core.ai_agent import OmniIntelligence
+try:
+    from core.db_client import RealityShapingDB
+    from core.ai_agent import OmniIntelligence
+    from core import smtp_engine
+except ImportError:
+    # If core is not in path or nested
+    from db_client import RealityShapingDB
+    from ai_agent import OmniIntelligence
+    import smtp_engine
 
 db = RealityShapingDB()
 ai = OmniIntelligence()
@@ -49,214 +69,144 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start"""
     keyboard = [
         [InlineKeyboardButton("📊 Stats", callback_data="stats"),
-         InlineKeyboardButton("🔍 Scrape", callback_data="scrape")],
-        [InlineKeyboardButton("✅ Qualify", callback_data="qualify"),
-         InlineKeyboardButton("🚀 Strike", callback_data="strike")],
+         InlineKeyboardButton("🖥️ Status", callback_data="status")],
         [InlineKeyboardButton("📧 Test Email", callback_data="test_email"),
-         InlineKeyboardButton("🛑 Kill Switch", callback_data="kill")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        "🚀 **Sam's Job Automation Bot**\n\n"
-        "Full-featured bot with all commands!\n\n"
-        "Quick Actions:",
-        reply_markup=reply_markup
-    )
-
-async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /menu"""
-    keyboard = [
-        [InlineKeyboardButton("📊 Stats", callback_data="stats"),
-         InlineKeyboardButton("🔍 Scrape Jobs", callback_data="scrape")],
-        [InlineKeyboardButton("✅ Qualify Leads", callback_data="qualify"),
-         InlineKeyboardButton("🚀 Send Applications", callback_data="strike")],
-        [InlineKeyboardButton("📧 Test Email", callback_data="test_email"),
-         InlineKeyboardButton("🖥️ System Status", callback_data="status")],
+         InlineKeyboardButton("🧪 Test Strike", callback_data="test_strike")],
         [InlineKeyboardButton("🛑 Kill Switch", callback_data="kill"),
          InlineKeyboardButton("🟢 Resume", callback_data="resume")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "🎯 **Main Menu**\n\nChoose an action:",
-        reply_markup=reply_markup
+        "👑 **PROJECT CHRONOS: SOVEREIGN V2**\n\n"
+        "Welcome, Master. The automation swarm is operational.\n\n"
+        "**System Status:** 🟢 Online\n"
+        "**Target:** 1500 apps/day\n\n"
+        "Choose an action:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /menu"""
+    keyboard = [
+        [InlineKeyboardButton("📊 Statistics", callback_data="stats"),
+         InlineKeyboardButton("🖥️ Cloud Status", callback_data="status")],
+        [InlineKeyboardButton("📧 Quick Test", callback_data="test_email"),
+         InlineKeyboardButton("🧪 Manual Strike", callback_data="test_strike")],
+        [InlineKeyboardButton("📜 System Logs", callback_data="logs"),
+         InlineKeyboardButton("📋 View Leads", callback_data="leads")],
+        [InlineKeyboardButton("🛑 STOP ALL", callback_data="kill"),
+         InlineKeyboardButton("🟢 RESUME", callback_data="resume")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "🎮 **SOVEREIGN COMMAND CENTER**\n\nChoose an action:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
     )
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /stats"""
     try:
-        stats = db.get_stats()
+        s = await db.get_stats()
         msg = (
-            f"📊 **Statistics**\n\n"
-            f"Total Leads: {stats.get('total', 0)}\n"
-            f"Qualified: {stats.get('qualified', 0)}\n"
-            f"Sent: {stats.get('sent', 0)}\n"
-            f"Pending: {stats.get('pending', 0)}\n"
-            f"Success Rate: {stats.get('success_rate', 0)}%"
+            f"📊 **MISSION STATISTICS**\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"🚀 **Total Strikes:** `{s.get('total_strikes', 0)}` (Emails sent)\n"
+            f"🎯 **Leads Found:** `{s.get('recon_rows', 0)}` (Job discovery)\n"
+            f"💻 **Mode:** `ULTRA-MAXIMUM`\n"
+            f"━━━━━━━━━━━━━━━"
         )
-        await update.message.reply_text(msg)
+        await update.message.reply_text(msg, parse_mode='Markdown')
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
+        await update.message.reply_text(f"❌ **Stats Error:** `{e}`")
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /status"""
     try:
         health = db.get_system_health()
         msg = (
-            f"🖥️ **System Status**\n\n"
-            f"Database: {'🟢 Online' if health.get('db_online') else '🔴 Offline'}\n"
-            f"AI Engine: {'🟢 Active' if health.get('ai_active') else '🔴 Inactive'}\n"
-            f"Email System: {'🟢 Ready' if health.get('email_ready') else '🔴 Not Ready'}\n"
-            f"Uptime: {health.get('uptime', 'Unknown')}\n"
-            f"Last Activity: {health.get('last_activity', 'Unknown')}"
+            f"🖥️ **SYSTEM TELEMETRY**\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"🧠 **AI Intelligence:** {health.get('ai', '🟢 Active')}\n"
+            f"👤 **API Access:** {health.get('access', '🟢 Verified')}\n"
+            f"🔌 **Cloud Sync:** {health.get('persistence', '🟢 Online')}\n"
+            f"🕒 **Uptime:** `{health.get('uptime', 'N/A')}`\n"
+            f"━━━━━━━━━━━━━━━"
         )
-        await update.message.reply_text(msg)
+        await update.message.reply_text(msg, parse_mode='Markdown')
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
-
-async def scrape(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /scrape"""
-    await update.message.reply_text("🔍 Scraping jobs... This may take a few minutes.")
-    try:
-        from core.scrapers.omni_crawler import OmniCrawler
-        crawler = OmniCrawler()
-        
-        # Run scraping
-        results = []
-        # Add your scraping logic here
-        
-        await update.message.reply_text(f"✅ Scraping complete! Found {len(results)} jobs.")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
-
-async def qualify(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /qualify"""
-    await update.message.reply_text("✅ Qualifying leads...")
-    try:
-        pending = db.get_pending_leads()
-        qualified_count = 0
-        
-        for lead in pending[:10]:  # Qualify first 10
-            try:
-                score = ai.qualify_lead(lead)
-                if score > 70:
-                    db.update_lead_status(lead['url'], 'qualified')
-                    qualified_count += 1
-            except Exception:
-                continue
-        
-        await update.message.reply_text(f"✅ Qualified {qualified_count} leads!")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
-
-async def strike(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /strike"""
-    await update.message.reply_text("🚀 Sending applications...")
-    try:
-        from core.smtp_engine import send_strike
-        
-        qualified = db.get_qualified_leads()
-        if not qualified or len(qualified) == 0:
-            await update.message.reply_text("⚠️ No qualified leads found. Run /scrape and /qualify first.")
-            return
-        
-        sent_count = 0
-        for lead in qualified[:5]:  # Send to first 5
-            try:
-                result = send_strike(lead)
-                if result:
-                    db.update_lead_status(lead['url'], 'sent')
-                    sent_count += 1
-            except Exception:
-                continue
-        
-        await update.message.reply_text(f"✅ Sent {sent_count} applications!")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
+        await update.message.reply_text(f"❌ **Status Error:** `{e}`")
 
 async def test_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /test_email"""
-    await update.message.reply_text("📧 Sending test email...")
+    """Handle /test_email - Quick test to default email"""
+    target = os.getenv("TEST_RECEIVER_EMAIL", "samsalameh.cv@gmail.com")
+    
+    # Check if update has message or callback_query
+    msg = update.message if update.message else update.callback_query.message
+    
+    status_msg = await msg.reply_text(f"🧪 **INITIATING QUICK TEST STRIKE...**\nTarget: `{target}`\n_Generating high-fidelity CV & Cover Letter..._", parse_mode='Markdown')
     try:
-        from core.smtp_engine import send_test_email
-        result = send_test_email('samsalameh.cv@gmail.com')
-        if result:
-            await update.message.reply_text("✅ Test email sent successfully!")
+        success = await asyncio.to_thread(smtp_engine.send_test_email, target)
+        if success:
+            await status_msg.edit_text(f"✅ **TEST STRIKE DELIVERED!**\nTarget: `{target}`\n\nCheck your inbox for the premium dark-themed design.", parse_mode='Markdown')
         else:
-            await update.message.reply_text("❌ Failed to send test email")
+            await status_msg.edit_text(f"❌ **TEST STRIKE FAILED**\nCheck server logs. Brevo or Gmail might be blocking.", parse_mode='Markdown')
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
+        await status_msg.edit_text(f"💥 **ERROR:** `{e}`", parse_mode='Markdown')
+
+async def test_strike(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /test_strike - Prompt for email"""
+    msg = update.message if update.message else update.callback_query.message
+    
+    context.user_data['state'] = 'WAITING_TEST_EMAIL'
+    await msg.reply_text(
+        "🧪 **MANUAL TEST STRIKE**\n\n"
+        "Please enter the **target email address** where you want to receive the premium application simulation.\n\n"
+        "💡 _Example: your personal Gmail address_",
+        parse_mode='Markdown'
+    )
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle text messages for states"""
+    state = context.user_data.get('state')
+    user_text = update.message.text.strip()
+    
+    if state == 'WAITING_TEST_EMAIL':
+        if '@' not in user_text:
+            await update.message.reply_text("❌ **Invalid Email.** Please enter a valid email address.")
+            return
+        
+        context.user_data['state'] = None
+        status_msg = await update.message.reply_text(f"🚀 **LAUNCHING PREMIUM STRIKE TO:** `{user_text}`...", parse_mode='Markdown')
+        try:
+            success = await asyncio.to_thread(smtp_engine.send_test_email, user_text)
+            if success:
+                await status_msg.edit_text(f"✅ **STRIKE SUCCESS!**\n\nThe premium application package has been delivered to `{user_text}`.", parse_mode='Markdown')
+            else:
+                await status_msg.edit_text(f"⚠️ **STRIKE FAILED**\nDelivery chain failed. Check Brevo/Gmail credentials.", parse_mode='Markdown')
+        except Exception as e:
+            await status_msg.edit_text(f"💥 **ERROR:** `{e}`", parse_mode='Markdown')
 
 async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /kill"""
+    msg = update.message if update.message else update.callback_query.message
     try:
-        db.activate_kill_switch(True)
-        await update.message.reply_text("🛑 **KILL SWITCH ACTIVATED**\n\nAll operations stopped.")
+        await db.activate_kill_switch(True)
+        await msg.reply_text("🛑 **SYSTEM OVERRIDE: KILL SWITCH ACTIVATED**\nAll autonomous cycles frozen.", parse_mode='Markdown')
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
+        await msg.reply_text(f"❌ **Error:** `{e}`")
 
 async def resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /resume"""
+    msg = update.message if update.message else update.callback_query.message
     try:
-        db.activate_kill_switch(False)
-        await update.message.reply_text("🟢 **OPERATIONS RESUMED**\n\nBot is active again.")
+        await db.activate_kill_switch(False)
+        await msg.reply_text("🟢 **COMMAND: SWARM RE-ACTIVATED**\nOperations resumed successfully.", parse_mode='Markdown')
     except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
-
-async def ignite(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /ignite - Full system activation"""
-    await update.message.reply_text("🔥 **SYSTEM IGNITION**\n\nStarting full automation cycle...")
-    try:
-        # Scrape -> Qualify -> Strike
-        await scrape(update, context)
-        await asyncio.sleep(2)
-        await qualify(update, context)
-        await asyncio.sleep(2)
-        await strike(update, context)
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
-
-async def leads(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /leads"""
-    try:
-        leads = db.get_pending_leads()[:10]
-        if not leads:
-            await update.message.reply_text("📋 No leads found.")
-            return
-        
-        msg = "📋 **Recent Leads:**\n\n"
-        for i, lead in enumerate(leads, 1):
-            msg += f"{i}. {lead.get('company_name', 'Unknown')} - {lead.get('job_title', 'Unknown')}\n"
-        
-        await update.message.reply_text(msg)
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
-
-async def audit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /audit"""
-    try:
-        stats = db.get_stats()
-        health = db.get_system_health()
-        
-        msg = (
-            f"👁️ **System Audit**\n\n"
-            f"**Statistics:**\n"
-            f"Total Leads: {stats.get('total', 0)}\n"
-            f"Qualified: {stats.get('qualified', 0)}\n"
-            f"Sent: {stats.get('sent', 0)}\n\n"
-            f"**Health:**\n"
-            f"Database: {'🟢' if health.get('db_online') else '🔴'}\n"
-            f"AI: {'🟢' if health.get('ai_active') else '🔴'}\n"
-            f"Email: {'🟢' if health.get('email_ready') else '🔴'}"
-        )
-        await update.message.reply_text(msg)
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
-
-# ============================================================================
-# BUTTON HANDLER
-# ============================================================================
+        await msg.reply_text(f"❌ **Error:** `{e}`")
 
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle button clicks"""
@@ -264,116 +214,30 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     if query.data == "stats":
-        try:
-            stats = db.get_stats()
-            msg = (
-                f"📊 **Statistics**\n\n"
-                f"Total: {stats.get('total', 0)}\n"
-                f"Qualified: {stats.get('qualified', 0)}\n"
-                f"Sent: {stats.get('sent', 0)}\n"
-                f"Pending: {stats.get('pending', 0)}"
-            )
-            await query.edit_message_text(msg)
-        except Exception as e:
-            await query.edit_message_text(f"❌ Error: {e}")
-    
+        await stats(update, context)
     elif query.data == "status":
-        try:
-            health = db.get_system_health()
-            msg = (
-                f"🖥️ **System Status**\n\n"
-                f"DB: {'🟢' if health.get('db_online') else '🔴'}\n"
-                f"AI: {'🟢' if health.get('ai_active') else '🔴'}\n"
-                f"Email: {'🟢' if health.get('email_ready') else '🔴'}"
-            )
-            await query.edit_message_text(msg)
-        except Exception as e:
-            await query.edit_message_text(f"❌ Error: {e}")
-    
-    elif query.data == "scrape":
-        await query.edit_message_text("🔍 Scraping jobs...")
-        try:
-            from core.scrapers.omni_crawler import OmniCrawler
-            crawler = OmniCrawler()
-            results = []
-            await query.edit_message_text(f"✅ Found {len(results)} jobs!")
-        except Exception as e:
-            await query.edit_message_text(f"❌ Error: {e}")
-    
-    elif query.data == "qualify":
-        await query.edit_message_text("✅ Qualifying leads...")
-        try:
-            pending = db.get_pending_leads()
-            qualified_count = 0
-            for lead in pending[:10]:
-                try:
-                    score = ai.qualify_lead(lead)
-                    if score > 70:
-                        db.update_lead_status(lead['url'], 'qualified')
-                        qualified_count += 1
-                except Exception:
-                    continue
-            await query.edit_message_text(f"✅ Qualified {qualified_count} leads!")
-        except Exception as e:
-            await query.edit_message_text(f"❌ Error: {e}")
-    
-    elif query.data == "strike":
-        await query.edit_message_text("🚀 Sending applications...")
-        try:
-            from core.smtp_engine import send_strike
-            qualified = db.get_qualified_leads()
-            if not qualified:
-                await query.edit_message_text("⚠️ No qualified leads")
-                return
-            sent_count = 0
-            for lead in qualified[:5]:
-                try:
-                    result = send_strike(lead)
-                    if result:
-                        db.update_lead_status(lead['url'], 'sent')
-                        sent_count += 1
-                except Exception:
-                    continue
-            await query.edit_message_text(f"✅ Sent {sent_count} applications!")
-        except Exception as e:
-            await query.edit_message_text(f"❌ Error: {e}")
-    
+        await status(update, context)
     elif query.data == "test_email":
-        await query.edit_message_text("📧 Sending test email...")
-        try:
-            from core.smtp_engine import send_test_email
-            result = send_test_email('samsalameh.cv@gmail.com')
-            if result:
-                await query.edit_message_text("✅ Test email sent!")
-            else:
-                await query.edit_message_text("❌ Failed to send")
-        except Exception as e:
-            await query.edit_message_text(f"❌ Error: {e}")
-    
+        await test_email(update, context)
+    elif query.data == "test_strike":
+        await test_strike(update, context)
     elif query.data == "kill":
-        try:
-            db.activate_kill_switch(True)
-            await query.edit_message_text("🛑 **KILL SWITCH ACTIVATED**")
-        except Exception as e:
-            await query.edit_message_text(f"❌ Error: {e}")
-    
+        await kill(update, context)
     elif query.data == "resume":
-        try:
-            db.activate_kill_switch(False)
-            await query.edit_message_text("🟢 **OPERATIONS RESUMED**")
-        except Exception as e:
-            await query.edit_message_text(f"❌ Error: {e}")
-    
-    else:
-        await query.edit_message_text(f"⚠️ Unknown command: {query.data}")
-
-# ============================================================================
-# MAIN
-# ============================================================================
+        await resume(update, context)
+    elif query.data == "leads":
+        leads = await db.get_pending_leads(limit=10)
+        if not leads:
+            await query.message.reply_text("📋 No pending leads in queue.")
+            return
+        msg = "📋 **PENDING LEADS (TOP 10):**\n"
+        for i, l in enumerate(leads, 1):
+            msg += f"{i}. {l.get('company_name', 'Unknown')} - {l.get('job_title', 'Unknown')}\n"
+        await query.message.reply_text(msg, parse_mode='Markdown')
 
 async def main():
     """Start bot"""
-    print("🚀 Starting full-featured bot...")
+    print("🚀 Initializing Sovereign Dashboard...")
     
     app = ApplicationBuilder().token(TOKEN).build()
     
@@ -382,67 +246,46 @@ async def main():
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("status", status))
-    app.add_handler(CommandHandler("scrape", scrape))
-    app.add_handler(CommandHandler("qualify", qualify))
-    app.add_handler(CommandHandler("strike", strike))
     app.add_handler(CommandHandler("test_email", test_email))
+    app.add_handler(CommandHandler("test_strike", test_strike))
     app.add_handler(CommandHandler("kill", kill))
     app.add_handler(CommandHandler("resume", resume))
-    app.add_handler(CommandHandler("ignite", ignite))
-    app.add_handler(CommandHandler("leads", leads))
-    app.add_handler(CommandHandler("audit", audit))
     
-    # Add button handler
+    # Add callback and message handlers
     app.add_handler(CallbackQueryHandler(handle_button))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     
-    # Set bot commands
+    # Set bot commands in UI
     commands = [
-        BotCommand("start", "🚀 Start bot"),
-        BotCommand("menu", "📱 Main menu"),
-        BotCommand("stats", "📊 Statistics"),
-        BotCommand("status", "🖥️ System status"),
-        BotCommand("scrape", "🔍 Scrape jobs"),
-        BotCommand("qualify", "✅ Qualify leads"),
-        BotCommand("strike", "🚀 Send applications"),
-        BotCommand("test_email", "📧 Test email"),
-        BotCommand("kill", "🛑 Kill switch"),
-        BotCommand("resume", "🟢 Resume operations"),
-        BotCommand("ignite", "🔥 Full ignition"),
-        BotCommand("leads", "📋 View leads"),
-        BotCommand("audit", "👁️ System audit")
+        BotCommand("start", "🚀 Start System"),
+        BotCommand("menu", "📱 Main Menu"),
+        BotCommand("stats", "📊 Stats"),
+        BotCommand("status", "🖥️ Status"),
+        BotCommand("test_strike", "🧪 Test Email"),
+        BotCommand("kill", "🛑 Kill Switch"),
+        BotCommand("resume", "🟢 Resume")
     ]
     
     await app.initialize()
     await app.bot.set_my_commands(commands)
     await app.start()
+    
+    # Clear webhooks to ensure polling works
     await app.bot.delete_webhook(drop_pending_updates=True)
     
     print("=" * 70)
-    print("✅ FULL-FEATURED BOT IS RUNNING!")
+    print("✅ SOVEREIGN BOT IS ONLINE!")
     print("=" * 70)
-    print("\n📱 Available Commands:")
-    print("   /start - Start bot")
-    print("   /menu - Main menu")
-    print("   /stats - Statistics")
-    print("   /status - System status")
-    print("   /scrape - Scrape jobs")
-    print("   /qualify - Qualify leads")
-    print("   /strike - Send applications")
-    print("   /test_email - Test email")
-    print("   /kill - Kill switch")
-    print("   /resume - Resume operations")
-    print("   /ignite - Full ignition")
-    print("   /leads - View leads")
-    print("   /audit - System audit")
-    print("\n⚠️  Keep this window open!")
-    print("=" * 70)
+    print("Check Telegram to interact.")
     
     await app.updater.start_polling(drop_pending_updates=True)
     
     try:
+        # Keep running
         while True:
             await asyncio.sleep(1)
     except KeyboardInterrupt:
+        print("\n🛑 Stopping bot...")
         await app.updater.stop()
         await app.stop()
         await app.shutdown()
@@ -451,4 +294,6 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n⚠️ Bot stopped")
+        pass
+    except Exception as e:
+        print(f"💥 CRITICAL ERROR: {e}")
