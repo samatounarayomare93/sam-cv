@@ -30,8 +30,10 @@
       # ── Email: Brevo (HTTP API - works on Render) ──────────────────────────
       - key: BREVO_API_KEY
         value: "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"
+      - key: BREVO_ACCOUNT_EMAIL
+        value: "samatou683@gmail.com"
       - key: BREVO_SENDER_EMAIL
-        value: "samsalameh.cv@gmail.com"
+        value: "samatou683@gmail.com"
       - key: BREVO_SMTP_LOGIN
         value: "a974ef001@smtp-brevo.com"
       - key: BREVO_SMTP_PASSWORD

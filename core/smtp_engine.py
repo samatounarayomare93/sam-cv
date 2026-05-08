@@ -447,7 +447,10 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         # Zoho address as visible sender, Brevo SMTP as relay.
         # Brevo port 2525 is NOT blocked by Render.
         if brevo_user and brevo_pass:
-            for z_sender in [s for s in [zoho_user, zoho_user2, gmail_user] if s]:
+            # Use active Brevo senders: samatou683@gmail.com or sam.dev1@hotmail.com
+            brevo_account = os.getenv("BREVO_ACCOUNT_EMAIL", "").strip()
+            active_senders = [s for s in [brevo_account, zoho_user, zoho_user2] if s]
+            for z_sender in active_senders:
                 try:
                     provider_2525 = {
                         'name': f'Zoho-via-Brevo-2525',
@@ -1085,30 +1088,33 @@ def send_email_via_sendpulse(to_email, company_name, job_title, custom_body, att
 def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, attachment_paths=None, sender_name="Sam Salameh", highlights=None, subject=None, reply_to=None):
     """[BREVO REST API] 300/day free. Works on Render (HTTP port 443).
     
-    IMPORTANT: The sender email MUST be verified in Brevo dashboard.
-    We use BREVO_SMTP_LOGIN as sender because it is always auto-verified by Brevo.
-    Gmail/Zoho addresses require manual verification in Brevo → Senders & IPs.
+    CRITICAL: Sender MUST be an ACTIVE verified sender in Brevo dashboard.
+    Check: app.brevo.com → Senders & IPs → Senders
+    The Brevo account email (samatou683@gmail.com) is always active.
     """
     api_key = getattr(config, 'BREVO_API_KEY', None)
     if not api_key: return False
 
-    brevo_login = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
-    gmail_user  = (getattr(config, 'GMAIL_SMTP_USER',  '') or '').strip()
+    # Active verified senders in Brevo (in priority order):
+    # 1. BREVO_ACCOUNT_EMAIL — the Brevo account owner email (always active)
+    # 2. BREVO_SENDER_EMAIL — any other verified sender
+    # 3. sam.dev1@hotmail.com — also active in Brevo
+    # DO NOT use: BREVO_SMTP_LOGIN (a974ef001@smtp-brevo.com) — not a real email
+    # DO NOT use: samsalameh.cv@gmail.com — inactive in Brevo
+    brevo_account  = os.getenv("BREVO_ACCOUNT_EMAIL", "").strip()   # samatou683@gmail.com
     brevo_sender_env = os.getenv("BREVO_SENDER_EMAIL", "").strip()
+    outlook_user   = (getattr(config, 'OUTLOOK_USER', '') or '').strip()  # sam.dev1@hotmail.com
+    gmail_user     = (getattr(config, 'GMAIL_SMTP_USER', '') or '').strip()
 
-    # Sender priority:
-    # 1. BREVO_SMTP_LOGIN — always verified (it's the Brevo account itself)
-    # 2. BREVO_SENDER_EMAIL — only if explicitly set AND verified in Brevo dashboard
-    # 3. GMAIL_SMTP_USER — only if verified in Brevo dashboard
-    # Using an unverified sender causes Brevo to silently drop the email (returns 201 but never delivers)
-    sender_email = brevo_login or brevo_sender_env or gmail_user
+    # Use the first ACTIVE sender
+    sender_email = brevo_account or brevo_sender_env or outlook_user
     if not sender_email:
-        logging.warning("⚠️ [BREVO] No sender email configured.")
+        logging.warning("⚠️ [BREVO] No active sender configured. Set BREVO_ACCOUNT_EMAIL.")
         return False
 
-    # Reply-To: use Gmail so replies go to the real inbox
+    # Reply-To: always use the real Gmail so replies go to Sam's inbox
     if not reply_to:
-        reply_to = gmail_user or brevo_sender_env or sender_email
+        reply_to = gmail_user or sender_email
 
     if not subject:
         subject = f"Application: {job_title} - {company_name}"
