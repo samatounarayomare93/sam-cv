@@ -367,6 +367,10 @@ class OmniIntelligence:
                     elif "PERMISSION_DENIED" in err_str or "403" in err_str:
                         logging.warning(f"⚠️ Gemini permission error: {err_str[:120]}. Falling back to Groq.")
                         self.primary_engine = None
+                    elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
+                        logging.warning(f"⚠️ Gemini quota exhausted (429). Using static fallback to save tokens.")
+                        # Both AI providers are rate-limited — use static fallback immediately
+                        return self._apex_static_fallback(job_title, news_headline, executive_names, location=location)
                     else:
                         logging.error(f"⚡ Gemini failure: {err_str[:120]}. Falling back to Groq.")
                     # Fall through to Groq below
@@ -671,12 +675,16 @@ class OmniIntelligence:
             logging.error("SENTINEL FAILURE: Groq API Key required for structural analysis.")
             return {}
 
+        # [🛡️ RATE LIMIT PROTECTION]: Small delay to avoid hitting daily token limit
+        await asyncio.sleep(0.5)
+
         headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
+        # Truncate prompt aggressively to save tokens
         data = {
             "model": "llama-3.3-70b-versatile",
-            "messages": [{"role": "user", "content": prompt[:10000]}],  # Truncate for Groq context window
+            "messages": [{"role": "user", "content": prompt[:4000]}],
             "response_format": {"type": "json_object"},
-            "temperature": 0.0 # High precision
+            "temperature": 0.0
         }
         
         try:
@@ -685,7 +693,10 @@ class OmniIntelligence:
             if response.status_code == 200:
                 content = response.json()['choices'][0]['message']['content']
                 return json.loads(content)
-            logging.error(f"Structural Query Failed ({response.status_code}): {response.text}")
+            elif response.status_code == 429:
+                logging.warning("⏳ GROQ RATE LIMITED in structural_query — returning empty dict")
+                return {}
+            logging.error(f"Structural Query Failed ({response.status_code}): {response.text[:200]}")
         except Exception as e:
             logging.error(f"Structural Query connection error: {e}")
         
@@ -733,9 +744,9 @@ class OmniIntelligence:
                         parsed.get("highlights", [])  # 11th value — required by analyze_job caller
                     )
                 elif response.status_code == 429:
-                    delay = base_delay * (2 ** attempt)
-                    logging.warning(f"⏳ GROQ RATE LIMITED - Retrying in {delay}s...")
-                    await asyncio.sleep(delay)
+                    # Daily token limit hit — don't retry, return immediately to save tokens
+                    logging.warning(f"⏳ GROQ DAILY LIMIT HIT — skipping retries to preserve tokens")
+                    break
                 else:
                     error_body = response.text[:300] if hasattr(response, 'text') else 'No body'
                     logging.error(f"❌ GROQ HTTP {response.status_code}: {error_body}")

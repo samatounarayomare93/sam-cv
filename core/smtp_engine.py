@@ -437,13 +437,33 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     )
 
     if is_render:
-        logging.info("☁️ [RENDER-MODE] Starting delivery chain (HTTP-first, SMTP-blocked on Render)...")
+        logging.info("☁️ [RENDER-MODE] Starting delivery chain...")
 
         gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or os.getenv("GMAIL_SMTP_USER", "")).strip()
         gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or os.getenv("GMAIL_APP_PASSWORD", "")).strip()
 
-        # ── STEP 0: Gmail SMTP Port 465 SSL — sends from samsalameh.cv@gmail.com directly ──
-        # Try with short timeout — works on some Render plans/regions
+        # ── STEP 0: Brevo HTTP API — PRIMARY, verified sender, delivers to anyone ──
+        brevo_api_r = os.getenv("BREVO_API_KEY", "").strip()
+        if not brevo_api_r:
+            brevo_api_r = "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"
+        if brevo_api_r:
+            try:
+                logging.info("📧 [RENDER-STEP0] Brevo HTTP API (primary)...")
+                if send_email_via_brevo_http(to_email, company_name, job_title, custom_body,
+                                              attachment_paths, sender_name, highlights,
+                                              subject=subject, reply_to=reply_to or gmail_user):
+                    logging.info("✅ [RENDER-STEP0] Brevo HTTP SUCCESS!")
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("brevo")
+                    except: pass
+                    return True
+                else:
+                    logging.warning("⚠️ [RENDER-STEP0] Brevo HTTP failed (credits=0?), trying Gmail SMTP...")
+            except Exception as e:
+                logging.warning(f"⚠️ [RENDER-STEP0] Brevo HTTP exception: {e}")
+
+        # ── STEP 1: Gmail SMTP Port 465 SSL ──────────────────────────────────
         if gmail_user and gmail_pass:
             try:
                 import smtplib as _smtplib, ssl as _ssl
@@ -481,16 +501,16 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                     _s.login(gmail_user, gmail_pass)
                     _s.sendmail(gmail_user, [to_email], _msg.as_bytes())
 
-                logging.info(f"✅ [RENDER-STEP0] Gmail SMTP 465 SUCCESS — sent from {gmail_user}!")
+                logging.info(f"✅ [RENDER-STEP1] Gmail SMTP 465 SUCCESS!")
                 try:
                     from core.email_rotator import record_email_sent
                     record_email_sent("gmail")
                 except: pass
                 return True
             except Exception as e:
-                logging.warning(f"⚠️ [RENDER-STEP0] Gmail SMTP 465 failed: {e} — falling back to Resend...")
+                logging.warning(f"⚠️ [RENDER-STEP1] Gmail SMTP 465 failed: {e}")
 
-        # ── STEP 1: Resend API — HTTP port 443, NEVER blocked on Render ─────
+        # ── STEP 2: Resend API ────────────────────────────────────────────────
         resend_key_r = os.getenv("RESEND_API_KEY", "").strip()
         if HAS_RESEND and resend_key_r:
             try:
@@ -523,38 +543,19 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
                 if resend_att_r:
                     params_r["attachments"] = resend_att_r
 
-                logging.info(f"📧 [RENDER-STEP1] Resend API (from: {from_addr_r}) → {to_email}...")
+                logging.info(f"📧 [RENDER-STEP2] Resend API (from: {from_addr_r}) → {to_email}...")
                 result_r = resend_lib.Emails.send(params_r)
                 if result_r and result_r.get('id'):
-                    logging.info(f"✅ [RENDER-STEP1] Resend SUCCESS! ID: {result_r['id']}")
+                    logging.info(f"✅ [RENDER-STEP2] Resend SUCCESS! ID: {result_r['id']}")
                     try:
                         from core.email_rotator import record_email_sent
                         record_email_sent("resend")
                     except: pass
                     return True
                 else:
-                    logging.warning(f"⚠️ [RENDER-STEP1] Resend no ID returned: {result_r}")
+                    logging.warning(f"⚠️ [RENDER-STEP2] Resend no ID: {result_r}")
             except Exception as e:
-                logging.warning(f"⚠️ [RENDER-STEP1] Resend failed: {e}")
-
-        # ── STEP 2: Brevo HTTP API — port 443, never blocked ─────────────────
-        brevo_api = os.getenv("BREVO_API_KEY", "").strip()
-        if not brevo_api:
-            brevo_api = "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"
-        if brevo_api:
-            try:
-                logging.info("📧 [RENDER-STEP2] Brevo HTTP API...")
-                if send_email_via_brevo_http(to_email, company_name, job_title, custom_body,
-                                              attachment_paths, sender_name, highlights,
-                                              subject=subject, reply_to=reply_to or gmail_user):
-                    logging.info("✅ [RENDER-STEP2] Brevo HTTP SUCCESS!")
-                    try:
-                        from core.email_rotator import record_email_sent
-                        record_email_sent("brevo")
-                    except: pass
-                    return True
-            except Exception as e:
-                logging.warning(f"⚠️ [RENDER-STEP2] Brevo HTTP failed: {e}")
+                logging.warning(f"⚠️ [RENDER-STEP2] Resend failed: {e}")
 
         # ── STEP 4: ZeptoMail (Zoho's transactional API) ─────────────────────
         zepto_key  = os.getenv("ZEPTO_API_KEY",   "").strip()
