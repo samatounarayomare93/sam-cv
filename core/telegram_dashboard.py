@@ -1581,10 +1581,14 @@ class SovereignDashboard:
 
         async with self.app:
             # async with handles initialize() AND shutdown() automatically.
-            # Do NOT call self.app.initialize() manually — it causes "Timed out" on Render.
-            await self._sync_ui_standalone(self.app)
             await self.app.start()
             poller_running = False
+
+            # Sync UI after start (bot is now connected to Telegram)
+            try:
+                await self._sync_ui_standalone(self.app)
+            except Exception as e:
+                logging.warning(f"⚠️ UI sync failed (non-fatal): {e}")
 
             try:
                 await self.app.bot.delete_webhook(drop_pending_updates=False)

@@ -298,13 +298,13 @@ async def main():
 
             logging.info(f"🚀 [SYSTEM] Launching all tasks (restart #{restart_count})...")
 
-            swarm_tasks = [
-                asyncio.create_task(engine.execute_divine_loop(),      name="Engine"),
-                asyncio.create_task(dashboard.run_headless(),           name="Dashboard"),
-                asyncio.create_task(resource_watchdog(),                name="Watchdog"),
-                asyncio.create_task(health_monitor(),                   name="HealthMonitor"),
-                asyncio.create_task(disk_janitor(),                     name="DiskJanitor"),
-                asyncio.create_task(auto_refill_loop(),                 name="AutoQueueRefill"),
+            # Critical tasks — if any of these die, restart everything
+            critical_tasks = [
+                asyncio.create_task(engine.execute_divine_loop(), name="Engine"),
+                asyncio.create_task(resource_watchdog(),          name="Watchdog"),
+                asyncio.create_task(health_monitor(),             name="HealthMonitor"),
+                asyncio.create_task(disk_janitor(),               name="DiskJanitor"),
+                asyncio.create_task(auto_refill_loop(),           name="AutoQueueRefill"),
                 asyncio.create_task(
                     continuous_scraper_background(engine, 300,  "MAIN"),     name="Scraper-Main"),
                 asyncio.create_task(
@@ -317,15 +317,32 @@ async def main():
                     continuous_scraper_background(engine, 1800, "ELITE"),    name="Scraper-Elite"),
             ]
 
+            # Dashboard is NON-CRITICAL — runs independently, auto-restarts if it dies
+            async def dashboard_immortal():
+                """Dashboard wrapper — restarts itself if it crashes, never kills the swarm."""
+                while True:
+                    try:
+                        await dashboard.run_headless()
+                    except asyncio.CancelledError:
+                        break
+                    except Exception as e:
+                        logging.warning(f"⚠️ [DASHBOARD] Crashed: {e} — restarting in 30s...")
+                        await asyncio.sleep(30)
+
+            dashboard_task = asyncio.create_task(dashboard_immortal(), name="Dashboard")
+
+            swarm_tasks = critical_tasks + [dashboard_task]
+
             done, pending = await asyncio.wait(
-                swarm_tasks,
+                critical_tasks,  # Only wait on CRITICAL tasks
                 return_when=asyncio.FIRST_EXCEPTION
             )
 
-            # Cancel remaining tasks cleanly
-            for task in pending:
-                task.cancel()
-            await asyncio.gather(*pending, return_exceptions=True)
+            # Cancel all tasks cleanly
+            for task in swarm_tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*swarm_tasks, return_exceptions=True)
 
             # Log which task died
             for task in done:
