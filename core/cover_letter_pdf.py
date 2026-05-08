@@ -78,24 +78,31 @@ def _generate_cover_letter_fpdf(company_name, job_title, hiring_manager="Hiring 
             f"Dear {hiring_manager},",
             "",
             f"I am writing to express my strong interest in the {job_title} position at {company_name}. "
-            "With a proven track record in operations management, human resources, and organizational leadership, "
-            "I am confident in my ability to contribute meaningfully to your team from day one.",
+            "With 15+ years of enterprise network engineering experience and active certifications in "
+            "Cisco CCNA, Fortinet NSE, MikroTik MTCNA, and Ubiquiti UBWA, I am confident I can deliver "
+            "immediate value to your infrastructure team.",
             "",
-            "Throughout my career, I have demonstrated expertise in streamlining workflows, managing cross-functional "
-            "teams, and driving measurable improvements in efficiency and employee engagement. My approach combines "
-            "strategic thinking with hands-on execution, ensuring that both short-term targets and long-term goals "
-            "are consistently achieved.",
+            "Throughout my career, I have designed and deployed enterprise-grade networks for 20+ clients "
+            "achieving 99.9% uptime SLA, reduced security incidents by 100% through FortiGate and Cisco ASA "
+            "hardening, and configured IPSec/SSL VPN infrastructure for 50+ branch offices. My expertise spans "
+            "Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, and Ubiquiti UniFi — with deep knowledge in "
+            "OSPF/BGP/EIGRP routing protocols and fiber optic infrastructure spanning 500km+.",
             "",
-            f"I am particularly drawn to {company_name} because of its commitment to excellence and innovation. "
-            "I believe my background aligns well with your organizational values and the requirements of this role. "
-            "I would welcome the opportunity to discuss how my experience can benefit your team.",
+            f"I am particularly drawn to {company_name} because of its focus on cutting-edge infrastructure "
+            "and technology excellence. I believe my hands-on technical background and proven track record "
+            "align directly with the requirements of this role.",
             "",
-            "Thank you for your time and consideration. I look forward to the possibility of contributing to "
-            f"{company_name}'s continued success.",
+            "I am available for immediate relocation to the UAE, KSA, Qatar, Kuwait, or Europe. "
+            "Please find my CV attached for your review. I would welcome the opportunity to discuss "
+            f"how my expertise can contribute to {company_name}'s network infrastructure goals.",
             "",
-            "Sincerely,",
+            "Thank you for your time and consideration.",
+            "",
+            "Best regards,",
             "",
             "Sam Salameh",
+            "Senior Network Engineer",
+            "+961 70 841 1009  |  samsalameh.cv@gmail.com",
         ]
 
         for para in paragraphs:
