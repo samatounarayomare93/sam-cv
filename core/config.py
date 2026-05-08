@@ -19,6 +19,55 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# ============================================================================
+# 🔑 HARDCODED FALLBACKS — used when env vars are missing (e.g. Render free plan)
+# These are the actual credentials. Env vars take priority if set.
+# ============================================================================
+_DEFAULTS = {
+    "SUPABASE_URL":          "https://lckiazbadymeikmxesit.supabase.co",
+    "SUPABASE_KEY":          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2lhemJhZHltZWlrbXhlc2l0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzMxNzE1NSwiZXhwIjoyMDkyODkzMTU1fQ.NWdt3IcKs60M-6T_syPLQU4m22msqugqGA7wZpCXNbg",
+    "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2lhemJhZHltZWlrbXhlc2l0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzMxNzE1NSwiZXhwIjoyMDkyODkzMTU1fQ.NWdt3IcKs60M-6T_syPLQU4m22msqugqGA7wZpCXNbg",
+    "BREVO_API_KEY":          "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",
+    "BREVO_SMTP_LOGIN":       "a974ef001@smtp-brevo.com",
+    "BREVO_SMTP_PASSWORD":    "xsmtpsib-4ffec113189337d3602362d9b18e53d9462bdf499ee7ac27a1778f66a478bb7c-7rFR8WTs1UMRNoyw",
+    "BREVO_ACCOUNT_EMAIL":    "samatou683@gmail.com",
+    "BREVO_SENDER_EMAIL":     "samatou683@gmail.com",
+    "GMAIL_SMTP_USER":        "samsalameh.cv@gmail.com",
+    "GMAIL_APP_PASSWORD":     "oimuanudzzngklnf",
+    "ZOHO_SMTP_USER":         "samsalameh.cv@zohomail.com",
+    "ZOHO_APP_PASSWORD":      "R0R6dqr5qL1g",
+    "ZOHO_SMTP_USER_2":       "samsalameh@zohomail.com",
+    "ZOHO_APP_PASSWORD_2":    "EGDUw41ADNmM",
+    "TELEGRAM_BOT_TOKEN":     "8630175054:AAGuMqlmCJAizvDlFUrsg-UletxSdOcsvn0",
+    "TELEGRAM_CHAT_ID":       "6639482672",
+    "GROQ_API_KEY":           "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",
+    "GEMINI_API_KEY":         "AIzaSyBFNxUyS-WXIcaBCxrlMuaZ6l1f0c4KCZs",
+    "SENDER_EMAIL":           "samsalameh.cv@gmail.com",
+    "SENDER_NAME":            "Sam Salameh",
+    "CANDIDATE_PHONE":        "+961 70 841 1009",
+    "LINKEDIN_URL":           "https://www.linkedin.com/in/sam-salameh",
+    "CANDIDATE_PROFESSION":   "Senior Network Engineer",
+    "TEST_RECEIVER_EMAIL":    "samsalameh.cv@gmail.com",
+    "RENDER":                 "true",
+    "RENDER_EXTERNAL_URL":    "https://sam-job-automator.onrender.com",
+    "KILL_SWITCH_ACTIVE":     "false",
+    "MAX_PARALLEL_STRIKES":   "15",
+    "MAX_QUALIFIED_LEADS_PER_CYCLE": "300",
+    "MIN_MATCH_SCORE":        "45",
+}
+
+def _get(key: str, default: str = "") -> str:
+    """Get env var, falling back to hardcoded defaults if not set."""
+    val = os.getenv(key, "")
+    if val:
+        return val
+    return _DEFAULTS.get(key, default)
+
+# Apply defaults for missing env vars
+for _k, _v in _DEFAULTS.items():
+    if not os.getenv(_k):
+        os.environ[_k] = _v
+
 
 def _env_flag(name: str, default: bool = False) -> bool:
     return os.getenv(name, str(default)).lower() == "true"
