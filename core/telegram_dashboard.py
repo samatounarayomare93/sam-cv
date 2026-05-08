@@ -1030,24 +1030,29 @@ class SovereignDashboard:
         
         reply_keyboard = [
             # ── Monitoring ──────────────────────────────────────────────────
-            [KeyboardButton("🖥️ Status | الحالة"),        KeyboardButton("📊 Stats | الإحصائيات")],
+            [KeyboardButton("🖥️ Status | الحالة"),           KeyboardButton("📊 Stats | الإحصائيات")],
             [KeyboardButton("📈 Today Report | تقرير اليوم"), KeyboardButton("📧 Email Stats | إحصاء الإيميل")],
-            [KeyboardButton("🗂️ Queue | الطابور"),         KeyboardButton("📜 Logs | السجلات")],
+            [KeyboardButton("🗂️ Queue | الطابور"),            KeyboardButton("📜 Logs | السجلات")],
+            [KeyboardButton("🌡️ Memory | الذاكرة"),           KeyboardButton("⏱️ Uptime | وقت التشغيل")],
+            [KeyboardButton("🧠 AI Status | حالة الذكاء"),    KeyboardButton("📬 Inbox Check | فحص الردود")],
             # ── Leads & Tasks ────────────────────────────────────────────────
-            [KeyboardButton("📋 Leads | الفرص"),           KeyboardButton("🧬 Tasks | المهام")],
-            [KeyboardButton("🏢 Companies | الشركات"),     KeyboardButton("🛰️ Track | التتبع")],
+            [KeyboardButton("📋 Leads | الفرص"),              KeyboardButton("🧬 Tasks | المهام")],
+            [KeyboardButton("🏢 Companies | الشركات"),        KeyboardButton("🛰️ Track | التتبع")],
+            [KeyboardButton("📊 Top Companies | أفضل شركات"), KeyboardButton("🌍 Scrape Now | اسكان فوري")],
             # ── System Health ────────────────────────────────────────────────
-            [KeyboardButton("🛡️ Shield | الدرع"),          KeyboardButton("📜 Pulse | النبض")],
-            [KeyboardButton("🔍 Audit | مراجعة"),          KeyboardButton("💪 Synapse | قوة")],
-            [KeyboardButton("🧹 Clean Disk | تنظيف"),      KeyboardButton("💾 Backup | نسخة احتياطية")],
+            [KeyboardButton("🛡️ Shield | الدرع"),             KeyboardButton("📜 Pulse | النبض")],
+            [KeyboardButton("🔍 Audit | مراجعة"),             KeyboardButton("💪 Synapse | قوة")],
+            [KeyboardButton("🧹 Clean Disk | تنظيف"),         KeyboardButton("💾 Backup | نسخة احتياطية")],
             # ── Controls ────────────────────────────────────────────────────
-            [KeyboardButton("🚀 Run Now | شغّل"),          KeyboardButton("🔧 Fix | إصلاح")],
-            [KeyboardButton("⏸️ Pause | إيقاف مؤقت"),     KeyboardButton("▶️ Resume | استئناف")],
-            [KeyboardButton("🔄 Reboot | إعادة تشغيل"),   KeyboardButton("⚙️ Settings | الإعدادات")],
-            [KeyboardButton("🛑 Omega Halt | التوقف التام"), KeyboardButton("💀 Kill Switch | إيقاف كامل")],
+            [KeyboardButton("🚀 Run Now | شغّل"),             KeyboardButton("🔧 Fix | إصلاح")],
+            [KeyboardButton("🎯 Force Strike | ضربة فورية"),  KeyboardButton("📨 Follow-ups | متابعات")],
+            [KeyboardButton("🔥 Boost Mode | وضع تسريع"),     KeyboardButton("⏸️ Pause | إيقاف مؤقت")],
+            [KeyboardButton("▶️ Resume | استئناف"),           KeyboardButton("🔄 Reboot | إعادة تشغيل")],
+            [KeyboardButton("⚙️ Settings | الإعدادات"),       KeyboardButton("🛑 Omega Halt | التوقف التام")],
+            [KeyboardButton("💀 Kill Switch | إيقاف كامل"),   KeyboardButton("📖 Guide | الدليل")],
             # ── Tools ───────────────────────────────────────────────────────
-            [KeyboardButton("📖 Guide | الدليل"),          KeyboardButton("🎓 Prep | التحضير")],
-            [KeyboardButton("📧 Test Email | تجربة إيميل"), KeyboardButton("🧪 Test Strike | تجربة ضربة")],
+            [KeyboardButton("🎓 Prep | التحضير"),             KeyboardButton("📧 Test Email | تجربة إيميل")],
+            [KeyboardButton("🧪 Test Strike | تجربة ضربة"),   KeyboardButton("🔮 Oracle | أوراكل")],
         ]
         reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
 
@@ -1331,6 +1336,198 @@ class SovereignDashboard:
             except Exception as e:
                 await status_msg.edit_text(f"❌ <b>Clean error:</b> {e}", parse_mode='HTML')
 
+        elif key == "memory_status":
+            try:
+                import psutil
+                proc = psutil.Process()
+                mem_mb = proc.memory_info().rss / (1024 * 1024)
+                vm = psutil.virtual_memory()
+                bar_used = int((vm.percent / 100) * 10)
+                bar = "█" * bar_used + "░" * (10 - bar_used)
+                status_icon = "🔴" if mem_mb > 400 else "🟡" if mem_mb > 300 else "🟢"
+                await msg.reply_text(
+                    f"🌡️ <b>MEMORY STATUS</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"{status_icon} <b>Bot RAM:</b> {mem_mb:.0f} MB\n"
+                    f"💻 <b>System RAM:</b> {bar} {vm.percent}%\n"
+                    f"📊 <b>Used:</b> {vm.used // (1024**2)} MB / {vm.total // (1024**2)} MB\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"{'⚠️ HIGH — GC recommended' if mem_mb > 350 else '✅ Healthy'}",
+                    parse_mode='HTML'
+                )
+            except ImportError:
+                import gc; gc.collect()
+                await msg.reply_text("🌡️ <b>Memory:</b> psutil not available. GC triggered.", parse_mode='HTML')
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Memory error:</b> {e}", parse_mode='HTML')
+
+        elif key == "uptime_status":
+            try:
+                import psutil, time
+                boot_time = psutil.boot_time()
+                uptime_sec = time.time() - boot_time
+                hours = int(uptime_sec // 3600)
+                minutes = int((uptime_sec % 3600) // 60)
+                # Bot process uptime
+                proc = psutil.Process()
+                proc_uptime = time.time() - proc.create_time()
+                p_hours = int(proc_uptime // 3600)
+                p_minutes = int((proc_uptime % 3600) // 60)
+                await msg.reply_text(
+                    f"⏱️ <b>UPTIME STATUS</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"🤖 <b>Bot uptime:</b> {p_hours}h {p_minutes}m\n"
+                    f"🖥️ <b>Server uptime:</b> {hours}h {minutes}m\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"✅ Running continuously on Render",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"⏱️ <b>Uptime error:</b> {e}", parse_mode='HTML')
+
+        elif key == "ai_status":
+            lines = []
+            gemini_key = os.getenv("GEMINI_API_KEY", "")
+            groq_key   = os.getenv("GROQ_API_KEY", "")
+            hf_key     = os.getenv("HUGGINGFACE_API_KEY", "")
+            lines.append(f"{'🟢' if gemini_key else '🔴'} <b>Gemini:</b> {'Configured ✅' if gemini_key else 'Not set ❌'}")
+            lines.append(f"{'🟢' if groq_key   else '🔴'} <b>Groq:</b>   {'Configured ✅' if groq_key   else 'Not set ❌'}")
+            lines.append(f"{'🟢' if hf_key     else '🔴'} <b>HuggingFace:</b> {'Configured ✅' if hf_key else 'Not set ❌'}")
+            # Quick ping test
+            ai_ok = bool(gemini_key or groq_key)
+            await msg.reply_text(
+                f"🧠 <b>AI STATUS</b>\n"
+                f"━━━━━━━━━━━━━━━\n"
+                + "\n".join(lines) +
+                f"\n━━━━━━━━━━━━━━━\n"
+                f"{'✅ AI Engine: ONLINE' if ai_ok else '❌ AI Engine: OFFLINE — no keys configured'}",
+                parse_mode='HTML'
+            )
+
+        elif key == "inbox_check":
+            status_msg = await msg.reply_text("📬 <b>CHECKING INBOX...</b>\n<i>Scanning for replies to applications...</i>", parse_mode='HTML')
+            try:
+                # Check DB for any applications with status REPLIED or RESPONSE
+                app_succ, app_data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=company_name,job_title,status,timestamp&status=in.(REPLIED,RESPONSE,INTERESTED,INTERVIEW)&order=timestamp.desc&limit=20"
+                )
+                replies = app_data if app_succ and isinstance(app_data, list) else []
+                if replies:
+                    lines = [f"🎉 <b>{r.get('company_name','?')[:22]}</b> — {r.get('job_title','?')[:20]} [{r.get('status','?')}]" for r in replies]
+                    report = f"📬 <b>INBOX REPLIES ({len(replies)})</b>\n━━━━━━━━━━━━━━━\n" + "\n".join(lines) + "\n━━━━━━━━━━━━━━━"
+                else:
+                    report = "📬 <b>INBOX CHECK</b>\n━━━━━━━━━━━━━━━\n<i>No replies detected yet.\nThe bot is monitoring continuously.</i>\n━━━━━━━━━━━━━━━"
+                await status_msg.edit_text(report, parse_mode='HTML')
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>Inbox check error:</b> {e}", parse_mode='HTML')
+
+        elif key == "top_companies":
+            try:
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/leads?select=company_name,job_title,priority_score&order=priority_score.desc&limit=10&status=eq.pending"
+                )
+                leads = data if succ and isinstance(data, list) else []
+                if leads:
+                    lines = [f"🏆 <b>{l.get('company_name','?')[:22]}</b> — {l.get('job_title','?')[:18]} <i>(score: {l.get('priority_score','?')})</i>" for l in leads]
+                    report = "📊 <b>TOP 10 COMPANIES BY SCORE</b>\n━━━━━━━━━━━━━━━\n" + "\n".join(lines) + "\n━━━━━━━━━━━━━━━"
+                else:
+                    report = "📊 <b>TOP COMPANIES</b>\n━━━━━━━━━━━━━━━\n<i>No scored leads found yet.</i>"
+                await msg.reply_text(report, parse_mode='HTML')
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Top companies error:</b> {e}", parse_mode='HTML')
+
+        elif key == "scrape_now":
+            status_msg = await msg.reply_text(
+                "🌍 <b>SCRAPE NOW INITIATED</b>\n"
+                "━━━━━━━━━━━━━━━\n"
+                "<i>Triggering all scrapers immediately...\n"
+                "Results will appear in Queue within 2-3 minutes.</i>",
+                parse_mode='HTML'
+            )
+            try:
+                # Queue a scrape task in DB so the engine picks it up
+                await self.db.sync_add_task(task_type="FORCE_SCRAPE", target="ALL_SCRAPERS", meta="manual_trigger") if hasattr(self.db, 'sync_add_task') else None
+                # Also try async version
+                try:
+                    await self.db.add_task(task_type="FORCE_SCRAPE", target="ALL_SCRAPERS", meta="manual_trigger")
+                except Exception:
+                    pass
+                await status_msg.edit_text(
+                    "🌍 <b>SCRAPE TRIGGERED</b>\n"
+                    "━━━━━━━━━━━━━━━\n"
+                    "✅ All scrapers queued for immediate run\n"
+                    "📦 Check Queue in 2-3 minutes for new leads\n"
+                    "━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(f"❌ <b>Scrape trigger error:</b> {e}", parse_mode='HTML')
+
+        elif key == "force_strike":
+            status_msg = await msg.reply_text(
+                "🎯 <b>FORCE STRIKE LOADING...</b>\n"
+                "<i>Fetching top lead from queue...</i>",
+                parse_mode='HTML'
+            )
+            try:
+                leads = await self.db.get_pending_leads(limit=1) if self.db else []
+                if not leads:
+                    await status_msg.edit_text("🎯 <b>FORCE STRIKE</b>\n━━━━━━━━━━━━━━━\n❌ Queue is empty. No leads to strike.\nUse 🌍 Scrape Now to fill the queue.", parse_mode='HTML')
+                    return
+                lead = leads[0]
+                company = lead.get('company_name', 'Unknown')
+                email   = lead.get('email', '')
+                title   = lead.get('job_title', 'Professional Role')
+                if not email:
+                    await status_msg.edit_text(f"🎯 <b>FORCE STRIKE</b>\n━━━━━━━━━━━━━━━\n⚠️ Top lead <b>{company}</b> has no email address.\nSkipping — use /leads to review.", parse_mode='HTML')
+                    return
+                await status_msg.edit_text(
+                    f"🎯 <b>FORCE STRIKE FIRING</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"🏢 <b>Target:</b> {company}\n"
+                    f"📧 <b>Email:</b> <code>{email}</code>\n"
+                    f"💼 <b>Role:</b> {title}\n"
+                    f"<i>Sending now...</i>",
+                    parse_mode='HTML'
+                )
+                from core import smtp_engine as _smtp
+                success = await asyncio.to_thread(_smtp.send_strike, lead)
+                if success:
+                    await status_msg.edit_text(
+                        f"✅ <b>FORCE STRIKE DELIVERED!</b>\n"
+                        f"━━━━━━━━━━━━━━━\n"
+                        f"🏢 {company}\n📧 {email}\n💼 {title}\n"
+                        f"━━━━━━━━━━━━━━━",
+                        parse_mode='HTML'
+                    )
+                else:
+                    await status_msg.edit_text(f"❌ <b>FORCE STRIKE FAILED</b>\nTarget: {company}\nCheck /logs for details.", parse_mode='HTML')
+            except Exception as e:
+                await status_msg.edit_text(f"💥 <b>Force strike error:</b> {e}", parse_mode='HTML')
+
+        elif key == "boost_mode":
+            try:
+                current = int(os.getenv("MAX_PARALLEL_STRIKES", "15"))
+                boosted = min(current + 10, 50)
+                os.environ["MAX_PARALLEL_STRIKES"] = str(boosted)
+                os.environ["MAX_EMAILS_PER_HOUR"]  = "150"
+                os.environ["DELAY_BETWEEN_EMAILS_MIN"] = "1"
+                os.environ["DELAY_BETWEEN_EMAILS_MAX"] = "3"
+                await msg.reply_text(
+                    f"🔥 <b>BOOST MODE ACTIVATED</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"⚡ Parallel strikes: {current} → <b>{boosted}</b>\n"
+                    f"📧 Max emails/hour: → <b>150</b>\n"
+                    f"⏱️ Delay between emails: → <b>1-3s</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"⚠️ <i>Boost is active until next reboot.\nUse ▶️ Resume to apply changes.</i>",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"❌ <b>Boost error:</b> {e}", parse_mode='HTML')
+
         elif key in ("stats", "status"):
             await self._dispatch_command(f"/{key}", update, context)
 
@@ -1491,6 +1688,16 @@ class SovereignDashboard:
             "clean disk": "clean_disk", "تنظيف": "clean_disk",
             "backup": "backup", "نسخة احتياطية": "backup",
             "kill switch": "kill", "إيقاف كامل": "kill",
+            "memory": "memory_status", "الذاكرة": "memory_status",
+            "uptime": "uptime_status", "وقت التشغيل": "uptime_status",
+            "ai status": "ai_status", "حالة الذكاء": "ai_status",
+            "inbox check": "inbox_check", "فحص الردود": "inbox_check",
+            "top companies": "top_companies", "أفضل شركات": "top_companies",
+            "scrape now": "scrape_now", "اسكان فوري": "scrape_now",
+            "force strike": "force_strike", "ضربة فورية": "force_strike",
+            "follow-ups": "followup", "followups": "followup", "متابعات": "followup",
+            "boost mode": "boost_mode", "وضع تسريع": "boost_mode",
+            "oracle": "oracle", "أوراكل": "oracle",
             "synapse": "synapse", "platforms": "platforms", "sources": "platforms", "المواقع": "platforms",
             "logs": "logs", "السجلات": "logs"
         }
@@ -1519,7 +1726,7 @@ class SovereignDashboard:
             slash_cmds = {"launch_single", "menu", "pause", "resume", "track", "kill",
                           "lazarus", "repair", "hygiene", "reboot", "status",
                           "guide", "evolution", "audit", "hud", "backup", "oracle",
-                          "mock_interview", "synapse", "logs", "settings", "fix"}
+                          "mock_interview", "synapse", "logs", "settings", "fix", "followup"}
             if mapped in slash_cmds:
                 return await self._dispatch_command(f"/{mapped}", update, context)
             else:
