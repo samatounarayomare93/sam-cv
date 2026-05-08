@@ -1,0 +1,956 @@
+"""Auto-generated: embedded CV HTML for Render deployment."""
+
+CV_HTML = """﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sam Salameh — Senior Network Engineer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0f172a;
+    --navy2: #1e293b;
+    --navy3: #162032;
+    --cyan: #06b6d4;
+    --cyan2: #0891b2;
+    --cyan3: #67e8f9;
+    --white: #ffffff;
+    --gray50: #f8fafc;
+    --gray100: #f1f5f9;
+    --gray200: #e2e8f0;
+    --gray300: #cbd5e1;
+    --gray400: #94a3b8;
+    --gray600: #475569;
+    --gray700: #334155;
+    --gray800: #1e293b;
+    --gold: #f59e0b;
+    --green: #10b981;
+    --sidebar-w: 280px;
+  }
+  html { font-size: 14px; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #e8edf5;
+    color: var(--gray700);
+    line-height: 1.6;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page-wrapper {
+    max-width: 1100px;
+    margin: 24px auto;
+    background: var(--white);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .top-accent {
+    height: 4px;
+    background: linear-gradient(90deg, var(--cyan2) 0%, var(--cyan) 40%, var(--cyan3) 70%, #a5f3fc 100%);
+    width: 100%;
+  }
+  .cv-layout {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--navy);
+    color: var(--white);
+    padding: 36px 24px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image:
+      radial-gradient(circle, rgba(6,182,212,0.07) 1px, transparent 1px);
+    background-size: 22px 22px;
+    pointer-events: none;
+  }
+  .sidebar::after {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .sidebar-content { position: relative; z-index: 1; }
+
+  /* Avatar / Monogram */
+  .avatar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 28px;
+  }
+  .avatar {
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--cyan2) 0%, var(--cyan) 50%, #0e7490 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -1px;
+    box-shadow: 0 0 0 4px rgba(6,182,212,0.25), 0 0 0 8px rgba(6,182,212,0.1);
+    margin-bottom: 16px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .sidebar-name {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--white);
+    text-align: center;
+    line-height: 1.2;
+  }
+  .sidebar-title {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--cyan3);
+    text-align: center;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 5px;
+  }
+  .sidebar-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(6,182,212,0.5), transparent);
+    margin: 20px 0;
+  }
+
+  /* Contact */
+  .sidebar-section-title {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sidebar-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(6,182,212,0.3);
+  }
+  .contact-list { list-style: none; margin-bottom: 22px; }
+  .contact-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.85);
+    line-height: 1.4;
+  }
+  .contact-icon {
+    width: 22px; height: 22px;
+    background: rgba(6,182,212,0.15);
+    border: 1px solid rgba(6,182,212,0.3);
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Skills */
+  .skill-item { margin-bottom: 11px; }
+  .skill-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.73rem;
+    color: rgba(255,255,255,0.88);
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+  .skill-pct { color: var(--cyan3); font-size: 0.68rem; }
+  .skill-bar-bg {
+    height: 5px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .skill-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    background: linear-gradient(90deg, var(--cyan2), var(--cyan3));
+    position: relative;
+  }
+  .skill-bar-fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 6px;
+    background: rgba(255,255,255,0.6);
+    border-radius: 10px;
+  }
+
+  /* Certifications */
+  .cert-badge {
+    background: linear-gradient(135deg, rgba(6,182,212,0.12) 0%, rgba(6,182,212,0.05) 100%);
+    border: 1px solid rgba(6,182,212,0.3);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 9px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .cert-icon {
+    width: 30px; height: 30px;
+    background: linear-gradient(135deg, var(--cyan2), var(--cyan));
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(6,182,212,0.4);
+  }
+  .cert-info { flex: 1; }
+  .cert-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1.3;
+  }
+  .cert-sub {
+    font-size: 0.62rem;
+    color: var(--cyan3);
+    margin-top: 2px;
+  }
+
+  /* Languages */
+  .lang-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+  }
+  .lang-name { font-size: 0.75rem; color: rgba(255,255,255,0.88); font-weight: 500; }
+  .lang-dots { display: flex; gap: 4px; }
+  .lang-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(6,182,212,0.3);
+  }
+  .lang-dot.filled { background: var(--cyan); border-color: var(--cyan); }
+
+  /* Availability */
+  .avail-box {
+    background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05));
+    border: 1px solid rgba(16,185,129,0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 4px;
+  }
+  .avail-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #6ee7b7;
+    margin-bottom: 7px;
+  }
+  .avail-dot {
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--green);
+  }
+  .avail-locations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .avail-tag {
+    background: rgba(16,185,129,0.15);
+    border: 1px solid rgba(16,185,129,0.3);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 0.62rem;
+    color: #a7f3d0;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  /* ===== MAIN CONTENT ===== */
+  .main {
+    flex: 1;
+    background: var(--white);
+    padding: 36px 38px 40px;
+    overflow: hidden;
+  }
+
+  /* Header */
+  .main-header { margin-bottom: 26px; }
+  .main-name {
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .main-name span { color: var(--cyan2); }
+  .main-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray600);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .title-line {
+    height: 3px;
+    width: 60px;
+    background: linear-gradient(90deg, var(--cyan2), var(--cyan3));
+    border-radius: 2px;
+    margin-top: 10px;
+  }
+
+  /* Metrics Dashboard */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 26px;
+  }
+  .metric-card {
+    background: linear-gradient(135deg, var(--gray50) 0%, var(--gray100) 100%);
+    border: 1px solid var(--gray200);
+    border-radius: 10px;
+    padding: 12px 10px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--cyan2), var(--cyan3));
+  }
+  .metric-value {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--navy);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .metric-value span { color: var(--cyan2); }
+  .metric-label {
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--gray400);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    line-height: 1.3;
+  }
+
+  /* Section */
+  .section { margin-bottom: 26px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .section-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--cyan2), var(--cyan));
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(6,182,212,0.35);
+  }
+  .section-title {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--navy);
+  }
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--gray200), transparent);
+  }
+
+  /* Summary */
+  .summary-box {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-left: 4px solid var(--cyan2);
+    border-radius: 0 10px 10px 0;
+    padding: 16px 18px;
+    font-size: 0.82rem;
+    color: var(--gray700);
+    line-height: 1.7;
+  }
+  .summary-box strong { color: var(--navy); }
+
+  /* Experience Timeline */
+  .exp-item {
+    position: relative;
+    padding-left: 20px;
+    margin-bottom: 20px;
+  }
+  .exp-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 6px; bottom: -14px;
+    width: 3px;
+    background: linear-gradient(180deg, var(--cyan2), rgba(6,182,212,0.1));
+    border-radius: 2px;
+  }
+  .exp-item:last-child::before { bottom: 0; }
+  .exp-item::after {
+    content: '';
+    position: absolute;
+    left: -4px; top: 6px;
+    width: 11px; height: 11px;
+    background: var(--cyan2);
+    border-radius: 50%;
+    border: 2px solid var(--white);
+    box-shadow: 0 0 0 2px var(--cyan2);
+  }
+  .exp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 3px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .exp-title {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: var(--navy);
+  }
+  .exp-period {
+    background: linear-gradient(135deg, var(--cyan2), var(--cyan));
+    color: var(--white);
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .exp-company {
+    font-size: 0.75rem;
+    color: var(--cyan2);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .exp-bullets { list-style: none; }
+  .exp-bullets li {
+    font-size: 0.78rem;
+    color: var(--gray600);
+    padding: 3px 0 3px 14px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .exp-bullets li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--cyan2);
+    font-size: 0.7rem;
+  }
+
+  /* Technical Skills Grid */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .tech-card {
+    background: var(--gray50);
+    border: 1px solid var(--gray200);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .tech-card-title {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--cyan2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 7px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tech-card-title::before {
+    content: '';
+    width: 3px; height: 12px;
+    background: var(--cyan2);
+    border-radius: 2px;
+  }
+  .tech-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .tech-tag {
+    background: var(--white);
+    border: 1px solid var(--gray200);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 0.65rem;
+    color: var(--gray700);
+    font-weight: 500;
+  }
+
+  /* Education */
+  .edu-card {
+    background: linear-gradient(135deg, var(--gray50), var(--gray100));
+    border: 1px solid var(--gray200);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .edu-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--navy), var(--navy2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+  .edu-degree { font-size: 0.85rem; font-weight: 800; color: var(--navy); }
+  .edu-field { font-size: 0.75rem; color: var(--cyan2); font-weight: 600; margin-top: 2px; }
+  .edu-school { font-size: 0.72rem; color: var(--gray600); margin-top: 2px; }
+  .edu-year {
+    margin-left: auto;
+    background: var(--navy);
+    color: var(--cyan3);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  /* Print */
+  @media print {
+    body { background: white; margin: 0; }
+    .page-wrapper { margin: 0; box-shadow: none; border-radius: 0; max-width: 100%; }
+    .sidebar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .metric-card::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .exp-period { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .top-accent { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .skill-bar-fill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .cert-icon { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section-icon { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .title-line { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .summary-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .edu-icon { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .edu-year { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .avail-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .lang-dot.filled { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .avatar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .tech-card-title::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .exp-item::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .exp-item::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .cert-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .avail-tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .avail-dot { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrapper">
+  <div class="top-accent"></div>
+  <div class="cv-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-content">
+
+        <!-- Avatar -->
+        <div class="avatar-wrap">
+          <div class="avatar">SS</div>
+          <div class="sidebar-name">Sam Salameh</div>
+          <div class="sidebar-title">Senior Network Engineer</div>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <!-- Contact -->
+        <div class="sidebar-section-title">Contact</div>
+        <ul class="contact-list">
+          <li>
+            <div class="contact-icon">&#9993;</div>
+            <span>samsalameh.cv@gmail.com</span>
+          </li>
+          <li>
+            <div class="contact-icon">&#9742;</div>
+            <span>+961 70 841 1009</span>
+          </li>
+          <li>
+            <div class="contact-icon">&#9679;</div>
+            <span>Beirut, Lebanon</span>
+          </li>
+          <li>
+            <div class="contact-icon">&#9670;</div>
+            <span>linkedin.com/in/sam-salameh</span>
+          </li>
+        </ul>
+
+        <div class="sidebar-divider"></div>
+
+        <!-- Core Skills -->
+        <div class="sidebar-section-title">Core Skills</div>
+        <div style="margin-bottom:20px;">
+          <div class="skill-item">
+            <div class="skill-label"><span>Cisco IOS / IOS-XE</span><span class="skill-pct">98%</span></div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:98%"></div></div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-label"><span>MikroTik RouterOS</span><span class="skill-pct">96%</span></div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:96%"></div></div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-label"><span>FortiGate / Firewalls</span><span class="skill-pct">95%</span></div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:95%"></div></div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-label"><span>OSPF / BGP / EIGRP</span><span class="skill-pct">94%</span></div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:94%"></div></div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-label"><span>IPSec / SSL VPN</span><span class="skill-pct">93%</span></div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:93%"></div></div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-label"><span>Ubiquiti UniFi</span><span class="skill-pct">92%</span></div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:92%"></div></div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-label"><span>Fiber Optic / OTDR</span><span class="skill-pct">95%</span></div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:95%"></div></div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-label"><span>PRTG / SolarWinds</span><span class="skill-pct">90%</span></div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:90%"></div></div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-label"><span>Wireshark / NetFlow</span><span class="skill-pct">88%</span></div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:88%"></div></div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-label"><span>SD-WAN / Automation</span><span class="skill-pct">80%</span></div>
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:80%"></div></div>
+          </div>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <!-- Certifications -->
+        <div class="sidebar-section-title">Certifications</div>
+        <div style="margin-bottom:20px;">
+          <div class="cert-badge">
+            <div class="cert-icon">&#9670;</div>
+            <div class="cert-info">
+              <div class="cert-name">Cisco CCNA</div>
+              <div class="cert-sub">Routing &amp; Switching</div>
+            </div>
+          </div>
+          <div class="cert-badge">
+            <div class="cert-icon">&#9632;</div>
+            <div class="cert-info">
+              <div class="cert-name">Fortinet NSE</div>
+              <div class="cert-sub">Network Security Expert</div>
+            </div>
+          </div>
+          <div class="cert-badge">
+            <div class="cert-icon">&#9650;</div>
+            <div class="cert-info">
+              <div class="cert-name">MikroTik MTCNA</div>
+              <div class="cert-sub">Certified Network Associate</div>
+            </div>
+          </div>
+          <div class="cert-badge">
+            <div class="cert-icon">&#9679;</div>
+            <div class="cert-info">
+              <div class="cert-name">Ubiquiti UBWA</div>
+              <div class="cert-sub">Wireless Administrator</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <!-- Languages -->
+        <div class="sidebar-section-title">Languages</div>
+        <div style="margin-bottom:20px;">
+          <div class="lang-item">
+            <span class="lang-name">Arabic</span>
+            <div class="lang-dots">
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot filled"></div>
+            </div>
+          </div>
+          <div class="lang-item">
+            <span class="lang-name">English</span>
+            <div class="lang-dots">
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot"></div>
+            </div>
+          </div>
+          <div class="lang-item">
+            <span class="lang-name">French</span>
+            <div class="lang-dots">
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot filled"></div>
+              <div class="lang-dot"></div>
+              <div class="lang-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <!-- Availability -->
+        <div class="sidebar-section-title">Availability</div>
+        <div class="avail-box">
+          <div class="avail-status">
+            <div class="avail-dot"></div>
+            IMMEDIATELY AVAILABLE
+          </div>
+          <div class="avail-locations">
+            <span class="avail-tag">UAE</span>
+            <span class="avail-tag">KSA</span>
+            <span class="avail-tag">Qatar</span>
+            <span class="avail-tag">Europe</span>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+      <!-- Header -->
+      <div class="main-header">
+        <div class="main-name">SAM <span>SALAMEH</span></div>
+        <div class="main-title">Senior Network Engineer &nbsp;&#9670;&nbsp; 15+ Years Enterprise Experience</div>
+        <div class="title-line"></div>
+      </div>
+
+      <!-- Metrics Dashboard -->
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-value">15<span>+</span></div>
+          <div class="metric-label">Years<br>Experience</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">20<span>+</span></div>
+          <div class="metric-label">Enterprise<br>Clients</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">99.9<span>%</span></div>
+          <div class="metric-label">Uptime<br>SLA</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">&lt;1<span>hr</span></div>
+          <div class="metric-label">MTTR<br>Critical</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">500<span>+</span></div>
+          <div class="metric-label">km Fiber<br>Installed</div>
+        </div>
+      </div>
+
+      <!-- Professional Summary -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">&#9670;</div>
+          <div class="section-title">Professional Summary</div>
+          <div class="section-line"></div>
+        </div>
+        <div class="summary-box">
+          Results-driven <strong>Senior Network Engineer</strong> with <strong>15+ years</strong> of hands-on experience designing, deploying, and managing enterprise-grade network infrastructure across ISPs, banking institutions, and universities. Proven track record delivering <strong>99.9% uptime SLA</strong> for 20+ enterprise clients with sub-1-hour mean time to resolution on critical incidents. Deep expertise in <strong>Cisco IOS, MikroTik RouterOS, FortiGate security, Ubiquiti wireless</strong>, and advanced routing protocols (OSPF, BGP, EIGRP). Passionate about network automation, security hardening, and mentoring the next generation of network engineers. Immediately available for senior roles in the UAE, KSA, Qatar, and Europe.
+        </div>
+      </div>
+
+      <!-- Experience -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">&#9650;</div>
+          <div class="section-title">Professional Experience</div>
+          <div class="section-line"></div>
+        </div>
+
+        <!-- Job 1 -->
+        <div class="exp-item">
+          <div class="exp-header">
+            <div class="exp-title">Senior Freelance Network Engineer</div>
+            <div class="exp-period">2023 &mdash; Present</div>
+          </div>
+          <div class="exp-company">&#9670; Independent Consultant &nbsp;&bull;&nbsp; Beirut, Lebanon</div>
+          <ul class="exp-bullets">
+            <li>Designed and deployed enterprise networks for <strong>20+ clients</strong> (ISPs, banks, universities) achieving <strong>99.9% uptime SLA</strong> across all engagements.</li>
+            <li>Reduced security incidents by <strong>100%</strong> through comprehensive FortiGate and Cisco ASA firewall hardening and policy enforcement.</li>
+            <li>Configured site-to-site <strong>IPSec VPN tunnels</strong> connecting 50+ branch offices with encrypted, high-availability links.</li>
+            <li>Provided <strong>24/7 emergency response</strong> with &lt;1 hour MTTR on all critical network incidents, exceeding SLA commitments.</li>
+            <li>Delivered comprehensive network audits, performance optimization reports, and capacity planning documentation.</li>
+          </ul>
+        </div>
+
+        <!-- Job 2 -->
+        <div class="exp-item">
+          <div class="exp-header">
+            <div class="exp-title">Network Management Consultant</div>
+            <div class="exp-period">2021 &mdash; 2023</div>
+          </div>
+          <div class="exp-company">&#9670; Freelance &nbsp;&bull;&nbsp; Beirut, Lebanon</div>
+          <ul class="exp-bullets">
+            <li>Managed <strong>8 concurrent enterprise projects</strong> simultaneously with zero downtime across all client environments.</li>
+            <li>Implemented advanced routing protocols (OSPF, BGP, EIGRP) for ISP-grade topologies serving <strong>10,000+ subscribers</strong>.</li>
+            <li>Deployed Ubiquiti UniFi wireless infrastructure for <strong>3 university campuses</strong> supporting 2,000+ concurrent users.</li>
+            <li>Trained and mentored <strong>15+ junior network engineers</strong> on Cisco IOS and MikroTik RouterOS best practices.</li>
+            <li>Reduced client network downtime by <strong>85%</strong> through proactive PRTG and Zabbix monitoring and alerting strategies.</li>
+          </ul>
+        </div>
+
+        <!-- Job 3 -->
+        <div class="exp-item">
+          <div class="exp-header">
+            <div class="exp-title">Senior Networking Technician</div>
+            <div class="exp-period">2010 &mdash; 2021</div>
+          </div>
+          <div class="exp-company">&#9670; Professional Network &nbsp;&bull;&nbsp; Beirut, Lebanon</div>
+          <ul class="exp-bullets">
+            <li>Installed and configured routers, switches, and wireless APs for <strong>100+ enterprise sites</strong> across Lebanon.</li>
+            <li>Performed fiber optic cable installations and OTDR testing across <strong>500+ km</strong> of infrastructure with full documentation.</li>
+            <li>Deployed MikroTik CHR for ISP billing and bandwidth management serving <strong>10,000+ subscribers</strong>.</li>
+            <li>Configured VLAN segmentation and QoS policies for voice/video/data traffic prioritization across multi-site environments.</li>
+            <li>Maintained detailed network documentation, change management logs, and topology diagrams for all managed sites.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Technical Expertise -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">&#9632;</div>
+          <div class="section-title">Technical Expertise</div>
+          <div class="section-line"></div>
+        </div>
+        <div class="tech-grid">
+          <div class="tech-card">
+            <div class="tech-card-title">Routing &amp; Switching</div>
+            <div class="tech-tags">
+              <span class="tech-tag">Cisco IOS/IOS-XE</span>
+              <span class="tech-tag">MikroTik RouterOS</span>
+              <span class="tech-tag">OSPF</span>
+              <span class="tech-tag">BGP</span>
+              <span class="tech-tag">EIGRP</span>
+              <span class="tech-tag">STP</span>
+              <span class="tech-tag">VLANs</span>
+              <span class="tech-tag">802.1Q</span>
+              <span class="tech-tag">EtherChannel</span>
+            </div>
+          </div>
+          <div class="tech-card">
+            <div class="tech-card-title">Security</div>
+            <div class="tech-tags">
+              <span class="tech-tag">FortiGate</span>
+              <span class="tech-tag">Cisco ASA</span>
+              <span class="tech-tag">IPSec VPN</span>
+              <span class="tech-tag">SSL VPN</span>
+              <span class="tech-tag">ACLs</span>
+              <span class="tech-tag">NAT</span>
+              <span class="tech-tag">IDS/IPS</span>
+              <span class="tech-tag">RADIUS</span>
+              <span class="tech-tag">802.1X</span>
+            </div>
+          </div>
+          <div class="tech-card">
+            <div class="tech-card-title">Wireless &amp; Infrastructure</div>
+            <div class="tech-tags">
+              <span class="tech-tag">Ubiquiti UniFi</span>
+              <span class="tech-tag">AirMax</span>
+              <span class="tech-tag">802.11ac/ax</span>
+              <span class="tech-tag">WPA3</span>
+              <span class="tech-tag">P2P Microwave</span>
+              <span class="tech-tag">Fiber SM/MM</span>
+              <span class="tech-tag">OTDR</span>
+              <span class="tech-tag">Fusion Splicing</span>
+              <span class="tech-tag">Cat5e/6/6A</span>
+            </div>
+          </div>
+          <div class="tech-card">
+            <div class="tech-card-title">Monitoring &amp; Automation</div>
+            <div class="tech-tags">
+              <span class="tech-tag">PRTG</span>
+              <span class="tech-tag">SolarWinds</span>
+              <span class="tech-tag">Nagios</span>
+              <span class="tech-tag">Zabbix</span>
+              <span class="tech-tag">Wireshark</span>
+              <span class="tech-tag">NetFlow</span>
+              <span class="tech-tag">SNMP</span>
+              <span class="tech-tag">Python</span>
+              <span class="tech-tag">Ansible</span>
+              <span class="tech-tag">Netmiko</span>
+              <span class="tech-tag">NAPALM</span>
+              <span class="tech-tag">SD-WAN</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Education -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">&#9679;</div>
+          <div class="section-title">Education</div>
+          <div class="section-line"></div>
+        </div>
+        <div class="edu-card">
+          <div class="edu-icon">&#127979;</div>
+          <div>
+            <div class="edu-degree">B3 &mdash; Information Technology</div>
+            <div class="edu-field">Networking &amp; Systems Administration</div>
+            <div class="edu-school">Dekwene Technical School &nbsp;&bull;&nbsp; Lebanon</div>
+          </div>
+          <div class="edu-year">2016</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+</body>
+</html>
+"""
