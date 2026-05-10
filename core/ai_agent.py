@@ -7,7 +7,12 @@ import warnings
 from typing import Dict, Any, Tuple, Optional, List
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from google import genai
+try:
+    from google import genai
+    _HAS_GENAI = True
+except (ImportError, Exception):
+    genai = None
+    _HAS_GENAI = False
 import aiohttp
 import random
 
@@ -39,6 +44,8 @@ class OmniIntelligence:
         self.primary_engine = "gemini" if self.gemini_key else None
         if self.primary_engine == "gemini":
             try:
+                if not _HAS_GENAI or genai is None:
+                    raise ImportError("google-genai not installed")
                 self.client = genai.Client(api_key=self.gemini_key, http_options={'api_version': 'v1beta'})
                 # [🛡️ FIX 2026-05-07]: gemini-2.0-flash deprecated → use gemini-2.5-flash (latest stable)
                 self.model_id = 'gemini-2.5-flash'
