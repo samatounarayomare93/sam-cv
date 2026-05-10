@@ -265,7 +265,9 @@ def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Man
 
 
 def generate_cover_letter_pdf(company_name, job_title, hiring_manager="Hiring Manager"):
-    """Generate cover letter PDF. Uses Playwright if available, else FPDF2."""
+    """Generate cover letter PDF. Uses Playwright if available, else FPDF2.
+    On Render/cloud: skip Playwright (slow/unreliable), go straight to FPDF2.
+    """
     global _CL_PLAYWRIGHT_AVAILABLE
     pdf_dir = _get_pdf_dir()
     safe_company = "".join(
@@ -273,8 +275,11 @@ def generate_cover_letter_pdf(company_name, job_title, hiring_manager="Hiring Ma
     ).strip().replace(' ', '_')[:40]
     pdf_path = os.path.join(pdf_dir, f"Cover_Letter_{safe_company}.pdf")
 
-    # ── Try Playwright first (best quality, matches reference) ────────────
-    if _CL_PLAYWRIGHT_AVAILABLE:
+    # ── On Render: skip Playwright entirely (too slow, unreliable on free plan) ──
+    is_cloud = bool(os.getenv("RENDER") or os.getenv("RAILWAY") or os.getenv("HEROKU") or os.getenv("RENDER_EXTERNAL_URL"))
+
+    # ── Try Playwright first (best quality, local only) ───────────────────
+    if _CL_PLAYWRIGHT_AVAILABLE and not is_cloud:
         try:
             from playwright.sync_api import sync_playwright
             import tempfile, concurrent.futures

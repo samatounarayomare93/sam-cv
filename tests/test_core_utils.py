@@ -6,7 +6,7 @@ from core.core_utils import build_fallback_email, is_recent, normalize_company_s
 
 class CoreUtilsTests(unittest.TestCase):
     def test_normalize_company_slug(self):
-        self.assertEqual(normalize_company_slug("Sam Salameh Group"), "samcordahigroup")
+        self.assertEqual(normalize_company_slug("Sam Salameh Group"), "samsalamehgroup")
 
     def test_build_fallback_email(self):
         self.assertEqual(build_fallback_email("Example Company"), "careers@examplecompany.com")

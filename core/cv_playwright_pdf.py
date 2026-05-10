@@ -26,7 +26,7 @@ try:
     logging.getLogger("weasyprint.document").setLevel(logging.ERROR)
     logging.getLogger("weasyprint.html").setLevel(logging.ERROR)
     logging.getLogger("fontTools").setLevel(logging.ERROR)
-except ImportError:
+except (ImportError, OSError, Exception):
     HAS_WEASYPRINT = False
 
 
@@ -158,9 +158,13 @@ def generate_cv_from_html_playwright() -> str | None:
     """
     Generate PDF from HTML CV.
     Tries: Playwright → WeasyPrint → None (caller falls back to ReportLab)
+    On Render/cloud: skip Playwright (slow/unreliable), go straight to WeasyPrint.
     """
-    # ── Try Playwright ────────────────────────────────────────────────────
-    if HAS_PLAYWRIGHT and _PLAYWRIGHT_AVAILABLE:
+    # ── On Render: skip Playwright entirely (too slow, unreliable on free plan) ──
+    is_cloud = bool(os.getenv("RENDER") or os.getenv("RAILWAY") or os.getenv("HEROKU") or os.getenv("RENDER_EXTERNAL_URL"))
+    
+    # ── Try Playwright (local only) ───────────────────────────────────────
+    if HAS_PLAYWRIGHT and _PLAYWRIGHT_AVAILABLE and not is_cloud:
         try:
             loop = asyncio.get_running_loop()
             is_async = loop.is_running()
@@ -172,7 +176,7 @@ def generate_cv_from_html_playwright() -> str | None:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(_run_playwright_sync)
                 try:
-                    result = future.result(timeout=60)
+                    result = future.result(timeout=20)
                     if result:
                         return result
                 except Exception as e:

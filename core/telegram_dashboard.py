@@ -1262,7 +1262,20 @@ class SovereignDashboard:
                 parse_mode='HTML'
             )
             try:
-                success = await asyncio.to_thread(smtp_engine.send_test_email, target)
+                success = await asyncio.wait_for(
+                    asyncio.to_thread(smtp_engine.send_test_email, target),
+                    timeout=90.0
+                )
+            except asyncio.TimeoutError:
+                logging.error(f"⏰ Quick test email timed out for {target}")
+                await status_msg.edit_text(
+                    f"⏰ <b>TEST TIMED OUT</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"📧 Target: <code>{target}</code>\n\n"
+                    f"<i>PDF generation took too long. Try again.</i>",
+                    parse_mode='HTML'
+                )
+                return
                 if success:
                     await status_msg.edit_text(
                         f"✅ <b>TEST EMAIL DELIVERED!</b>\n"
@@ -2235,7 +2248,7 @@ class SovereignDashboard:
 
             try:
                 # [👑 DIAGNOSTIC]: Check for Render-specific SMTP blocks
-                if os.getenv("RENDER") and not (os.getenv("BREVO_SMTP_PASSWORD", "")).strip():
+                if os.getenv("RENDER") and not (os.getenv("BREVO_SMTP_PASSWORD", "")).strip() and not (os.getenv("BREVO_API_KEY", "")).strip():
                     try:
                         await msg.edit_text("❌ <b>STRIKE FAILED: RENDER BLOCK</b>\nYou are on Render, but <code>BREVO_SMTP_PASSWORD</code> is not set. Render blocks standard SMTP (Port 587/465). Please add your Brevo key to bypass this.", parse_mode='HTML')
                     except Exception as e:
@@ -2243,8 +2256,27 @@ class SovereignDashboard:
                     return
 
                 # Run in thread to avoid blocking event loop during PDF generation
+                # [🛡️ TIMEOUT FIX]: Add 90s timeout so the message never stays stuck forever
                 logging.info(f"🧪 Sending test email to: {email}")
-                success = await asyncio.to_thread(smtp_engine.send_test_email, email)
+                try:
+                    success = await asyncio.wait_for(
+                        asyncio.to_thread(smtp_engine.send_test_email, email),
+                        timeout=90.0
+                    )
+                except asyncio.TimeoutError:
+                    logging.error(f"⏰ Test strike timed out after 90s for {email}")
+                    try:
+                        await msg.edit_text(
+                            f"⏰ <b>TEST STRIKE TIMED OUT</b>\n\n"
+                            f"📧 Target: <code>{email}</code>\n\n"
+                            f"The email generation took too long (>90s).\n"
+                            f"This usually means Playwright/Chromium is slow to start.\n\n"
+                            f"<i>Try again — it often works on the second attempt.</i>",
+                            parse_mode='HTML'
+                        )
+                    except Exception as edit_err:
+                        logging.warning(f"Failed to edit timeout message: {edit_err}")
+                    return
                 
                 if success:
                     # Check if it's Outlook and warn

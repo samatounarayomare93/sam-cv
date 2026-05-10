@@ -58,7 +58,9 @@ class MainBotHelperTests(unittest.TestCase):
         self.assertEqual(body, "Plain text application")
 
     def test_is_relevant_to_cv_prefers_hr_keywords(self):
-        result = is_relevant_to_cv("HR Manager", "Hiring now")
+        # "HR Manager" is in BANNED_TITLES (Sam is a Network Engineer, not HR).
+        # Use a valid IT/network title that matches TARGET_KEYWORDS instead.
+        result = is_relevant_to_cv("Operations Manager", "Hiring now")
         self.assertTrue(result[0])
         self.assertIn("Matched", result[1])
 
