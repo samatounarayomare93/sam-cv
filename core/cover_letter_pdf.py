@@ -9,6 +9,10 @@ import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Session-level flag: set to False the first time Playwright fails with a missing
+# binary so we never attempt it again (avoids spamming logs on every email).
+_CL_PLAYWRIGHT_AVAILABLE = True
+
 
 def _get_pdf_dir():
     is_cloud = (os.getenv("RENDER") or os.getenv("RAILWAY") or
@@ -262,6 +266,7 @@ def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Man
 
 def generate_cover_letter_pdf(company_name, job_title, hiring_manager="Hiring Manager"):
     """Generate cover letter PDF. Uses Playwright if available, else FPDF2."""
+    global _CL_PLAYWRIGHT_AVAILABLE
     pdf_dir = _get_pdf_dir()
     safe_company = "".join(
         c for c in company_name if c.isalnum() or c in ' _-'
@@ -269,63 +274,71 @@ def generate_cover_letter_pdf(company_name, job_title, hiring_manager="Hiring Ma
     pdf_path = os.path.join(pdf_dir, f"Cover_Letter_{safe_company}.pdf")
 
     # ── Try Playwright first (best quality, matches reference) ────────────
-    try:
-        from playwright.sync_api import sync_playwright
-        import tempfile, concurrent.futures
-
-        # Suppress WeasyPrint warnings if it gets imported later
-        logging.getLogger("weasyprint").setLevel(logging.ERROR)
-        logging.getLogger("weasyprint.css").setLevel(logging.ERROR)
-
-        html_content = _build_cover_letter_html(company_name, job_title, hiring_manager)
-
-        def _playwright_render():
-            # Write HTML to temp file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.html',
-                                             delete=False, encoding='utf-8') as tmp:
-                tmp.write(html_content)
-                tmp_path = tmp.name
-            try:
-                with sync_playwright() as p:
-                    browser = p.chromium.launch()
-                    page = browser.new_page()
-                    page.goto(f'file:///{tmp_path.replace(os.sep, "/")}')
-                    page.wait_for_load_state('networkidle')
-                    page.pdf(
-                        path=pdf_path,
-                        format='A4',
-                        print_background=True,
-                        margin={'top': '10mm', 'right': '0mm',
-                                'bottom': '10mm', 'left': '0mm'}
-                    )
-                    browser.close()
-                return pdf_path
-            finally:
-                try:
-                    os.unlink(tmp_path)
-                except Exception:
-                    pass
-
-        # Run in thread to avoid event loop conflicts
-        import asyncio
+    if _CL_PLAYWRIGHT_AVAILABLE:
         try:
-            asyncio.get_running_loop()
-            # We're in async context — use thread pool
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                result = ex.submit(_playwright_render).result(timeout=60)
-        except RuntimeError:
-            # Sync context — run directly
-            result = _playwright_render()
+            from playwright.sync_api import sync_playwright
+            import tempfile, concurrent.futures
 
-        if result and os.path.exists(result) and os.path.getsize(result) > 5000:
-            size = os.path.getsize(result)
-            logging.info(f"✅ Cover Letter PDF (Playwright): {result} ({size:,} bytes)")
-            return result
+            # Suppress WeasyPrint warnings if it gets imported later
+            logging.getLogger("weasyprint").setLevel(logging.ERROR)
+            logging.getLogger("weasyprint.css").setLevel(logging.ERROR)
 
-    except ImportError:
-        logging.debug("⏭️ Playwright not available for cover letter, using FPDF2")
-    except Exception as e:
-        logging.warning(f"⚠️ Playwright cover letter failed: {e}, falling back to FPDF2")
+            html_content = _build_cover_letter_html(company_name, job_title, hiring_manager)
+
+            def _playwright_render():
+                # Write HTML to temp file
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.html',
+                                                 delete=False, encoding='utf-8') as tmp:
+                    tmp.write(html_content)
+                    tmp_path = tmp.name
+                try:
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch()
+                        page = browser.new_page()
+                        page.goto(f'file:///{tmp_path.replace(os.sep, "/")}')
+                        page.wait_for_load_state('networkidle')
+                        page.pdf(
+                            path=pdf_path,
+                            format='A4',
+                            print_background=True,
+                            margin={'top': '10mm', 'right': '0mm',
+                                    'bottom': '10mm', 'left': '0mm'}
+                        )
+                        browser.close()
+                    return pdf_path
+                finally:
+                    try:
+                        os.unlink(tmp_path)
+                    except Exception:
+                        pass
+
+            # Run in thread to avoid event loop conflicts
+            import asyncio
+            try:
+                asyncio.get_running_loop()
+                # We're in async context — use thread pool
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                    result = ex.submit(_playwright_render).result(timeout=60)
+            except RuntimeError:
+                # Sync context — run directly
+                result = _playwright_render()
+
+            if result and os.path.exists(result) and os.path.getsize(result) > 5000:
+                size = os.path.getsize(result)
+                logging.info(f"✅ Cover Letter PDF (Playwright): {result} ({size:,} bytes)")
+                return result
+
+        except ImportError:
+            logging.debug("⏭️ Playwright not available for cover letter, using FPDF2")
+        except Exception as e:
+            err_str = str(e)
+            # If the Chromium binary is simply not installed, disable Playwright for
+            # the rest of this process so we don't spam the logs on every email.
+            if "Executable doesn't exist" in err_str or "executable doesn't exist" in err_str:
+                _CL_PLAYWRIGHT_AVAILABLE = False
+                logging.debug("⏭️ [PLAYWRIGHT] Chromium binary not found — disabling for this session, using FPDF2")
+            else:
+                logging.warning(f"⚠️ Playwright cover letter failed: {e}, falling back to FPDF2")
 
     # ── Fallback: FPDF2 ───────────────────────────────────────────────────
     try:

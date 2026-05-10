@@ -158,7 +158,7 @@ async def resource_watchdog():
                 import psutil
                 process = psutil.Process()
                 mem_mb = process.memory_info().rss / (1024 * 1024)
-                if mem_mb > 400:
+                if mem_mb > 380:
                     logging.warning(f"⚠️ [WATCHDOG] CRITICAL MEMORY: {mem_mb:.0f}MB! Emergency cleanup...")
                     gc.collect(2)
                     gc.collect()
@@ -166,7 +166,7 @@ async def resource_watchdog():
                     current_tasks = [t for t in asyncio.all_tasks() if not t.done()]
                     if len(current_tasks) > 50:
                         logging.warning(f"⚠️ [WATCHDOG] Too many tasks: {len(current_tasks)}. System may OOM.")
-                elif mem_mb > 350:
+                elif mem_mb > 320:
                     logging.warning(f"⚠️ [WATCHDOG] HIGH MEMORY: {mem_mb:.0f}MB! Cleaning...")
                     gc.collect(2)
                     gc.collect()

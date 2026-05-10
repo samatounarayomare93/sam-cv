@@ -153,7 +153,7 @@
       - key: RESEND_DAILY_LIMIT
         value: "100"
       - key: MAX_PARALLEL_STRIKES
-        value: "5"
+        value: "3"
       - key: MAX_QUALIFIED_LEADS_PER_CYCLE
         value: "100"
       - key: MAX_APPLICATIONS_PER_DAY
@@ -165,13 +165,13 @@
       - key: QUALITY_THRESHOLD
         value: "45"
       - key: BATCH_SIZE
-        value: "20"
+        value: "10"
       - key: BATCH_PROCESSING_ENABLED
         value: "true"
       - key: SCRAPE_INTERVAL_MINUTES
         value: "45"
       - key: MAX_PARALLEL_SCRAPERS
-        value: "3"
+        value: "2"
       - key: MAX_SCRAPER_PAGES
         value: "200"
       - key: SCRAPER_DELAY_MIN
@@ -205,9 +205,9 @@
       - key: MIN_AI_CONFIDENCE
         value: "65"
       - key: GC_INTERVAL
-        value: "90"
+        value: "60"
       - key: MEMORY_THRESHOLD_MB
-        value: "450"
+        value: "380"
 
       # ── Keep-Alive ─────────────────────────────────────────────────────────
       - key: KEEP_ALIVE_ENABLED

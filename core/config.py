@@ -49,7 +49,7 @@ _DEFAULTS = {
     "CANDIDATE_PROFESSION":   "Senior Network Engineer",
     "TEST_RECEIVER_EMAIL":    "samsalameh.cv@gmail.com",
     "KILL_SWITCH_ACTIVE":     "false",
-    "MAX_PARALLEL_STRIKES":   "5",
+    "MAX_PARALLEL_STRIKES":   "3",
     "MAX_QUALIFIED_LEADS_PER_CYCLE": "100",
     "MIN_MATCH_SCORE":        "45",
 }
@@ -185,7 +185,7 @@ DELAY_BETWEEN_EMAILS_MAX = 3
 MAX_EMAILS_PER_MINUTE = 20
 
 # Parallel Processing
-MAX_PARALLEL_STRIKES = 5
+MAX_PARALLEL_STRIKES = 3
 MAX_QUALIFIED_LEADS_PER_CYCLE = 100
 
 # Performance

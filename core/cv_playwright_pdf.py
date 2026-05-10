@@ -12,6 +12,10 @@ try:
 except ImportError:
     HAS_PLAYWRIGHT = False
 
+# Session-level flag: set to False the first time Playwright fails with a missing
+# binary so we never attempt it again (avoids spamming logs on every email).
+_PLAYWRIGHT_AVAILABLE = True
+
 try:
     import weasyprint
     HAS_WEASYPRINT = True
@@ -84,6 +88,9 @@ def _get_html_content_and_path():
 
 
 def _run_playwright_sync() -> str | None:
+    global _PLAYWRIGHT_AVAILABLE
+    if not _PLAYWRIGHT_AVAILABLE:
+        return None
     html_path, is_temp = _get_html_content_and_path()
     if not html_path:
         return None
@@ -104,7 +111,14 @@ def _run_playwright_sync() -> str | None:
         logging.info(f"✅ [PLAYWRIGHT] PDF generated: {pdf_path}")
         return pdf_path
     except Exception as e:
-        logging.warning(f"⚠️ [PLAYWRIGHT] Failed: {e}")
+        err_str = str(e)
+        # If the Chromium binary is simply not installed, disable Playwright for
+        # the rest of this process so we don't spam the logs on every email.
+        if "Executable doesn't exist" in err_str or "executable doesn't exist" in err_str:
+            _PLAYWRIGHT_AVAILABLE = False
+            logging.debug("⏭️ [PLAYWRIGHT] Chromium binary not found — disabling for this session, using WeasyPrint/FPDF2")
+        else:
+            logging.warning(f"⚠️ [PLAYWRIGHT] Failed: {e}")
         return None
     finally:
         if is_temp and html_path and os.path.exists(html_path):
@@ -146,7 +160,7 @@ def generate_cv_from_html_playwright() -> str | None:
     Tries: Playwright → WeasyPrint → None (caller falls back to ReportLab)
     """
     # ── Try Playwright ────────────────────────────────────────────────────
-    if HAS_PLAYWRIGHT:
+    if HAS_PLAYWRIGHT and _PLAYWRIGHT_AVAILABLE:
         try:
             loop = asyncio.get_running_loop()
             is_async = loop.is_running()
@@ -179,7 +193,7 @@ def generate_cv_from_html_playwright() -> str | None:
 
 
 async def generate_cv_from_html_playwright_async() -> str | None:
-    if not (HAS_PLAYWRIGHT or HAS_WEASYPRINT):
+    if not (HAS_PLAYWRIGHT and _PLAYWRIGHT_AVAILABLE) and not HAS_WEASYPRINT:
         return None
     try:
         result = await asyncio.to_thread(_run_playwright_sync if HAS_PLAYWRIGHT else _run_weasyprint)
