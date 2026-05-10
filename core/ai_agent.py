@@ -47,19 +47,21 @@ class OmniIntelligence:
                 if not _HAS_GENAI or genai is None:
                     raise ImportError("google-genai not installed")
                 self.client = genai.Client(api_key=self.gemini_key, http_options={'api_version': 'v1beta'})
-                # [🛡️ FIX 2026-05-07]: gemini-2.0-flash deprecated → use gemini-2.5-flash (latest stable)
-                self.model_id = 'gemini-2.5-flash'
-                logging.info("PRIMARY INTELLIGENCE: Gemini 2.5 Flash Online (genai-SDK).")
+                # Try gemini-2.0-flash first (lower quota usage), fall back to 2.5-flash
+                self.model_id = 'gemini-2.0-flash'
+                logging.info("PRIMARY INTELLIGENCE: Gemini 2.0 Flash Online (genai-SDK).")
             except Exception as e:
                 import traceback
                 error_detail = traceback.format_exc()
                 logging.error(f"GEMINI ACTIVATION FAILURE: {e}\n{error_detail}")
                 self.primary_engine = None
-        else:
+
+        # If Gemini unavailable, use Groq as primary
+        if self.primary_engine is None and self.groq_key:
+            self.primary_engine = "groq"
+            logging.info("PRIMARY INTELLIGENCE: Groq llama-3.3-70b-versatile (Gemini unavailable).")
+        elif self.primary_engine is None:
             logging.info("🛰️ SOVEREIGN PROTOCOL: Apex-Static Engine Initialized.")
-        
-        if self.groq_key:
-            logging.info("GROQ FALLBACK: Available and armed.")
     
     async def _get_session(self) -> httpx.AsyncClient:
         """[👑 FIX] Direct session for AI API calls. Groq/Gemini are globally accessible from Render.
@@ -358,7 +360,15 @@ class OmniIntelligence:
         """
         
         try:
-            # 1. Primary Engine Attempt (Gemini)
+            # 1. Primary Engine Attempt (Gemini or Groq)
+            if self.primary_engine == "groq":
+                # Groq is primary (Gemini unavailable/quota exceeded)
+                try:
+                    return await self._fallback_groq(system_prompt, job_title, news_headline, company_values, competitor_fail, internal_lingo, executive_names, peer_inspiration)
+                except Exception as e:
+                    logging.warning(f"⚠️ Groq primary failed: {e}. Using static fallback.")
+                    return self._apex_static_fallback(job_title, news_headline, executive_names, location=location)
+
             if self.primary_engine == "gemini":
                 try:
                     response = await self.client.aio.models.generate_content(
@@ -375,9 +385,9 @@ class OmniIntelligence:
                         logging.warning(f"⚠️ Gemini permission error: {err_str[:120]}. Falling back to Groq.")
                         self.primary_engine = None
                     elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
-                        logging.warning(f"⚠️ Gemini quota exhausted (429). Using static fallback to save tokens.")
-                        # Both AI providers are rate-limited — use static fallback immediately
-                        return self._apex_static_fallback(job_title, news_headline, executive_names, location=location)
+                        logging.warning(f"⚠️ Gemini quota exhausted. Switching to Groq as primary for this session.")
+                        self.primary_engine = "groq" if self.groq_key else None
+                        # Fall through to Groq below
                     else:
                         logging.error(f"⚡ Gemini failure: {err_str[:120]}. Falling back to Groq.")
                     # Fall through to Groq below
