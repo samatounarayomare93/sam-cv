@@ -1268,15 +1268,27 @@ class SovereignDashboard:
                 )
             except asyncio.TimeoutError:
                 logging.error(f"⏰ Quick test email timed out for {target}")
-                await status_msg.edit_text(
-                    f"⏰ <b>TEST TIMED OUT</b>\n"
-                    f"━━━━━━━━━━━━━━━\n"
-                    f"📧 Target: <code>{target}</code>\n\n"
-                    f"<i>PDF generation took too long. Try again.</i>",
-                    parse_mode='HTML'
-                )
+                try:
+                    await status_msg.edit_text(
+                        f"⏰ <b>TEST TIMED OUT</b>\n"
+                        f"━━━━━━━━━━━━━━━\n"
+                        f"📧 Target: <code>{target}</code>\n\n"
+                        f"<i>PDF generation took too long. Try again.</i>",
+                        parse_mode='HTML'
+                    )
+                except Exception:
+                    await msg.reply_text(f"⏰ <b>TEST TIMED OUT</b> — Try again.", parse_mode='HTML')
                 return
-                if success:
+            except Exception as e:
+                logging.error(f"Quick test email error: {e}")
+                try:
+                    await status_msg.edit_text(f"💥 <b>ERROR:</b> <code>{str(e)[:200]}</code>", parse_mode='HTML')
+                except Exception:
+                    await msg.reply_text(f"💥 <b>ERROR:</b> <code>{str(e)[:200]}</code>", parse_mode='HTML')
+                return
+
+            if success:
+                try:
                     await status_msg.edit_text(
                         f"✅ <b>TEST EMAIL DELIVERED!</b>\n"
                         f"━━━━━━━━━━━━━━━\n"
@@ -1286,7 +1298,13 @@ class SovereignDashboard:
                         f"Should arrive within 30 seconds.</i>",
                         parse_mode='HTML'
                     )
-                else:
+                except Exception:
+                    await msg.reply_text(
+                        f"✅ <b>TEST EMAIL DELIVERED!</b>\n📧 Sent to: <code>{target}</code>",
+                        parse_mode='HTML'
+                    )
+            else:
+                try:
                     await status_msg.edit_text(
                         f"❌ <b>TEST EMAIL FAILED</b>\n"
                         f"━━━━━━━━━━━━━━━\n"
@@ -1294,9 +1312,11 @@ class SovereignDashboard:
                         f"<i>Check /logs for details. Brevo or Gmail may be down.</i>",
                         parse_mode='HTML'
                     )
-            except Exception as e:
-                logging.error(f"Quick test email error: {e}")
-                await status_msg.edit_text(f"💥 <b>ERROR:</b> <code>{str(e)[:200]}</code>", parse_mode='HTML')
+                except Exception:
+                    await msg.reply_text(
+                        f"❌ <b>TEST EMAIL FAILED</b> — Check /logs for details.",
+                        parse_mode='HTML'
+                    )
 
         elif key == "today_report":
             try:
@@ -2313,6 +2333,11 @@ class SovereignDashboard:
                         await msg.edit_text(success_msg, parse_mode='HTML')
                     except Exception as e:
                         logging.warning(f"Failed to edit message: {e}")
+                        # Fallback: send a new message so user always gets the result
+                        try:
+                            await update.message.reply_text(success_msg, parse_mode='HTML')
+                        except Exception as reply_err:
+                            logging.error(f"Failed to send success reply: {reply_err}")
                 else:
                     # Get more details about the failure
                     zoho_configured = bool(os.getenv("ZOHO_SMTP_USER") and os.getenv("ZOHO_APP_PASSWORD"))
@@ -2340,12 +2365,21 @@ class SovereignDashboard:
                         await msg.edit_text(error_msg, parse_mode='HTML')
                     except Exception as e:
                         logging.warning(f"Failed to edit message: {e}")
+                        # Fallback: send a new message so user always gets the result
+                        try:
+                            await update.message.reply_text(error_msg, parse_mode='HTML')
+                        except Exception as reply_err:
+                            logging.error(f"Failed to send error reply: {reply_err}")
             except Exception as e:
                 logging.error(f"💥 Test strike error: {e}")
                 try:
                     await msg.edit_text(f"💥 <b>INTERNAL ERROR:</b>\n<code>{str(e)[:200]}</code>", parse_mode='HTML')
                 except Exception as edit_err:
                     logging.warning(f"Failed to edit message: {edit_err}")
+                    try:
+                        await update.message.reply_text(f"💥 <b>INTERNAL ERROR:</b>\n<code>{str(e)[:200]}</code>", parse_mode='HTML')
+                    except Exception as reply_err:
+                        logging.error(f"Failed to send error reply: {reply_err}")
             return
 
         if user_text.startswith('/'): return
