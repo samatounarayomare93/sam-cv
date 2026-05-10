@@ -34,19 +34,29 @@ PROVIDER_LIMITS = {
 # brevo(300) + zoho_1(500) + zoho_2(500) + outlook(300) + gmail(500) + resend(100) = 2200
 
 USAGE_FILE = Path("cache/email_usage.json")
-USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+def _ensure_cache_dir():
+    """Create cache dir safely — works on both local and Render."""
+    try:
+        # On Render, /tmp is writable; local 'cache/' is fine too
+        cache_dir = Path("/tmp/cache") if os.getenv("RENDER") else Path("cache")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return cache_dir / "email_usage.json"
+    except Exception:
+        return Path("/tmp/email_usage.json")
 
 
 class EmailRotator:
     def __init__(self):
+        self.usage_file = _ensure_cache_dir()
         self.usage = self._load_usage()
         self.providers = self._get_available_providers()
         self._cleanup_old_usage()
 
     def _load_usage(self) -> Dict:
         try:
-            if USAGE_FILE.exists():
-                with open(USAGE_FILE, 'r') as f:
+            if self.usage_file.exists():
+                with open(self.usage_file, 'r') as f:
                     data = json.load(f)
                 if data.get("date") == datetime.now().strftime("%Y-%m-%d"):
                     return data.get("usage", {})
@@ -61,7 +71,7 @@ class EmailRotator:
                 "usage": self.usage,
                 "last_updated": datetime.now().isoformat()
             }
-            with open(USAGE_FILE, 'w') as f:
+            with open(self.usage_file, 'w') as f:
                 json.dump(data, f, indent=2)
         except Exception:
             pass
@@ -186,6 +196,27 @@ class EmailRotator:
 
     def can_send_more(self) -> bool:
         return self.get_next_provider() is not None
+
+    def get_current_provider(self) -> str:
+        """Return the display name of the next available provider (used by /status)."""
+        provider = self.get_next_provider()
+        return provider["display_name"] if provider else "None (exhausted)"
+
+    def get_provider_stats(self) -> Dict:
+        """Return per-provider stats dict compatible with /audit command."""
+        today = datetime.now().strftime("%Y-%m-%d")
+        result = {}
+        for provider in self.providers:
+            name = provider["name"]
+            limit = provider["limit"]
+            used = self.usage.get(name, {}).get("count", 0)
+            result[provider["display_name"]] = {
+                "sent_today": used,
+                "daily_limit": limit,
+                "available": used < limit,
+                "remaining": limit - used,
+            }
+        return result
 
     def get_total_daily_limit(self) -> int:
         return sum(p["limit"] for p in self.providers)

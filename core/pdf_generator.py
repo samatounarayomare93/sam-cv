@@ -36,6 +36,9 @@ def _find_sovereign_font(style='regular'):
         os.getenv("CHRONOS_FONT_PATH"), 
         "C:/Windows/Fonts/", 
         "/usr/share/fonts/truetype/dejavu/",
+        "/usr/share/fonts/truetype/liberation/",
+        "/usr/share/fonts/truetype/freefont/",
+        "/usr/share/fonts/",
         "/System/Library/Fonts/Supplemental/"
     ]
     

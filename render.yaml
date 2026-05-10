@@ -4,7 +4,7 @@
     runtime: python
     region: frankfurt
     plan: free
-    buildCommand: pip install -r requirements.txt && playwright install chromium --with-deps || pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && (playwright install chromium --with-deps || echo "Playwright install failed - using FPDF fallback")
     startCommand: python run.py
     envVars:
       # ── Core Database ──────────────────────────────────────────────────────
