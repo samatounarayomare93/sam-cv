@@ -1309,59 +1309,68 @@ class SovereignDashboard:
     def _get_sovereign_keyboards(self):
         """[👑 APEX UI]: Generates the unified Sovereign Tileset and Command Center."""
         from telegram import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-        
+
         reply_keyboard = [
-            # ── Monitoring ──────────────────────────────────────────────────
-            [KeyboardButton("🖥️ Status | الحالة"),             KeyboardButton("📊 Stats | الإحصائيات")],
-            [KeyboardButton("📈 Today Report | تقرير اليوم"),   KeyboardButton("📅 Weekly Report | تقرير أسبوعي")],
-            [KeyboardButton("🗓️ Monthly Report | تقرير شهري"),  KeyboardButton("🏆 Best Day | أفضل يوم")],
-            [KeyboardButton("📧 Email Stats | إحصاء الإيميل"),  KeyboardButton("📉 Failure Rate | نسبة الفشل")],
-            [KeyboardButton("📊 Provider Health | صحة المزودين"), KeyboardButton("⚡ Speed Test | اختبار السرعة")],
-            [KeyboardButton("🗂️ Queue | الطابور"),              KeyboardButton("📜 Logs | السجلات")],
-            [KeyboardButton("🌡️ Memory | الذاكرة"),             KeyboardButton("⏱️ Uptime | وقت التشغيل")],
-            [KeyboardButton("🧠 AI Status | حالة الذكاء"),      KeyboardButton("📬 Inbox Check | فحص الردود")],
-            [KeyboardButton("🔔 Notify Me | أخبرني"),           KeyboardButton("📡 Ping Render | اختبار الخادم")],
-            [KeyboardButton("🔑 Env Check | فحص المتغيرات"),    KeyboardButton("🌍 Countries | الدول")],
-            [KeyboardButton("💼 Job Titles | المسميات"),        KeyboardButton("🗑️ Clear Queue | مسح الطابور")],
-            # ── Leads & Tasks ────────────────────────────────────────────────
-            [KeyboardButton("📋 Leads | الفرص"),                KeyboardButton("🧬 Tasks | المهام")],
-            [KeyboardButton("🏢 Companies | الشركات"),          KeyboardButton("🛰️ Track | التتبع")],
-            [KeyboardButton("📊 Top Companies | أفضل شركات"),   KeyboardButton("⛔ Blacklist | القائمة السوداء")],
-            [KeyboardButton("🌍 Scrape Now | اسكان فوري"),      KeyboardButton("🔁 Retry Failed | إعادة الفاشلين")],
-            [KeyboardButton("🔎 Find Emails | ابحث عن إيميلات"), KeyboardButton("📌 Pin Lead | تثبيت")],
-            [KeyboardButton("🚫 Skip Lead | تخطي"),             KeyboardButton("🎪 Mass Strike | ضربة جماعية")],
-            # ── System Health ────────────────────────────────────────────────
-            [KeyboardButton("🛡️ Shield | الدرع"),               KeyboardButton("📜 Pulse | النبض")],
-            [KeyboardButton("🔍 Audit | مراجعة"),               KeyboardButton("💪 Synapse | قوة")],
-            [KeyboardButton("🧹 Clean Disk | تنظيف"),           KeyboardButton("💾 Backup | نسخة احتياطية")],
-            # ── Controls ────────────────────────────────────────────────────
-            [KeyboardButton("🚀 Run Now | شغّل"),               KeyboardButton("🔧 Fix | إصلاح")],
-            [KeyboardButton("🎯 Force Strike | ضربة فورية"),    KeyboardButton("📨 Follow-ups | متابعات")],
-            [KeyboardButton("🔥 Boost Mode | وضع تسريع"),       KeyboardButton("🌙 Night Mode | وضع الليل")],
-            [KeyboardButton("🧪 Dry Run | تجربة بدون إرسال"),   KeyboardButton("⏸️ Pause | إيقاف مؤقت")],
-            [KeyboardButton("▶️ Resume | استئناف"),             KeyboardButton("🔄 Reboot | إعادة تشغيل")],
-            [KeyboardButton("⚙️ Settings | الإعدادات"),         KeyboardButton("🛑 Omega Halt | التوقف التام")],
-            [KeyboardButton("💀 Kill Switch | إيقاف كامل"),     KeyboardButton("📖 Guide | الدليل")],
-            # ── Tools ───────────────────────────────────────────────────────
-            [KeyboardButton("🎓 Prep | التحضير"),               KeyboardButton("📝 CV Preview | معاينة السيرة")],
-            [KeyboardButton("✉️ Cover Letter | رسالة التغطية"),  KeyboardButton("📧 Test Email | تجربة إيميل")],
-            [KeyboardButton("🧪 Test Strike | تجربة ضربة"),     KeyboardButton("🔮 Oracle | أوراكل")],
-            # ── New Features ─────────────────────────────────────────────────
-            [KeyboardButton("🛰️ Track | التتبع المباشر"),       KeyboardButton("🔮 Oracle | أوراكل السوق")],
-            [KeyboardButton("🌐 Platforms | المواقع"),           KeyboardButton("📊 Campaign | الحملة")],
+            # ── 📊 Monitoring (10 buttons) ──────────────────────────────────
+            [KeyboardButton("🖥️ Status | الحالة"),              KeyboardButton("📊 Stats | الإحصائيات")],
+            [KeyboardButton("📈 Today Report | تقرير اليوم"),    KeyboardButton("📅 Weekly Report | أسبوعي")],
+            [KeyboardButton("🗓️ Monthly Report | شهري"),         KeyboardButton("🏆 Best Day | أفضل يوم")],
+            [KeyboardButton("📧 Email Stats | إحصاء الإيميل"),   KeyboardButton("📉 Failure Rate | نسبة الفشل")],
+            [KeyboardButton("📊 Provider Health | صحة المزودين"),KeyboardButton("⚡ Speed Test | اختبار السرعة")],
+            # ── 🔍 System Info (10 buttons) ─────────────────────────────────
+            [KeyboardButton("🗂️ Queue | الطابور"),               KeyboardButton("📜 Logs | السجلات")],
+            [KeyboardButton("🌡️ Memory | الذاكرة"),              KeyboardButton("⏱️ Uptime | وقت التشغيل")],
+            [KeyboardButton("🧠 AI Status | حالة الذكاء"),       KeyboardButton("📬 Inbox Check | فحص الردود")],
+            [KeyboardButton("🔔 Notify Me | أخبرني"),            KeyboardButton("📡 Ping Render | اختبار الخادم")],
+            [KeyboardButton("🔑 Env Check | فحص المتغيرات"),     KeyboardButton("🌐 Platforms | المواقع")],
+            # ── 🎯 Leads & Jobs (10 buttons) ────────────────────────────────
+            [KeyboardButton("📋 Leads | الفرص"),                 KeyboardButton("🧬 Tasks | المهام")],
+            [KeyboardButton("🏢 Companies | الشركات"),           KeyboardButton("🛰️ Track | التتبع المباشر")],
+            [KeyboardButton("📊 Top Companies | أفضل شركات"),    KeyboardButton("🌍 Countries | الدول")],
+            [KeyboardButton("💼 Job Titles | المسميات"),         KeyboardButton("🔮 Oracle | أوراكل السوق")],
+            [KeyboardButton("📊 Campaign | الحملة"),             KeyboardButton("📨 Follow-ups | متابعات")],
+            # ── ⚡ Actions (10 buttons) ──────────────────────────────────────
+            [KeyboardButton("🌍 Scrape Now | اسكان فوري"),       KeyboardButton("🎯 Force Strike | ضربة فورية")],
+            [KeyboardButton("🎪 Mass Strike | ضربة جماعية"),     KeyboardButton("🔁 Retry Failed | إعادة الفاشلين")],
+            [KeyboardButton("🔎 Find Emails | ابحث عن إيميلات"), KeyboardButton("📌 Pin Lead | تثبيت أولوية")],
+            [KeyboardButton("🚫 Skip Lead | تخطي"),              KeyboardButton("⛔ Blacklist | القائمة السوداء")],
+            [KeyboardButton("🚀 Run Now | شغّل"),                KeyboardButton("🔧 Fix | إصلاح")],
+            # ── 🛡️ System Health (10 buttons) ───────────────────────────────
+            [KeyboardButton("🛡️ Shield | الدرع"),                KeyboardButton("📜 Pulse | النبض")],
+            [KeyboardButton("🔍 Audit | مراجعة"),                KeyboardButton("💪 Synapse | قوة")],
+            [KeyboardButton("🧹 Clean Disk | تنظيف"),            KeyboardButton("💾 Backup | نسخة احتياطية")],
+            [KeyboardButton("🔄 Reboot | إعادة تشغيل"),          KeyboardButton("⚙️ Settings | الإعدادات")],
+            [KeyboardButton("🗑️ Clear Queue | مسح الطابور"),     KeyboardButton("🔥 Boost Mode | وضع تسريع")],
+            # ── 🎮 Controls (10 buttons) ─────────────────────────────────────
+            [KeyboardButton("⏸️ Pause | إيقاف مؤقت"),           KeyboardButton("▶️ Resume | استئناف")],
+            [KeyboardButton("🌙 Night Mode | وضع الليل"),        KeyboardButton("🧪 Dry Run | تجربة آمنة")],
+            [KeyboardButton("🛑 Omega Halt | التوقف التام"),     KeyboardButton("💀 Kill Switch | إيقاف كامل")],
+            [KeyboardButton("📖 Guide | الدليل"),                KeyboardButton("🔮 Oracle | أوراكل")],
+            [KeyboardButton("🌙 Night | الليل"),                 KeyboardButton("🔥 Boost | تسريع")],
+            # ── 🔑 API & Keys (10 buttons) ───────────────────────────────────
             [KeyboardButton("🔑 API Keys | مفاتيح API"),         KeyboardButton("🧠 AI Check | فحص الذكاء")],
-            [KeyboardButton("✏️ Set Key | تغيير مفتاح"),         KeyboardButton("🧪 Test Key | اختبار مفتاح")],
-            [KeyboardButton("📌 Pin Lead | تثبيت أولوية"),       KeyboardButton("🔎 Find Emails | بحث إيميلات")],
-            [KeyboardButton("🌍 Countries | الدول المستهدفة"),   KeyboardButton("💼 Job Titles | المسميات الوظيفية")],
+            [KeyboardButton("✏️ Set Key | تغيير مفتاح"),          KeyboardButton("🧪 Test Key | اختبار مفتاح")],
+            [KeyboardButton("🔑 Env | المتغيرات"),               KeyboardButton("📡 Ping | اختبار الخادم")],
+            [KeyboardButton("⚡ Speed | سرعة الإرسال"),          KeyboardButton("📉 Failure | نسبة الفشل")],
             [KeyboardButton("📅 Weekly | أسبوعي"),               KeyboardButton("🗓️ Monthly | شهري")],
-            [KeyboardButton("🏆 Best Day | أفضل يوم"),           KeyboardButton("📉 Failure | نسبة الفشل")],
-            [KeyboardButton("⚡ Speed | سرعة الإرسال"),          KeyboardButton("📡 Ping | اختبار الخادم")],
-            [KeyboardButton("🔑 Env | المتغيرات"),               KeyboardButton("🧹 Clean | تنظيف الذاكرة")],
-            [KeyboardButton("🔥 Boost | تسريع"),                 KeyboardButton("🌙 Night | وضع الليل")],
-            [KeyboardButton("🧪 Dry Run | تجربة آمنة"),          KeyboardButton("🔁 Retry | إعادة الفاشلين")],
-            [KeyboardButton("⛔ Blacklist | القائمة السوداء"),   KeyboardButton("🔔 Notify | الإشعارات")],
-            [KeyboardButton("📬 Inbox | فحص الردود"),            KeyboardButton("🎪 Mass Strike | ضربة جماعية")],
-            [KeyboardButton("💾 Backup | نسخة احتياطية"),        KeyboardButton("🔄 Reboot | إعادة تشغيل")],
+            # ── 🛠️ Tools (10 buttons) ────────────────────────────────────────
+            [KeyboardButton("🎓 Prep | التحضير"),                KeyboardButton("📝 CV Preview | معاينة السيرة")],
+            [KeyboardButton("✉️ Cover Letter | رسالة التغطية"),   KeyboardButton("📧 Test Email | تجربة إيميل")],
+            [KeyboardButton("🧪 Test Strike | تجربة ضربة"),      KeyboardButton("🔔 Notify | الإشعارات")],
+            [KeyboardButton("📬 Inbox | فحص الردود"),            KeyboardButton("🔁 Retry | إعادة الفاشلين")],
+            [KeyboardButton("⛔ Blacklist | السوداء"),            KeyboardButton("📌 Pin Lead | تثبيت")],
+            # ── 📊 Reports (10 buttons) ──────────────────────────────────────
+            [KeyboardButton("🏆 Best Day | أفضل يوم"),           KeyboardButton("📊 Campaign | الحملة")],
+            [KeyboardButton("🌍 Countries | الدول المستهدفة"),   KeyboardButton("💼 Job Titles | المسميات الوظيفية")],
+            [KeyboardButton("🔎 Find Emails | بحث إيميلات"),     KeyboardButton("🚫 Skip Lead | تخطي")],
+            [KeyboardButton("🧹 Clean | تنظيف الذاكرة"),         KeyboardButton("💾 Backup | نسخة احتياطية")],
+            [KeyboardButton("🌐 Platforms | المواقع"),            KeyboardButton("🛰️ Track | التتبع")],
+            # ── 🎯 Extra (10 buttons) ────────────────────────────────────────
+            [KeyboardButton("📊 Top Companies | أفضل شركات"),    KeyboardButton("🔁 Retry | إعادة")],
+            [KeyboardButton("🎪 Mass Strike | جماعية"),          KeyboardButton("🎯 Force Strike | فورية")],
+            [KeyboardButton("🔥 Boost | تسريع"),                 KeyboardButton("🌙 Night | الليل")],
+            [KeyboardButton("🧪 Dry Run | آمنة"),                KeyboardButton("⏸️ Pause | وقف")],
+            [KeyboardButton("▶️ Resume | كمّل"),                 KeyboardButton("🔄 Reboot | إعادة")],
         ]
         reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
 
