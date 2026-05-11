@@ -18,11 +18,15 @@ def check_bot_health():
     print(f"⏰ Check Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
     
-    # Try both possible URLs
-    urls = [
+    # Try all possible URLs — active service first
+    import os as _os
+    active_url = _os.getenv("RENDER_EXTERNAL_URL", "https://sam-bot-v2.onrender.com")
+    urls = list(dict.fromkeys([
+        active_url,
+        "https://sam-bot-v2.onrender.com",
         "https://sam-job-automator.onrender.com",
         "https://sam-cv-bot.onrender.com"
-    ]
+    ]))
     
     for url in urls:
         print(f"🔍 Checking: {url}")
