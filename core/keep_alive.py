@@ -117,36 +117,33 @@ def _run_server():
 def _self_ping_loop():
     """[IMMORTALITY]: Background loop that pings the external URL to prevent sleep."""
     url = os.environ.get("RENDER_EXTERNAL_URL")
-    if not url:
-        # Fallback to the standard project URL if env var is missing
-        url = "https://sam-job-automator.onrender.com"
-    
+    if not url or not url.startswith("https://"):
+        # Use the active service URL
+        url = "https://sam-bot-v2.onrender.com"
+
     logging.info(f"🛰️ [SELF-PING] Target: {url}")
     logging.info(f"🛡️ [IMMORTALITY] Bot will run FOREVER. Self-ping every 10 minutes.")
-    
-    # Wait for the server to start before first ping
+
     time.sleep(60)
-    
+
     ping_count = 0
     fail_count = 0
-    backoff = 600  # Start at 10 minutes
+    backoff = 600
     start_time = time.time()
-    
+
     while True:
         try:
-            r = requests.get(url, timeout=10)
+            r = requests.get(url, timeout=15)
             ping_count += 1
             fail_count = 0
-            backoff = 600  # Reset on success
+            backoff = 600
             uptime_hours = (time.time() - start_time) / 3600
-            logging.info(f"💓 [HEARTBEAT #{ping_count}] Cloud Instance is alive. Status: {r.status_code} | Uptime: {uptime_hours:.1f}h")
+            logging.info(f"💓 [HEARTBEAT #{ping_count}] Status: {r.status_code} | Uptime: {uptime_hours:.1f}h")
         except Exception as e:
             fail_count += 1
-            backoff = min(backoff * 2, 3600)  # Exponential backoff, max 1h
-            logging.warning(f"⚠️ [HEARTBEAT] Ping failed ({fail_count} consecutive): {e}")
-            if fail_count > 10:
-                logging.error(f"❌ [HEARTBEAT] {fail_count} consecutive failures — service may be down")
-        
+            backoff = min(backoff * 2, 1800)
+            logging.warning(f"⚠️ [HEARTBEAT] Ping failed ({fail_count}): {e}")
+
         time.sleep(backoff)
 
 def run_keep_alive_server():

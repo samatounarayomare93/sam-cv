@@ -396,13 +396,16 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # On free plan without custom domain: use onboarding@resend.dev as FROM.
     # This works for ANY recipient.
     # ============================================================
-    resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
+    brevo_api_key = os.getenv("BREVO_API_KEY", "").strip()
     resend_from_email = os.getenv("RESEND_FROM_EMAIL", "").strip()
     _FREE_DOMAINS = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
     _resend_domain = resend_from_email.split('@')[-1].lower() if '@' in resend_from_email else ''
     _resend_domain_ok = resend_from_email and _resend_domain not in _FREE_DOMAINS
 
-    if resend_api_key:  # ← FIX: try Resend even with free-domain FROM (uses onboarding@resend.dev)
+    # Skip Brevo entirely if API key is disabled/invalid (saves time)
+    _brevo_enabled = bool(brevo_api_key) and not getattr(send_email, '_brevo_disabled', False)
+
+    if resend_api_key:  # ← try Resend even with free-domain FROM (uses onboarding@resend.dev)
         try:
             import resend as resend_lib
             resend_lib.api_key = resend_api_key
@@ -547,7 +550,9 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         brevo_api_r = os.getenv("BREVO_API_KEY", "").strip()
         if not brevo_api_r:
             brevo_api_r = "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"
-        if brevo_api_r:
+        # Skip Brevo if known to be disabled
+        _brevo_skip = getattr(send_email, '_brevo_disabled', False)
+        if brevo_api_r and not _brevo_skip:
             try:
                 logging.info("📧 [RENDER-STEP0] Brevo HTTP API (300/day)...")
                 if send_email_via_brevo_http(to_email, company_name, job_title, custom_body,
@@ -1300,6 +1305,11 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
             logging.info(f"✅ [BREVO] Accepted! Status: {response.status_code}")
             return True
         else:
+            # Disable Brevo for this session if API key is invalid/disabled
+            if response.status_code == 401:
+                logging.warning("⚠️ [BREVO] API key disabled — skipping Brevo for this session")
+                send_email_via_brevo_http._disabled = True
+                return False
             # [🛡️ SMART RECOVERY]: If unauthorized sender, try account email immediately
             if response.status_code == 400 and "unauthorized" in response.text.lower() and sender_email != brevo_account:
                 logging.warning(f"⚠️ [BREVO] Sender {sender_email} unauthorized. Retrying with account owner {brevo_account}...")

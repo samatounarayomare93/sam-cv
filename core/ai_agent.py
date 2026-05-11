@@ -799,41 +799,51 @@ class OmniIntelligence:
         # ── 3. OPENROUTER (free models: meta-llama, mistral, etc.) ───────────
         openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
         if openrouter_key:
-            # Free models on OpenRouter (no credits needed)
+            # Current free models on OpenRouter (updated May 2026)
             free_models = [
-                "meta-llama/llama-3.1-8b-instruct:free",
-                "mistralai/mistral-7b-instruct:free",
-                "google/gemma-2-9b-it:free",
+                "openrouter/free",                              # Auto-selects best free model
+                "google/gemma-4-26b-a4b-it:free",              # Google Gemma 4 (fast)
+                "qwen/qwen3-next-80b-a3b-instruct:free",       # Qwen3 (smart)
+                "nvidia/nemotron-3-nano-30b-a3b:free",         # Nvidia (reliable)
+                "liquid/lfm-2.5-1.2b-instruct:free",           # Liquid (lightweight)
             ]
             for model in free_models:
                 try:
-                    logging.info(f"🔄 [AI] Trying OpenRouter ({model.split('/')[1][:20]})...")
+                    short_name = model.split('/')[1][:25] if '/' in model else model[:25]
+                    logging.info(f"🔄 [AI] Trying OpenRouter ({short_name})...")
                     response = await session.post(
                         "https://openrouter.ai/api/v1/chat/completions",
                         headers={"Authorization": f"Bearer {openrouter_key}",
                                  "Content-Type": "application/json",
-                                 "HTTP-Referer": "https://sam-job-automator.onrender.com",
+                                 "HTTP-Referer": "https://sam-bot-v2.onrender.com",
                                  "X-Title": "Sam Job Automator"},
                         json={"model": model,
                               "messages": [{"role": "user", "content": prompt[:8000]}],
-                              "temperature": 0.3}
+                              "temperature": 0.3,
+                              "max_tokens": 2000}
                     )
                     if response.status_code == 200:
-                        content = response.json()['choices'][0]['message']['content']
-                        # OpenRouter free models don't support JSON mode — extract manually
+                        resp_data = response.json()
+                        content = resp_data.get('choices', [{}])[0].get('message', {}).get('content', '')
+                        if not content:
+                            continue
                         try:
-                            # Try direct JSON parse
                             return _parse_response(content)
                         except Exception:
-                            # Extract JSON from text
                             match = re.search(r'\{.*\}', content, re.DOTALL)
                             if match:
-                                return _parse_response(match.group())
-                        logging.warning(f"⚠️ [AI] OpenRouter {model}: could not parse JSON")
+                                try:
+                                    return _parse_response(match.group())
+                                except Exception:
+                                    pass
+                        logging.warning(f"⚠️ [AI] OpenRouter {short_name}: could not parse JSON")
+                    elif response.status_code in (404, 429):
+                        logging.warning(f"⚠️ [AI] OpenRouter {short_name}: HTTP {response.status_code}, trying next")
+                        continue
                     else:
-                        logging.warning(f"⚠️ [AI] OpenRouter {model}: HTTP {response.status_code}")
+                        logging.warning(f"⚠️ [AI] OpenRouter {short_name}: HTTP {response.status_code}")
                 except Exception as e:
-                    logging.warning(f"⚠️ [AI] OpenRouter {model}: {e}")
+                    logging.warning(f"⚠️ [AI] OpenRouter error: {str(e)[:60]}")
                     continue
 
         # ── 4. TOGETHER AI (free tier: 60 req/min) ───────────────────────────
@@ -865,29 +875,44 @@ class OmniIntelligence:
         # ── 5. HUGGING FACE (free inference API) ─────────────────────────────
         hf_key = os.getenv("HUGGINGFACE_API_KEY", "")
         if hf_key:
-            try:
-                logging.info("🔄 [AI] Trying HuggingFace...")
-                # Use a simple prompt for HF (no JSON mode)
-                simple_prompt = f"Analyze this job and return JSON with is_relevant(bool), lead_score(0-100), cover_letter_body(string): {prompt[:3000]}"
-                response = await session.post(
-                    "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
-                    headers={"Authorization": f"Bearer {hf_key}", "Content-Type": "application/json"},
-                    json={"inputs": simple_prompt, "parameters": {"max_new_tokens": 1000, "temperature": 0.3}}
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    content = data[0].get("generated_text", "") if isinstance(data, list) else str(data)
-                    match = re.search(r'\{.*\}', content, re.DOTALL)
-                    if match:
-                        try:
-                            return _parse_response(match.group())
-                        except Exception:
-                            pass
-                    logging.warning("⚠️ [AI] HuggingFace: could not parse response")
-                else:
-                    logging.warning(f"⚠️ [AI] HuggingFace HTTP {response.status_code}")
-            except Exception as e:
-                logging.warning(f"⚠️ [AI] HuggingFace error: {e}")
+            # Try multiple HF models (some may be loading/unavailable)
+            hf_models = [
+                "mistralai/Mistral-7B-Instruct-v0.2",
+                "HuggingFaceH4/zephyr-7b-beta",
+                "microsoft/DialoGPT-medium",
+            ]
+            for hf_model in hf_models:
+                try:
+                    logging.info(f"🔄 [AI] Trying HuggingFace ({hf_model.split('/')[-1][:20]})...")
+                    simple_prompt = f"Analyze this job for a Senior Network Engineer and return JSON with is_relevant(bool), lead_score(0-100), cover_letter_body(string). Job: {prompt[:2000]}"
+                    response = await session.post(
+                        f"https://api-inference.huggingface.co/models/{hf_model}",
+                        headers={"Authorization": f"Bearer {hf_key}", "Content-Type": "application/json"},
+                        json={"inputs": simple_prompt, "parameters": {"max_new_tokens": 800, "temperature": 0.3, "return_full_text": False}}
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        if isinstance(data, list) and data:
+                            content = data[0].get("generated_text", "")
+                        elif isinstance(data, dict):
+                            content = data.get("generated_text", str(data))
+                        else:
+                            content = str(data)
+                        match = re.search(r'\{.*\}', content, re.DOTALL)
+                        if match:
+                            try:
+                                return _parse_response(match.group())
+                            except Exception:
+                                pass
+                        logging.warning(f"⚠️ [AI] HuggingFace {hf_model}: could not parse response")
+                    elif response.status_code == 503:
+                        logging.warning(f"⚠️ [AI] HuggingFace {hf_model}: model loading, trying next")
+                        continue
+                    else:
+                        logging.warning(f"⚠️ [AI] HuggingFace {hf_model}: HTTP {response.status_code}")
+                except Exception as e:
+                    logging.warning(f"⚠️ [AI] HuggingFace error: {str(e)[:60]}")
+                    continue
 
         # ── 6. Static fallback (always works) ────────────────────────────────
         logging.warning("⚠️ [AI] All providers failed — using static fallback")
