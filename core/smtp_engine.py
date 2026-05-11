@@ -153,79 +153,66 @@ def _get_available_providers():
     return providers
 
 def send_test_email(recipient_email=None, attachment_paths=None, highlights=None):
-    """[👑 OMEGA] Sends a premium visual verification strike.
-    
-    FIX: On Render, PDF generation can timeout. Strategy:
-    1. First try to send WITHOUT attachments (fast, always works)
-    2. Then try to add PDFs if generation succeeds within 20s
+    """[👑 OMEGA] Sends a test email.
+
+    On Render (cloud): sends immediately WITHOUT PDF attachments to avoid OOM.
+    Locally: tries to generate PDFs with a 25s timeout, sends with or without.
     """
     recipient_email = recipient_email or getattr(config, 'TEST_RECEIVER_EMAIL', None) or os.getenv("TEST_RECEIVER_EMAIL", os.getenv("SENDER_EMAIL", ""))
-    
+
     logging.info(f"🧪 TEST STRIKE: Sending to {recipient_email}")
-    
+
     company_name = 'Future Tech Industries'
-    job_title = 'Lead Automation Engineer'
-    body = ""
+    job_title    = 'Lead Automation Engineer'
+    body         = ""
     dynamic_highlights = highlights or []
 
-    # ── PHASE 1: Try to generate PDFs with a strict 25s timeout ──────────────
-    if not attachment_paths:
-        attachments = []
+    # ── On Render: SKIP PDF generation entirely (causes OOM on 512MB free tier) ──
+    import platform as _plat
+    is_cloud = bool(
+        os.getenv("RENDER") or os.getenv("RENDER_EXTERNAL_URL") or
+        os.getenv("RENDER_SERVICE_ID") or
+        (_plat.system() == "Linux" and not os.getenv("LOCAL_DEV"))
+    )
+
+    if is_cloud:
+        logging.info("☁️ [TEST-STRIKE] Cloud mode: sending without PDF to avoid OOM")
+        attachment_paths = []
+    elif not attachment_paths:
+        # Local: try PDF generation with strict 25s timeout
         import concurrent.futures
 
         def _generate_pdfs():
-            """Generate PDFs in a thread with timeout protection."""
             pdfs = []
-            # Try Playwright first
-            cv_pdf_path = None
-            try:
-                from core.cv_playwright_pdf import generate_cv_from_html_playwright
-                cv_pdf_path = generate_cv_from_html_playwright()
-                if cv_pdf_path and os.path.exists(cv_pdf_path):
-                    pdfs.append(cv_pdf_path)
-                    logging.info(f"✅ Playwright PDF ready: {cv_pdf_path}")
-                    return pdfs  # Fast path: Playwright worked, skip FPDF
-            except Exception as e:
-                logging.debug(f"Playwright unavailable: {e}")
-
-            # Fallback: FPDF
             try:
                 from core.cv_pdf_full import generate_full_cv_pdf
-                cv_pdf_path = generate_full_cv_pdf()
-                if cv_pdf_path and os.path.exists(cv_pdf_path):
-                    pdfs.append(cv_pdf_path)
-                    logging.info(f"✅ FPDF CV ready: {cv_pdf_path}")
+                p = generate_full_cv_pdf()
+                if p and os.path.exists(p):
+                    pdfs.append(p)
             except Exception as e:
-                logging.warning(f"⚠️ FPDF CV failed: {e}")
-
-            # Cover letter
+                logging.warning(f"⚠️ CV PDF failed: {e}")
             try:
                 from core.cover_letter_pdf import generate_cover_letter_pdf
-                cover_path = generate_cover_letter_pdf(company_name, job_title)
-                if cover_path and os.path.exists(cover_path):
-                    pdfs.append(cover_path)
-                    logging.info(f"✅ Cover letter ready: {cover_path}")
+                p = generate_cover_letter_pdf(company_name, job_title)
+                if p and os.path.exists(p):
+                    pdfs.append(p)
             except Exception as e:
                 logging.warning(f"⚠️ Cover letter failed: {e}")
-
             return pdfs
 
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(_generate_pdfs)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
                 try:
-                    attachments = future.result(timeout=25)  # 25s max for PDF generation
-                    logging.info(f"✅ PDFs generated: {len(attachments)} files")
+                    attachment_paths = ex.submit(_generate_pdfs).result(timeout=25)
+                    logging.info(f"✅ PDFs ready: {len(attachment_paths)} files")
                 except concurrent.futures.TimeoutError:
-                    logging.warning("⚠️ PDF generation timed out after 25s — sending without attachments")
-                    attachments = []
+                    logging.warning("⚠️ PDF timeout — sending without attachments")
+                    attachment_paths = []
         except Exception as e:
-            logging.warning(f"⚠️ PDF generation error: {e} — sending without attachments")
-            attachments = []
+            logging.warning(f"⚠️ PDF error: {e}")
+            attachment_paths = []
 
-        attachment_paths = attachments
-
-    # ── PHASE 2: Send the email (with or without PDFs) ───────────────────────
+    # ── Send the email ────────────────────────────────────────────────────────
     result = send_email(
         recipient_email, company_name, job_title, body,
         'test', 'test', attachment_paths,
@@ -235,10 +222,10 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
     )
 
     if result:
-        pdf_note = f"with {len(attachment_paths)} PDF(s)" if attachment_paths else "without PDFs (generation timed out)"
-        logging.info(f"✅ TEST STRIKE SUCCESS: Email sent to {recipient_email} {pdf_note}")
+        note = f"with {len(attachment_paths)} PDF(s)" if attachment_paths else "without PDFs"
+        logging.info(f"✅ TEST STRIKE SUCCESS → {recipient_email} ({note})")
     else:
-        logging.error(f"❌ TEST STRIKE FAILED: Could not send to {recipient_email}")
+        logging.error(f"❌ TEST STRIKE FAILED → {recipient_email}")
 
     return result
 

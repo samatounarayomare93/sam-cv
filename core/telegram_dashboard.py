@@ -1264,7 +1264,7 @@ class SovereignDashboard:
             try:
                 success = await asyncio.wait_for(
                     asyncio.to_thread(smtp_engine.send_test_email, target),
-                    timeout=90.0
+                    timeout=45.0
                 )
             except asyncio.TimeoutError:
                 logging.error(f"⏰ Quick test email timed out for {target}")
@@ -1273,7 +1273,7 @@ class SovereignDashboard:
                         f"⏰ <b>TEST TIMED OUT</b>\n"
                         f"━━━━━━━━━━━━━━━\n"
                         f"📧 Target: <code>{target}</code>\n\n"
-                        f"<i>PDF generation took too long. Try again.</i>",
+                        f"<i>Try again.</i>",
                         parse_mode='HTML'
                     )
                 except Exception:
@@ -2281,17 +2281,16 @@ class SovereignDashboard:
                 try:
                     success = await asyncio.wait_for(
                         asyncio.to_thread(smtp_engine.send_test_email, email),
-                        timeout=90.0
+                        timeout=45.0  # 45s max — PDF skipped on cloud so this is plenty
                     )
                 except asyncio.TimeoutError:
-                    logging.error(f"⏰ Test strike timed out after 90s for {email}")
+                    logging.error(f"⏰ Test strike timed out after 45s for {email}")
                     try:
                         await msg.edit_text(
                             f"⏰ <b>TEST STRIKE TIMED OUT</b>\n\n"
                             f"📧 Target: <code>{email}</code>\n\n"
-                            f"The email generation took too long (>90s).\n"
-                            f"This usually means Playwright/Chromium is slow to start.\n\n"
-                            f"<i>Try again — it often works on the second attempt.</i>",
+                            f"The email took too long to send (>45s).\n"
+                            f"<i>Try again — it usually works on the second attempt.</i>",
                             parse_mode='HTML'
                         )
                     except Exception as edit_err:
