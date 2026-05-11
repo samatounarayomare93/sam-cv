@@ -1,54 +1,61 @@
-#!/usr/bin/env python3
-"""Get latest Render logs to diagnose why hourly rate is 0."""
-import requests, os
+"""Get logs from the ACTIVE Render service (Account 2 - sam-bot-v2)"""
+import requests, json, os
 from dotenv import load_dotenv
 load_dotenv()
 
-api_key = os.getenv('RENDER_API_KEY')
-service_id = os.getenv('RENDER_SERVICE_ID')
-headers = {'Authorization': f'Bearer {api_key}', 'Accept': 'application/json'}
+A2_KEY = 'rnd_m4ozEoc4nQYOT16Omj0U9QGd3pra'
+A2_SVC = 'srv-d80th10g4nts738vk7b0'
+h = {'Authorization': f'Bearer {A2_KEY}', 'Accept': 'application/json'}
 
-# Get latest deploy ID
-r = requests.get(f'https://api.render.com/v1/services/{service_id}/deploys?limit=1', headers=headers, timeout=15)
-deploys = r.json()
-if not deploys:
-    print('No deploys found')
-    exit()
+print("=" * 60)
+print("RENDER LOGS - sam-bot-v2 (Account 2)")
+print("=" * 60)
 
-dep = deploys[0].get('deploy', deploys[0])
-deploy_id = dep.get('id')
-print(f'Latest deploy: {deploy_id} | Status: {dep.get("status")}')
+# Try SSE logs endpoint
+import urllib.request, ssl
 
-# Get deploy logs
-r2 = requests.get(
-    f'https://api.render.com/v1/services/{service_id}/deploys/{deploy_id}/logs',
-    headers=headers, timeout=15
-)
-if r2.status_code == 200:
-    logs = r2.json()
-    print(f'\n=== DEPLOY LOGS (last 50 lines) ===')
-    lines = logs if isinstance(logs, list) else logs.get('logs', [])
-    for line in lines[-50:]:
-        if isinstance(line, dict):
-            print(line.get('message', line))
-        else:
-            print(line)
-else:
-    print(f'Logs error: {r2.status_code} - {r2.text[:300]}')
+url = f"https://api.render.com/v1/services/{A2_SVC}/logs?limit=200&direction=backward"
+req = urllib.request.Request(url, headers={'Authorization': f'Bearer {A2_KEY}', 'Accept': 'application/json'})
+ctx = ssl.create_default_context()
+
+try:
+    with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
+        raw = resp.read().decode('utf-8')
+        try:
+            data = json.loads(raw)
+            logs = data if isinstance(data, list) else data.get('logs', [])
+            print(f"Got {len(logs)} log entries\n")
+            for entry in logs[-80:]:
+                ts = entry.get('timestamp', '')[:19] if isinstance(entry, dict) else ''
+                msg = entry.get('message', str(entry)) if isinstance(entry, dict) else str(entry)
+                print(f"[{ts}] {msg}")
+        except json.JSONDecodeError:
+            # Raw text logs
+            lines = raw.strip().split('\n')
+            print(f"Got {len(lines)} log lines\n")
+            for line in lines[-80:]:
+                if line.strip():
+                    print(line)
+except Exception as e:
+    print(f"Logs endpoint error: {e}")
     
-    # Try alternative: get service logs
-    r3 = requests.get(
-        f'https://api.render.com/v1/services/{service_id}/logs?limit=100',
-        headers=headers, timeout=15
-    )
-    if r3.status_code == 200:
-        data = r3.json()
-        print('\n=== SERVICE LOGS ===')
-        lines = data if isinstance(data, list) else data.get('logs', [])
-        for line in lines[-50:]:
-            if isinstance(line, dict):
-                print(f"{line.get('timestamp','')[:19]} {line.get('message','')}")
+    # Try alternative: get deploy logs
+    print("\nTrying deploy logs...")
+    r = requests.get(f'https://api.render.com/v1/services/{A2_SVC}/deploys?limit=1', headers=h, timeout=10)
+    if r.status_code == 200:
+        deploys = r.json()
+        if deploys:
+            dep = deploys[0].get('deploy', deploys[0])
+            dep_id = dep.get('id', '')
+            print(f"Latest deploy: {dep_id[:12]} | status={dep.get('status')}")
+            
+            # Get deploy logs
+            r2 = requests.get(f'https://api.render.com/v1/services/{A2_SVC}/deploys/{dep_id}/logs', headers=h, timeout=10)
+            if r2.status_code == 200:
+                dlog = r2.json()
+                logs = dlog if isinstance(dlog, list) else dlog.get('logs', [])
+                for entry in logs[-50:]:
+                    msg = entry.get('message', str(entry)) if isinstance(entry, dict) else str(entry)
+                    print(msg)
             else:
-                print(line)
-    else:
-        print(f'Service logs error: {r3.status_code} - {r3.text[:200]}')
+                print(f"Deploy logs: HTTP {r2.status_code} - {r2.text[:200]}")

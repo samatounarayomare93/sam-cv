@@ -231,9 +231,24 @@ class RealityShapingDB:
             logging.warning(f"⚠️ SECRET VAULT ACCESS FAILED: {secrets}")
 
     async def _get_session(self) -> httpx.AsyncClient:
-        if self._session is None or self._session.is_closed:
-            # ABSOLUTE CLOUD RESILIENCE: Use httpx instead of curl_cffi to avoid Event Loop crashes
-            self._session = httpx.AsyncClient(timeout=20, follow_redirects=True)
+        # [FIX] Always create a fresh AsyncClient per-call to avoid "Event loop is closed"
+        # errors when the DB singleton is reused across different event loops (e.g. when
+        # auto_queue_refill runs in a thread with its own loop). httpx client creation is
+        # cheap — this is the safest approach on Render's single-instance free tier.
+        if self._session is not None and not self._session.is_closed:
+            try:
+                # Quick check: if the underlying transport is still usable
+                _ = self._session.is_closed  # just access it
+                return self._session
+            except Exception:
+                pass
+        # Create fresh session
+        try:
+            if self._session and not self._session.is_closed:
+                await self._session.aclose()
+        except Exception:
+            pass
+        self._session = httpx.AsyncClient(timeout=20, follow_redirects=True)
         return self._session
 
     @staticmethod
@@ -343,14 +358,14 @@ class RealityShapingDB:
                     err_msg = str(e)
                     # [🔥 FIX]: Handle event loop errors — reset session and semaphore
                     if "event loop" in err_msg.lower() or isinstance(e, RuntimeError):
-                        logging.warning(f"⚠️ [DB] Event loop error detected — resetting session and semaphore")
+                        logging.warning(f"⚠️ [DB] Event loop error detected — creating fresh session")
                         try:
                             if self._session and not self._session.is_closed:
-                                pass  # Can't await close here, just drop the reference
+                                pass  # Can't await close here safely
                         except Exception:
                             pass
-                        self._session = None
-                        self._semaphore = None
+                        self._session = None  # Force new session on next call
+                        self._semaphore = None  # Reset semaphore too
                     logging.warning(f"⚠️ [DB] Exception on {method} {endpoint.split('?')[0].split('/')[-1]} — retry {retry_count + 1}/{self._max_retries}: {type(e).__name__}: {e}")
                     await asyncio.sleep(self._base_delay)
                     return await self._request_with_retry(method, endpoint, payload, retry_count + 1)

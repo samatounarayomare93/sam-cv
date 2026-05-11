@@ -233,6 +233,12 @@ class AlphaOrchestrator:
             return
         self._initialized = True
         
+        # [MEMORY FIX] Cap concurrency at 3 on Render free tier (512MB RAM)
+        # MAX_PARALLEL_STRIKES=15 was causing 454MB OOM. 3 parallel is safe.
+        is_render = bool(os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID"))
+        if is_render:
+            concurrency_limit = min(concurrency_limit, 3)
+        
         self.concurrency_limit = concurrency_limit
         self.semaphore = None  # [FIX] Lazy-init: must be created inside running event loop
         self.rate_limit_lock = None  # [FIX] Lazy-init: must be created inside running event loop

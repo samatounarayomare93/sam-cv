@@ -158,15 +158,20 @@ async def resource_watchdog():
                 import psutil
                 process = psutil.Process()
                 mem_mb = process.memory_info().rss / (1024 * 1024)
-                if mem_mb > 380:
+                if mem_mb > 420:
                     logging.warning(f"⚠️ [WATCHDOG] CRITICAL MEMORY: {mem_mb:.0f}MB! Emergency cleanup...")
                     gc.collect(2)
                     gc.collect()
                     # Force kill excess tasks if memory still high
                     current_tasks = [t for t in asyncio.all_tasks() if not t.done()]
-                    if len(current_tasks) > 50:
-                        logging.warning(f"⚠️ [WATCHDOG] Too many tasks: {len(current_tasks)}. System may OOM.")
-                elif mem_mb > 320:
+                    if len(current_tasks) > 20:
+                        logging.warning(f"⚠️ [WATCHDOG] Too many tasks: {len(current_tasks)}. Cancelling non-critical...")
+                        # Cancel scraper tasks to free memory
+                        for task in current_tasks:
+                            name = task.get_name()
+                            if 'Scraper' in name and not task.done():
+                                task.cancel()
+                elif mem_mb > 350:
                     logging.warning(f"⚠️ [WATCHDOG] HIGH MEMORY: {mem_mb:.0f}MB! Cleaning...")
                     gc.collect(2)
                     gc.collect()
@@ -314,6 +319,8 @@ async def main():
             logging.info(f"🚀 [SYSTEM] Launching all tasks (restart #{restart_count})...")
 
             # Critical tasks — if any of these die, restart everything
+            # [MEMORY FIX] Reduced scrapers: 5 scrapers was causing 454MB OOM on 512MB Render
+            # Keep only DALEEL + OMNI (best sources), remove MAIN/PLATFORMS/ELITE
             critical_tasks = [
                 asyncio.create_task(engine.execute_divine_loop(), name="Engine"),
                 asyncio.create_task(resource_watchdog(),          name="Watchdog"),
@@ -321,15 +328,9 @@ async def main():
                 asyncio.create_task(disk_janitor(),               name="DiskJanitor"),
                 asyncio.create_task(auto_refill_loop(),           name="AutoQueueRefill"),
                 asyncio.create_task(
-                    continuous_scraper_background(engine, 300,  "MAIN"),     name="Scraper-Main"),
-                asyncio.create_task(
-                    continuous_scraper_background(engine, 420,  "DALEEL"),   name="Scraper-Daleel"),
-                asyncio.create_task(
-                    continuous_scraper_background(engine, 600,  "PLATFORMS"),name="Scraper-Platforms"),
+                    continuous_scraper_background(engine, 600,  "DALEEL"),   name="Scraper-Daleel"),
                 asyncio.create_task(
                     continuous_scraper_background(engine, 900,  "OMNI"),     name="Scraper-Omni"),
-                asyncio.create_task(
-                    continuous_scraper_background(engine, 1800, "ELITE"),    name="Scraper-Elite"),
             ]
 
             # Dashboard is NON-CRITICAL — runs independently, auto-restarts if it dies

@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [AUTO-REFILL] %(mess
 
 # Threshold: refill when pending drops below this number
 REFILL_THRESHOLD = 50   # Raised: refill earlier so queue never runs dry
-CHECK_INTERVAL = 60     # Check every 1 minute (was 2)
+CHECK_INTERVAL = 300    # Check every 5 minutes (was 60s — too aggressive, causes OOM)
 
 # 500+ companies to cycle through
 COMPANY_POOL = [
@@ -466,7 +466,7 @@ async def auto_refill_loop():
                     pending_after = await get_pending_count(c, sb_url, headers)
                     
                     # 3. Always inject fresh leads (unique URLs = always new entries)
-                    injected = await inject_batch(c, sb_url, headers, count=100)
+                    injected = await inject_batch(c, sb_url, headers, count=30)  # Reduced from 100 to save RAM
                     logging.info(f"Injected {injected} new leads. Queue refilled!")
                 else:
                     logging.info(f"Queue healthy ({pending} leads). No refill needed.")
