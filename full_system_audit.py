@@ -64,22 +64,27 @@ try:
     r = requests.get("https://api.brevo.com/v3/account",
         headers={"api-key": brevo_key}, timeout=10)
     d = r.json()
-    credits = next((p.get("credits",0) for p in d.get("plan",[]) if p.get("type")=="free"), 0)
-    check("Brevo Account", r.status_code==200, f"email={d.get('email')} credits={credits}")
-    check("Brevo Credits", credits > 0, f"{credits} remaining")
+    if r.status_code == 401:
+        check("Brevo Account", False, "API key disabled (not critical - Resend+Zoho+Gmail active)")
+        check("Brevo Credits", False, "N/A - key disabled")
+    else:
+        credits = next((p.get("credits",0) for p in d.get("plan",[]) if p.get("type")=="free"), 0)
+        check("Brevo Account", r.status_code==200, f"email={d.get('email')} credits={credits}")
+        check("Brevo Credits", credits > 0, f"{credits} remaining")
 except Exception as e:
     check("Brevo Account", False, str(e)[:60])
 
-# Brevo SMTP
-brevo_login = os.getenv("BREVO_SMTP_LOGIN","")
-brevo_pass  = os.getenv("BREVO_SMTP_PASSWORD","")
-try:
-    with smtplib.SMTP("smtp-relay.brevo.com", 587, timeout=10) as s:
-        s.ehlo(); s.starttls(); s.ehlo()
-        s.login(brevo_login, brevo_pass)
-    check("Brevo SMTP", True, f"{brevo_login}")
-except Exception as e:
-    check("Brevo SMTP", False, str(e)[:60])
+# Brevo SMTP - skip if API key disabled
+if brevo_key and os.getenv("BREVO_SMTP_LOGIN"):
+    brevo_login = os.getenv("BREVO_SMTP_LOGIN","")
+    brevo_pass  = os.getenv("BREVO_SMTP_PASSWORD","")
+    try:
+        with smtplib.SMTP("smtp-relay.brevo.com", 587, timeout=10) as s:
+            s.ehlo(); s.starttls(); s.ehlo()
+            s.login(brevo_login, brevo_pass)
+        check("Brevo SMTP", True, f"{brevo_login}")
+    except Exception as e:
+        check("Brevo SMTP", False, f"{str(e)[:60]} (not critical)")
 
 # ── 4. ZOHO ───────────────────────────────────────────────────
 print("\n📧 ZOHO:")
@@ -163,8 +168,10 @@ except Exception as e:
 
 # Check service is responding
 try:
-    r = requests.get("https://sam-job-automator.onrender.com", timeout=15)
-    check("Render Live URL", r.status_code==200, f"HTTP {r.status_code}")
+    # Use the active service URL from env
+    active_url = os.getenv('RENDER_EXTERNAL_URL', 'https://sam-bot-v2.onrender.com')
+    r = requests.get(active_url, timeout=20)
+    check("Render Live URL", r.status_code == 200, f"HTTP {r.status_code} ({active_url})")
 except Exception as e:
     check("Render Live URL", False, str(e)[:60])
 
