@@ -153,10 +153,11 @@ def _get_available_providers():
     return providers
 
 def send_test_email(recipient_email=None, attachment_paths=None, highlights=None):
-    """[👑 OMEGA] Sends a test email.
+    """[👑 OMEGA] Sends a test email with CV + Cover Letter attachments.
 
-    On Render (cloud): sends immediately WITHOUT PDF attachments to avoid OOM.
-    Locally: tries to generate PDFs with a 25s timeout, sends with or without.
+    Strategy (free-tier friendly):
+    - On Render/cloud: use pre-generated embedded PDFs (no RAM spike, no OOM)
+    - Locally: generate fresh PDFs with 25s timeout fallback
     """
     recipient_email = recipient_email or getattr(config, 'TEST_RECEIVER_EMAIL', None) or os.getenv("TEST_RECEIVER_EMAIL", os.getenv("SENDER_EMAIL", ""))
 
@@ -167,7 +168,6 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
     body         = ""
     dynamic_highlights = highlights or []
 
-    # ── On Render: SKIP PDF generation entirely (causes OOM on 512MB free tier) ──
     import platform as _plat
     is_cloud = bool(
         os.getenv("RENDER") or os.getenv("RENDER_EXTERNAL_URL") or
@@ -175,44 +175,58 @@ def send_test_email(recipient_email=None, attachment_paths=None, highlights=None
         (_plat.system() == "Linux" and not os.getenv("LOCAL_DEV"))
     )
 
-    if is_cloud:
-        logging.info("☁️ [TEST-STRIKE] Cloud mode: sending without PDF to avoid OOM")
-        attachment_paths = []
-    elif not attachment_paths:
-        # Local: try PDF generation with strict 25s timeout
-        import concurrent.futures
+    if not attachment_paths:
+        attachments = []
 
-        def _generate_pdfs():
-            pdfs = []
+        if is_cloud:
+            # ── Cloud: use pre-embedded PDFs (zero RAM, instant) ──────────────
             try:
-                from core.cv_pdf_full import generate_full_cv_pdf
-                p = generate_full_cv_pdf()
-                if p and os.path.exists(p):
-                    pdfs.append(p)
+                from core.embedded_pdfs import get_cv_pdf_path, get_cover_letter_pdf_path
+                cv_path = get_cv_pdf_path()
+                cl_path = get_cover_letter_pdf_path(company_name, job_title)
+                if cv_path and os.path.exists(cv_path):
+                    attachments.append(cv_path)
+                    logging.info(f"✅ [CLOUD] Embedded CV PDF ready: {cv_path}")
+                if cl_path and os.path.exists(cl_path):
+                    attachments.append(cl_path)
+                    logging.info(f"✅ [CLOUD] Embedded Cover Letter ready: {cl_path}")
             except Exception as e:
-                logging.warning(f"⚠️ CV PDF failed: {e}")
-            try:
-                from core.cover_letter_pdf import generate_cover_letter_pdf
-                p = generate_cover_letter_pdf(company_name, job_title)
-                if p and os.path.exists(p):
-                    pdfs.append(p)
-            except Exception as e:
-                logging.warning(f"⚠️ Cover letter failed: {e}")
-            return pdfs
+                logging.warning(f"⚠️ Embedded PDFs unavailable: {e} — sending without attachments")
+        else:
+            # ── Local: generate fresh PDFs with 25s timeout ───────────────────
+            import concurrent.futures
 
-        try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            def _generate_pdfs():
+                pdfs = []
                 try:
-                    attachment_paths = ex.submit(_generate_pdfs).result(timeout=25)
-                    logging.info(f"✅ PDFs ready: {len(attachment_paths)} files")
-                except concurrent.futures.TimeoutError:
-                    logging.warning("⚠️ PDF timeout — sending without attachments")
-                    attachment_paths = []
-        except Exception as e:
-            logging.warning(f"⚠️ PDF error: {e}")
-            attachment_paths = []
+                    from core.cv_pdf_full import generate_full_cv_pdf
+                    p = generate_full_cv_pdf()
+                    if p and os.path.exists(p):
+                        pdfs.append(p)
+                except Exception as e:
+                    logging.warning(f"⚠️ CV PDF failed: {e}")
+                try:
+                    from core.cover_letter_pdf import generate_cover_letter_pdf
+                    p = generate_cover_letter_pdf(company_name, job_title)
+                    if p and os.path.exists(p):
+                        pdfs.append(p)
+                except Exception as e:
+                    logging.warning(f"⚠️ Cover letter failed: {e}")
+                return pdfs
 
-    # ── Send the email ────────────────────────────────────────────────────────
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                    try:
+                        attachments = ex.submit(_generate_pdfs).result(timeout=25)
+                        logging.info(f"✅ PDFs ready: {len(attachments)} files")
+                    except concurrent.futures.TimeoutError:
+                        logging.warning("⚠️ PDF timeout — sending without attachments")
+            except Exception as e:
+                logging.warning(f"⚠️ PDF error: {e}")
+
+        attachment_paths = attachments
+
+    # ── Send ──────────────────────────────────────────────────────────────────
     result = send_email(
         recipient_email, company_name, job_title, body,
         'test', 'test', attachment_paths,
@@ -248,55 +262,67 @@ def send_strike(lead, attachment_paths=None, sender_name="Sam Salameh"):
         attachments = [attachment_paths]
     else:
         attachments = attachment_paths or []
-        
-    # [👑 INBOX DELIVERY]: Use Playwright PDF (100% match to HTML) + Cover Letter
+
+    # ── PDF Attachments: embedded on cloud, generated locally ────────────────
+    import platform as _plat
+    _is_cloud = bool(
+        os.getenv("RENDER") or os.getenv("RENDER_EXTERNAL_URL") or
+        os.getenv("RENDER_SERVICE_ID") or
+        (_plat.system() == "Linux" and not os.getenv("LOCAL_DEV"))
+    )
+
     try:
         attachments = []
-        
-        # 1. CV PDF - Try Playwright first (best quality)
-        # [🛡️ FIX]: Initialize cv_pdf_path to None BEFORE the try block
-        # to prevent UnboundLocalError in the except handler
-        cv_pdf_path = None
-        try:
-            from core.cv_playwright_pdf import generate_cv_from_html_playwright
-            cv_pdf_path = generate_cv_from_html_playwright()
-            
-            if cv_pdf_path and os.path.exists(cv_pdf_path):
-                attachments.append(cv_pdf_path)
-                logging.info(f"✅ Using Playwright PDF CV for {company} (100% HTML match)")
-            else:
-                raise Exception("Playwright PDF generation failed or returned None")
-        except Exception as e:
-            if "No module named" in str(e):
-                logging.debug("⏭️ Playwright not available, using FPDF")
-            else:
-                logging.warning(f"⚠️ Playwright failed: {e}, falling back to FPDF")
-            # Fallback to FPDF
+
+        if _is_cloud:
+            # Cloud: use pre-embedded PDFs (zero RAM, instant, no OOM)
             try:
-                from core.cv_pdf_full import generate_full_cv_pdf
-                cv_pdf_path = generate_full_cv_pdf()
+                from core.embedded_pdfs import get_cv_pdf_path, get_cover_letter_pdf_path
+                cv_path = get_cv_pdf_path()
+                cl_path = get_cover_letter_pdf_path(company, title)
+                if cv_path and os.path.exists(cv_path):
+                    attachments.append(cv_path)
+                    logging.info(f"✅ [CLOUD] Embedded CV PDF for {company}")
+                if cl_path and os.path.exists(cl_path):
+                    attachments.append(cl_path)
+                    logging.info(f"✅ [CLOUD] Embedded Cover Letter for {company}")
+            except Exception as e:
+                logging.warning(f"⚠️ Embedded PDFs unavailable: {e}")
+        else:
+            # Local: try Playwright → FPDF
+            cv_pdf_path = None
+            try:
+                from core.cv_playwright_pdf import generate_cv_from_html_playwright
+                cv_pdf_path = generate_cv_from_html_playwright()
                 if cv_pdf_path and os.path.exists(cv_pdf_path):
                     attachments.append(cv_pdf_path)
-                    logging.info(f"✅ Using FPDF CV for {company} (professional)")
+                    logging.info(f"✅ Playwright PDF CV for {company}")
                 else:
-                    logging.error(f"❌ Failed to generate PDF CV via FPDF")
-            except Exception as fpdf_err:
-                logging.error(f"❌ FPDF fallback also failed: {fpdf_err}")
-        
-        # 2. Cover Letter PDF
-        try:
-            from core.cover_letter_pdf import generate_cover_letter_pdf
-            cover_pdf_path = generate_cover_letter_pdf(company, title)
-            if cover_pdf_path and os.path.exists(cover_pdf_path):
-                attachments.append(cover_pdf_path)
-                logging.info(f"✅ Added Cover Letter PDF for {company}")
-        except Exception as e:
-            logging.warning(f"⚠️ Cover letter generation failed: {e}")
-            
+                    raise Exception("Playwright returned None")
+            except Exception as e:
+                logging.debug(f"Playwright unavailable: {e}")
+                try:
+                    from core.cv_pdf_full import generate_full_cv_pdf
+                    cv_pdf_path = generate_full_cv_pdf()
+                    if cv_pdf_path and os.path.exists(cv_pdf_path):
+                        attachments.append(cv_pdf_path)
+                        logging.info(f"✅ FPDF CV for {company}")
+                except Exception as fpdf_err:
+                    logging.error(f"❌ FPDF failed: {fpdf_err}")
+
+            try:
+                from core.cover_letter_pdf import generate_cover_letter_pdf
+                cover_pdf_path = generate_cover_letter_pdf(company, title)
+                if cover_pdf_path and os.path.exists(cover_pdf_path):
+                    attachments.append(cover_pdf_path)
+                    logging.info(f"✅ Cover Letter PDF for {company}")
+            except Exception as e:
+                logging.warning(f"⚠️ Cover letter failed: {e}")
+
     except Exception as e:
         logging.error(f"❌ Failed to attach documents: {e}")
         attachments = []
-        
+
     valid_attachments = [p for p in attachments if p and os.path.exists(p) and os.path.isfile(p)]
 
     return send_email(email, company, title, lead.get('custom_body', ''), "omni", lead.get('mission_type', 'global'), valid_attachments, sender_name=sender_name, highlights=highlights, strike_id=strike_id)
