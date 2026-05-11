@@ -171,19 +171,51 @@ class SovereignDashboard:
             logging.error(f"⚠️ UI FORCE SYNC FAILED: {e}")
 
     async def authenticate(self, update: Update) -> bool:
-        # [🛡️ AUTH-AUDIT]: Check both user ID and chat ID for authorization
+        # [🛡️ STRICT PRIVACY]: Only the owner (TELEGRAM_CHAT_ID) can use this bot
         user_id = str(update.effective_user.id)
         chat_id = str(update.effective_chat.id)
         auth_list = [str(uid) for uid in self.authorized_users if uid]
-        
-        logging.info(f"🔐 [ORCHESTRATOR] Auth Check: User {user_id} in Chat {chat_id} against {auth_list}")
-        
-        # Check both user ID and chat ID (for private chats, they are the same)
+
+        logging.info(f"🔐 Auth Check: User {user_id} | Chat {chat_id} | Allowed: {auth_list}")
+
         if user_id in auth_list or chat_id in auth_list:
             return True
-        
-        await update.effective_message.reply_text(f"🚨 UNAUTHORIZED ACCESS. User: {user_id}, Chat: {chat_id}")
-        logging.warning(f"❌ UNAUTHORIZED ATTEMPT: User {user_id} in Chat {chat_id}")
+
+        # ── UNAUTHORIZED: Silent block + warning ─────────────────────────────
+        logging.warning(f"🚫 BLOCKED: User {user_id} in Chat {chat_id} tried to access the bot")
+
+        # Send a non-informative rejection (don't reveal it's a job bot)
+        try:
+            await update.effective_message.reply_text(
+                "🤖 This bot is private and not available for public use."
+            )
+        except Exception:
+            pass
+
+        # Alert the owner about the intrusion attempt
+        if self.chat_id:
+            try:
+                intruder_name = update.effective_user.full_name or "Unknown"
+                intruder_username = f"@{update.effective_user.username}" if update.effective_user.username else "no username"
+                alert = (
+                    f"🚨 <b>UNAUTHORIZED ACCESS ATTEMPT</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"👤 Name: {intruder_name}\n"
+                    f"🆔 User ID: <code>{user_id}</code>\n"
+                    f"📛 Username: {intruder_username}\n"
+                    f"💬 Chat ID: <code>{chat_id}</code>\n"
+                    f"📝 Message: <code>{str(update.effective_message.text or '')[:50]}</code>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"<i>Bot is private — access denied.</i>"
+                )
+                await update.get_bot().send_message(
+                    chat_id=self.chat_id,
+                    text=alert,
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                logging.error(f"Failed to send intrusion alert: {e}")
+
         return False
 
     async def handle_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
