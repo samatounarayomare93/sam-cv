@@ -153,7 +153,8 @@ class SovereignDashboard:
             BotCommand("resume", "🟢 استئناف العمل (Resume Swarm)"),
             BotCommand("unpause", "▶️ إلغاء الإيقاف (Unpause)"),
             BotCommand("omega_halt", "🛑 التوقف التام (Total Halt)"),
-            BotCommand("fix", "🔧 إصلاح طارئ (Emergency Fix & Restart)")
+            BotCommand("fix", "🔧 إصلاح طارئ (Emergency Fix & Restart)"),
+            BotCommand("ai_check", "🧠 فحص الذكاء الاصطناعي (AI Status Check)")
         ]
         try:
             await application.bot.set_my_commands(commands)
@@ -604,79 +605,130 @@ class SovereignDashboard:
                 parse_mode='HTML'
             )
 
-        elif cmd == "/synapse":
-            health = self.db.get_system_health()
-            stats = {}
+        elif cmd == "/ai_check":
+            # ── Live test of every AI provider ───────────────────────────────
+            msg_obj = await update.effective_message.reply_text(
+                "🧠 <b>Checking all AI providers...</b>\n<i>Testing each one live, please wait ~10s...</i>",
+                parse_mode='HTML'
+            )
+            import httpx as _httpx
+
+            _providers = [
+                {"name": "Groq",       "icon": "⚡", "env": "GROQ_API_KEY",
+                 "url": "https://api.groq.com/openai/v1/chat/completions",
+                 "hdr": lambda k: {"Authorization": f"Bearer {k}", "Content-Type": "application/json"},
+                 "body": {"model": "llama-3.3-70b-versatile",
+                          "messages": [{"role":"user","content":"Say OK"}], "max_tokens": 3},
+                 "parse": lambda d: d["choices"][0]["message"]["content"][:10],
+                 "free": "14,400 req/day FREE", "signup": None},
+
+                {"name": "DeepSeek",   "icon": "🔵", "env": "DEEPSEEK_API_KEY",
+                 "url": "https://api.deepseek.com/chat/completions",
+                 "hdr": lambda k: {"Authorization": f"Bearer {k}", "Content-Type": "application/json"},
+                 "body": {"model": "deepseek-chat",
+                          "messages": [{"role":"user","content":"Say OK"}], "max_tokens": 3},
+                 "parse": lambda d: d["choices"][0]["message"]["content"][:10],
+                 "free": "Free tier + cheap paid", "signup": "platform.deepseek.com/api_keys"},
+
+                {"name": "OpenRouter", "icon": "🌐", "env": "OPENROUTER_API_KEY",
+                 "url": "https://openrouter.ai/api/v1/chat/completions",
+                 "hdr": lambda k: {"Authorization": f"Bearer {k}", "Content-Type": "application/json",
+                                   "HTTP-Referer": "https://sam-job-automator.onrender.com"},
+                 "body": {"model": "meta-llama/llama-3.1-8b-instruct:free",
+                          "messages": [{"role":"user","content":"Say OK"}], "max_tokens": 3},
+                 "parse": lambda d: d["choices"][0]["message"]["content"][:10],
+                 "free": "Free models (no credits needed)", "signup": "openrouter.ai/keys"},
+
+                {"name": "Together AI","icon": "🤝", "env": "TOGETHER_API_KEY",
+                 "url": "https://api.together.xyz/v1/chat/completions",
+                 "hdr": lambda k: {"Authorization": f"Bearer {k}", "Content-Type": "application/json"},
+                 "body": {"model": "meta-llama/Llama-3-8b-chat-hf",
+                          "messages": [{"role":"user","content":"Say OK"}], "max_tokens": 3},
+                 "parse": lambda d: d["choices"][0]["message"]["content"][:10],
+                 "free": "$25 free credit on signup", "signup": "api.together.xyz"},
+
+                {"name": "HuggingFace","icon": "🤗", "env": "HUGGINGFACE_API_KEY",
+                 "url": "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
+                 "hdr": lambda k: {"Authorization": f"Bearer {k}"},
+                 "body": {"inputs": "Say OK", "parameters": {"max_new_tokens": 5}},
+                 "parse": lambda d: (d[0].get("generated_text","") if isinstance(d,list) else str(d))[:10],
+                 "free": "Free unlimited (rate limited)", "signup": "huggingface.co/settings/tokens"},
+
+                {"name": "Gemini",     "icon": "💎", "env": "GEMINI_API_KEY",
+                 "url": "GEMINI_SPECIAL",
+                 "hdr": None, "body": None, "parse": None,
+                 "free": "1,500 req/day FREE", "signup": "makersuite.google.com/app/apikey"},
+            ]
+
+            lines = ["🧠 <b>AI PROVIDERS — LIVE STATUS</b>", "━━━━━━━━━━━━━━━━━━━━"]
+            active = 0
+
+            async with _httpx.AsyncClient(timeout=8) as _client:
+                for p in _providers:
+                    key = os.getenv(p["env"], "")
+                    if not key:
+                        signup_line = f"\n   🔗 <code>{p['signup']}</code>" if p.get("signup") else ""
+                        lines.append(
+                            f"⬜ <b>{p['icon']} {p['name']}</b>\n"
+                            f"   ❌ No key — add <code>{p['env']}</code>\n"
+                            f"   💡 {p['free']}{signup_line}"
+                        )
+                        continue
+
+                    try:
+                        if p["url"] == "GEMINI_SPECIAL":
+                            r = await _client.post(
+                                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}",
+                                json={"contents": [{"parts": [{"text": "Say OK"}]}]}
+                            )
+                            d = r.json()
+                            if d.get("candidates"):
+                                resp = d["candidates"][0]["content"]["parts"][0]["text"][:10]
+                                lines.append(f"✅ <b>{p['icon']} {p['name']}</b>\n   ✅ Working → <i>{resp}</i>\n   📊 {p['free']}")
+                                active += 1
+                            else:
+                                err = d.get("error", {}).get("message", "")[:60]
+                                is_quota = "quota" in err.lower()
+                                lines.append(
+                                    f"{'⚠️' if is_quota else '❌'} <b>{p['icon']} {p['name']}</b>\n"
+                                    f"   {'⚠️ Quota exceeded (resets monthly)' if is_quota else '❌ ' + err}\n"
+                                    f"   📊 {p['free']}"
+                                )
+                        else:
+                            r = await _client.post(p["url"], headers=p["hdr"](key), json=p["body"])
+                            d = r.json()
+                            if r.status_code == 200:
+                                resp = p["parse"](d)
+                                lines.append(f"✅ <b>{p['icon']} {p['name']}</b>\n   ✅ Working → <i>{resp}</i>\n   📊 {p['free']}")
+                                active += 1
+                            elif r.status_code == 429:
+                                lines.append(f"⚠️ <b>{p['icon']} {p['name']}</b>\n   ⚠️ Rate limited today\n   📊 {p['free']}")
+                            else:
+                                err = str(d.get("error", d))[:50]
+                                lines.append(f"❌ <b>{p['icon']} {p['name']}</b>\n   ❌ HTTP {r.status_code}: {err}\n   📊 {p['free']}")
+                    except Exception as e:
+                        lines.append(f"❌ <b>{p['icon']} {p['name']}</b>\n   ❌ {str(e)[:50]}")
+
+            lines.append("━━━━━━━━━━━━━━━━━━━━")
+            if active == 0:
+                lines.append("🚨 <b>0 providers active!</b> Add keys below.")
+            elif active == 1:
+                lines.append(f"⚠️ <b>{active}/6 active</b> — add more for redundancy")
+            else:
+                lines.append(f"🎉 <b>{active}/6 active</b> — great redundancy!")
+
+            # Show which free keys to add
+            missing = [p for p in _providers if not os.getenv(p["env"],"") and p.get("signup")]
+            if missing:
+                lines.append("\n💡 <b>Add these FREE keys:</b>")
+                for p in missing[:3]:
+                    lines.append(f"• {p['icon']} {p['name']}: <code>{p['env']}=...</code>\n  🔗 {p['signup']}")
+                lines.append("\nAfter adding: run <code>sync_env_to_render.py</code>")
+
             try:
-                stats = await self.db.get_stats()
+                await msg_obj.edit_text("\n".join(lines), parse_mode='HTML')
             except Exception:
-                pass
-            
-            # Get today's performance metrics
-            from datetime import datetime, timedelta, timezone
-            now = datetime.now(timezone.utc)
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat().replace("+", "%2B")
-            
-            today_apps = 0
-            try:
-                app_succ, app_data = await self.db._request_with_retry(
-                    "GET",
-                    f"{self.db.url}/rest/v1/applications?select=id&timestamp=gte.{today_start}",
-                    headers={"Prefer": "count=exact"}
-                )
-                if app_succ and isinstance(app_data, dict):
-                    today_apps = app_data.get("count", 0)
-            except Exception:
-                pass
-            
-            # Calculate email capacity usage
-            max_daily_emails = 1900  # Total capacity across all providers
-            email_usage = min(100, int((today_apps / max_daily_emails) * 100))
-            
-            # 🛡️ ULTIMATE FAILOVER: Check all systems
-            try:
-                from core.ultimate_failover import get_failover
-                failover = get_failover()
-                failover_status = await failover.check_and_heal(self.db, self.ai)
-                status_msg = failover.get_system_status_message(failover_status)
-                
-                msg = (
-                    "💪 <b>STRENGTH CHECK: ULTRA-MAXIMUM POWER</b>\n"
-                    "━━━━━━━━━━━━━━━\n"
-                    f"🧠 <b>Intelligence:</b> {health['ai']}\n"
-                    f"👤 <b>Access:</b> {health['access']}\n"
-                    f"🔌 <b>Cloud Sync:</b> {health['persistence']}\n"
-                    f"⚙️ <b>Engine:</b> 🟢 ULTRA-MAXIMUM MODE\n\n"
-                    f"📊 <b>TODAY'S PERFORMANCE:</b>\n"
-                    f"🚀 <b>Applications:</b> {today_apps}/1500 (Target)\n"
-                    f"📧 <b>Email Capacity:</b> {email_usage}% ({today_apps}/{max_daily_emails})\n"
-                    f"🎯 <b>Total Leads:</b> {stats.get('recon_rows', 0)}\n"
-                    f"🏆 <b>Total Strikes:</b> {stats.get('total_strikes', 0)}\n"
-                    "━━━━━━━━━━━━━━━\n\n"
-                    f"{status_msg}\n\n"
-                    "<i>🔥 ULTRA-MAXIMUM MODE: 1500 apps/day target!</i>\n"
-                    "<i>Bot is running at 10,000,000% efficiency with ultimate failover protection!</i>\n"
-                    "<i>Actively searching the internet, discovering companies, and applying autonomously!</i>"
-                )
-            except Exception as e:
-                logging.error(f"Failover check failed: {e}")
-                msg = (
-                    "💪 <b>STRENGTH CHECK: ULTRA-MAXIMUM POWER</b>\n"
-                    "━━━━━━━━━━━━━━━\n"
-                    f"🧠 <b>Intelligence:</b> {health['ai']}\n"
-                    f"👤 <b>Access:</b> {health['access']}\n"
-                    f"🔌 <b>Cloud Sync:</b> {health['persistence']}\n"
-                    f"⚙️ <b>Engine:</b> 🟢 ULTRA-MAXIMUM MODE\n\n"
-                    f"📊 <b>TODAY'S PERFORMANCE:</b>\n"
-                    f"🚀 <b>Applications:</b> {today_apps}/1500 (Target)\n"
-                    f"📧 <b>Email Capacity:</b> {email_usage}% ({today_apps}/{max_daily_emails})\n"
-                    f"🎯 <b>Total Leads:</b> {stats.get('recon_rows', 0)}\n"
-                    f"🏆 <b>Total Strikes:</b> {stats.get('total_strikes', 0)}\n"
-                    "━━━━━━━━━━━━━━━\n"
-                    "<i>🔥 ULTRA-MAXIMUM MODE: 1500 apps/day target!</i>\n"
-                    "<i>Bot is running at 10,000,000% efficiency. Actively searching the internet, discovering companies, and applying autonomously!</i>"
-                )
-            await update.effective_message.reply_text(msg, parse_mode='HTML')
+                await update.effective_message.reply_text("\n".join(lines), parse_mode='HTML')
 
         elif cmd == "/shield":
             # 🛡️ ANTI-BAN PROTECTION STATUS
@@ -1109,8 +1161,12 @@ class SovereignDashboard:
                 InlineKeyboardButton("💪 STRENGTH CHECK | قوة", callback_data="/synapse")
             ],
             [
-                InlineKeyboardButton("📖 GUIDE | دليل", callback_data="/guide"),
+                InlineKeyboardButton("🧠 AI STATUS | حالة الذكاء", callback_data="/ai_check"),
                 InlineKeyboardButton("🖥️ STATUS | الحالة", callback_data="/status")
+            ],
+            [
+                InlineKeyboardButton("📖 GUIDE | دليل", callback_data="/guide"),
+                InlineKeyboardButton("🔧 FIX | إصلاح", callback_data="/fix")
             ]
         ]
         inline_markup = InlineKeyboardMarkup(inline_keyboard)
@@ -2428,6 +2484,7 @@ class SovereignDashboard:
             "memory": "memory_status", "الذاكرة": "memory_status",
             "uptime": "uptime_status", "وقت التشغيل": "uptime_status",
             "ai status": "ai_status", "حالة الذكاء": "ai_status",
+            "ai check": "ai_check", "فحص ai": "ai_check", "فحص الذكاء": "ai_check",
             "inbox check": "inbox_check", "فحص الردود": "inbox_check",
             "top companies": "top_companies", "أفضل شركات": "top_companies",
             "scrape now": "scrape_now", "اسكان فوري": "scrape_now",
@@ -2485,7 +2542,8 @@ class SovereignDashboard:
             slash_cmds = {"launch_single", "menu", "pause", "resume", "track", "kill",
                           "lazarus", "repair", "hygiene", "reboot", "status",
                           "guide", "evolution", "audit", "hud", "backup", "oracle",
-                          "mock_interview", "synapse", "logs", "settings", "fix", "followup"}
+                          "mock_interview", "synapse", "logs", "settings", "fix", "followup",
+                          "ai_check"}
             if mapped in slash_cmds:
                 return await self._dispatch_command(f"/{mapped}", update, context)
             else:
