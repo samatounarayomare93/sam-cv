@@ -262,10 +262,33 @@ class SovereignDashboard:
         elif cmd == "/resume" or cmd == "/unpause":
             if self.db:
                 await self.db.activate_kill_switch(False)
-            await update.effective_message.reply_text("🟢 <b>SOVEREIGN COMMAND: SYSTEMS RE-ACTIVATED.</b>\nOperations resumed.", parse_mode='HTML')
+            # Show keyboard with current state
+            reply_markup, inline_markup = self._get_sovereign_keyboards()
+            await update.effective_message.reply_text(
+                "▶️ <b>التقديمات شغّالة!</b>\n"
+                "━━━━━━━━━━━━━━━\n"
+                "✅ البوت عم يقدّم على وظائف\n"
+                "📊 Target: 1500 تقديم/يوم\n"
+                "━━━━━━━━━━━━━━━\n"
+                "لما تبدك توقف اضغط ⏸️ PAUSE",
+                parse_mode='HTML',
+                reply_markup=inline_markup
+            )
 
         elif cmd == "/pause":
-            await update.effective_message.reply_text("⏸️ <b>ENGINE PAUSED.</b>\nAll autonomous cycles suspended. The swarm is holding position.", parse_mode='HTML')
+            if self.db:
+                await self.db.activate_kill_switch(True)
+            reply_markup, inline_markup = self._get_sovereign_keyboards()
+            await update.effective_message.reply_text(
+                "⏸️ <b>التقديمات موقوفة!</b>\n"
+                "━━━━━━━━━━━━━━━\n"
+                "🛑 البوت وقف عن التقديم\n"
+                "📧 الإيميلات مش رح تنبعت\n"
+                "━━━━━━━━━━━━━━━\n"
+                "لما تبدك تكمل اضغط ▶️ RESUME",
+                parse_mode='HTML',
+                reply_markup=inline_markup
+            )
 
         elif cmd == "/launch_single":
             await update.effective_message.reply_text("🚀 <b>READY</b>\nThe bot already runs continuously in the cloud. Use /status to verify live health.", parse_mode='HTML')
@@ -1331,19 +1354,28 @@ class SovereignDashboard:
             twa_url = "https://sam-job-automator.onrender.com"
 
         inline_keyboard = [
+            # ── ROW 1: Most important — PAUSE / RESUME ────────────────────────
+            [
+                InlineKeyboardButton("⏸️ PAUSE | وقّف التقديمات", callback_data="/pause"),
+                InlineKeyboardButton("▶️ RESUME | كمّل التقديمات", callback_data="/resume"),
+            ],
+            # ── ROW 2: Matrix HUD ─────────────────────────────────────────────
             [InlineKeyboardButton("🌐 MATRIX HUD | ماتريكس", web_app=WebAppInfo(url=twa_url))],
+            # ── ROW 3: Test & Status ──────────────────────────────────────────
             [
                 InlineKeyboardButton("🧪 TEST STRIKE | تجربة", callback_data="/test_strike"),
-                InlineKeyboardButton("💪 STRENGTH CHECK | قوة", callback_data="/synapse")
-            ],
-            [
-                InlineKeyboardButton("🧠 AI STATUS | حالة الذكاء", callback_data="/ai_check"),
-                InlineKeyboardButton("🔑 API KEYS | المفاتيح", callback_data="/keys")
-            ],
-            [
                 InlineKeyboardButton("🖥️ STATUS | الحالة", callback_data="/status"),
-                InlineKeyboardButton("🔧 FIX | إصلاح", callback_data="/fix")
-            ]
+            ],
+            # ── ROW 4: AI & Keys ──────────────────────────────────────────────
+            [
+                InlineKeyboardButton("🧠 AI STATUS | الذكاء", callback_data="/ai_check"),
+                InlineKeyboardButton("🔑 API KEYS | المفاتيح", callback_data="/keys"),
+            ],
+            # ── ROW 5: Fix & Guide ────────────────────────────────────────────
+            [
+                InlineKeyboardButton("🔧 FIX | إصلاح", callback_data="/fix"),
+                InlineKeyboardButton("📖 GUIDE | دليل", callback_data="/guide"),
+            ],
         ]
         inline_markup = InlineKeyboardMarkup(inline_keyboard)
         return reply_markup, inline_markup
