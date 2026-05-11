@@ -1461,13 +1461,70 @@ class SovereignDashboard:
                 await msg.reply_text("🎓 <b>Oracle Busy.</b> Tips: Focus on metrics & culture.", parse_mode='HTML')
 
         elif key == "campaign":
-            await msg.reply_text("🚀 <b>CAMPAIGN ANALYSIS</b>\n━━━━━━━━━━━━━━━\n🎯 Status: Aggressive Expansion\n🌎 Target Zones: UAE, Qatar, SA\n🛡️ Detection: 0%\n━━━━━━━━━━━━━━━", parse_mode='HTML')
+            # Show real campaign stats from DB
+            try:
+                stats = await self.db.get_stats() if self.db else {}
+                total = stats.get('total_strikes', 0)
+                leads = stats.get('recon_rows', 0)
+                # Get today's count
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat().replace("+", "%2B")
+                today_apps = 0
+                try:
+                    ok, data = await self.db._request_with_retry(
+                        "GET",
+                        f"{self.db.url}/rest/v1/applications?select=id&timestamp=gte.{today_start}",
+                        headers={"Prefer": "count=exact"}
+                    )
+                    if ok and isinstance(data, dict):
+                        today_apps = data.get("count", 0)
+                except Exception:
+                    pass
+                await msg.reply_text(
+                    f"🚀 <b>CAMPAIGN STATUS</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"📊 <b>Today:</b> {today_apps}/1500 applications\n"
+                    f"🏆 <b>Total Ever:</b> {total} applications\n"
+                    f"🎯 <b>Leads Found:</b> {leads}\n"
+                    f"🌍 <b>Targets:</b> UAE, Qatar, KSA, Lebanon\n"
+                    f"⚡ <b>Mode:</b> ULTRA-MAXIMUM\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"<i>Running 24/7 on Render cloud</i>",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"⚠️ Campaign stats error: {e}", parse_mode='HTML')
 
         elif key == "followup":
-            await msg.reply_text(
-                "🔄 <b>FOLLOW-UP ENGINE</b>\n━━━━━━━━━━━━━━━\nChecking applications > 7 days...\nStatus: Idle (Next cycle in 4h)\n━━━━━━━━━━━━━━━", 
-                parse_mode='HTML'
-            )
+            try:
+                from datetime import datetime, timedelta, timezone
+                now = datetime.now(timezone.utc)
+                three_days_ago = (now - timedelta(days=3)).isoformat().replace("+", "%2B")
+                seven_days_ago = (now - timedelta(days=7)).isoformat().replace("+", "%2B")
+                ok3, data3 = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=company_name,job_title&status=eq.SENT&timestamp=lte.{three_days_ago}&order=timestamp.desc&limit=5"
+                )
+                ok7, data7 = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=id&status=eq.SENT&timestamp=lte.{seven_days_ago}"
+                )
+                pending_3 = data3 if ok3 and isinstance(data3, list) else []
+                count_7 = len(data7) if ok7 and isinstance(data7, list) else 0
+                lines_3 = "\n".join([f"• {a.get('company_name','?')[:25]}" for a in pending_3[:5]]) or "None"
+                await msg.reply_text(
+                    f"🔄 <b>FOLLOW-UP ENGINE</b>\n━━━━━━━━━━━━━━━\n"
+                    f"📅 <b>No reply (3+ days):</b> {len(pending_3)}\n"
+                    f"📅 <b>No reply (7+ days):</b> {count_7}\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"<b>Pending follow-ups:</b>\n{lines_3}\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"<i>Auto follow-up: Day 3, 7, 14</i>",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"⚠️ Follow-up error: {e}", parse_mode='HTML')
 
         elif key in ("stats", "status", "companies"):
             # Each button should do its own thing, not redirect to status
