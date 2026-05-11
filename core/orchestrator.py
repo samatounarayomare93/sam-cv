@@ -59,6 +59,19 @@ class AlphaOrchestrator:
 
     async def check_kill_switch(self) -> bool:
         kill_switch = os.getenv("KILL_SWITCH_ACTIVE", "False").lower() == "true"
+        # Also check DB kill switch so /pause from Telegram actually works on Render
+        if not kill_switch and self.db:
+            try:
+                success, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/system_settings?key=eq.kill_switch&select=value&limit=1"
+                )
+                if success and isinstance(data, list) and data:
+                    db_kill = str(data[0].get("value", "false")).lower() == "true"
+                    if db_kill:
+                        kill_switch = True
+            except Exception:
+                pass
         if kill_switch:
             logging.critical("🛑 KILL SWITCH ENGAGED. HALTING ALL OPERATIONS.")
             self.is_running = False

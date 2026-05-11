@@ -1019,7 +1019,7 @@ class SovereignDashboard:
             )
             await update.effective_message.reply_text(msg, parse_mode='HTML')
 
-        if cmd in ("/status", "/stats", "/stats ", "/menu"):
+        elif cmd in ("/status", "/stats", "/stats ", "/menu"):
             # [👑 UNIFIED HUD]: Always show the real-time cloud synced metrics with ULTRA-MAXIMUM mode indicators
             try:
                 stats = await self.db.get_stats()
@@ -1111,7 +1111,7 @@ class SovereignDashboard:
                 f"🚀 <b>Applications Sent:</b> {today_apps}/1500 ({daily_progress}%)\n"
                 f"[{progress_bar}]\n"
                 f"⚡ <b>Hourly Rate:</b> {hourly_apps}/120 apps/hour\n"
-                f"📈 <b>Success Rate:</b> {int((today_apps / max(1, today_apps)) * 100)}%\n\n"
+                f"📈 <b>Success Rate:</b> {int((today_apps / max(1, stats.get('total_strikes', today_apps))) * 100)}%\n\n"
                 f"🎯 <b>GLOBAL STATS:</b>\n"
                 f"📋 <b>Total Leads:</b> {stats.get('recon_rows', 0)}\n"
                 f"🚀 <b>Total Strikes:</b> {stats.get('total_strikes', 0)}\n"
@@ -1217,13 +1217,17 @@ class SovereignDashboard:
             
             reply = ""
             try:
-                if self.ai.primary_engine == "gemini":
-                    loop = asyncio.get_event_loop()
-                    res = await loop.run_in_executor(None, self.ai.model.generate_content, prompt)
-                    reply = res.text.strip()
-                elif self.ai.groq_key:
+                if self.ai.primary_engine == "gemini" and self.ai.client:
+                    try:
+                        response = await self.ai.client.aio.models.generate_content(
+                            model=self.ai.model_id, contents=prompt
+                        )
+                        reply = response.text.strip()
+                    except Exception:
+                        pass
+                if not reply and self.ai.groq_key:
                     data = await self.ai.structural_query(prompt)
-                    reply = data.get("reply_message", "Oracle is silent.")
+                    reply = data.get("reply_message", "") or data.get("content", "Oracle is silent.")
             except Exception as e:
                 reply = f"Error during tactical extraction: {e}"
             
@@ -1509,9 +1513,21 @@ class SovereignDashboard:
                 return
             prompt = f"Give 3 very short, aggressive interview tips for a {latest['job_title']} role at {latest['company_name']}. JSON: {{'tips': [...]}}"
             try:
-                response = await asyncio.get_event_loop().run_in_executor(None, self.ai.model.generate_content, prompt)
-                data = self.ai._extract_json_robustly(response.text)
-                tips = data.get('tips', ["Be bold.", "Know metrics.", "Lead the room."])
+                tips = []
+                if self.ai.primary_engine == "gemini" and self.ai.client:
+                    try:
+                        response = await self.ai.client.aio.models.generate_content(
+                            model=self.ai.model_id, contents=prompt
+                        )
+                        data = self.ai._extract_json_robustly(response.text)
+                        tips = data.get('tips', [])
+                    except Exception:
+                        pass
+                if not tips and self.ai.groq_key:
+                    data = await self.ai.structural_query(prompt)
+                    tips = data.get('tips', [])
+                if not tips:
+                    tips = ["Be bold and specific about metrics.", "Know their tech stack cold.", "Lead the room with a question."]
                 tip_str = "\n".join([f"💡 {tip}" for tip in tips])
                 await msg.reply_text(f"🎓 <b>ORACLE PREP: {latest['company_name']}</b>\n━━━━━━━━━━━━━━━\n{tip_str}\n━━━━━━━━━━━━━━━", parse_mode='HTML')
             except Exception:
@@ -3011,10 +3027,14 @@ class SovereignDashboard:
         prompt = f"""CEO COMMAND: "{user_text}"\nIntent: strike | stats | chat. Return JSON with 'reply_message' and 'intent' keys."""
         try:
             data = None
-            if self.ai.primary_engine == "gemini":
-                loop = asyncio.get_event_loop()
-                response = await loop.run_in_executor(None, self.ai.model.generate_content, prompt)
-                data = self.ai._extract_json_robustly(response.text)
+            if self.ai.primary_engine == "gemini" and self.ai.client:
+                try:
+                    response = await self.ai.client.aio.models.generate_content(
+                        model=self.ai.model_id, contents=prompt
+                    )
+                    data = self.ai._extract_json_robustly(response.text)
+                except Exception:
+                    pass
             if not data and self.ai.groq_key:
                 data = await self.ai.structural_query(prompt)
             if not data:

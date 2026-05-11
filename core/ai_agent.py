@@ -999,7 +999,7 @@ class OmniIntelligence:
                 )
                 return response.text.strip()
             elif self.groq_key:
-                data = await self.ai.structural_query(prompt)
+                data = await self.structural_query(prompt)  # FIX: was self.ai.structural_query (self.ai doesn't exist)
                 return data.get("reply_message", "Oracle is silent.")
         except Exception as e:
             return f"Error in tactical extraction: {e}"
@@ -1018,10 +1018,12 @@ def get_ai_agent() -> OmniIntelligence:
 if __name__ == "__main__":
     async def test():
         ai = OmniIntelligence()
-        rel, reason, body, salary = await ai.analyze_job("Senior HR Manager", "We need a leader.")
+        # analyze_job returns 11 values: (is_relevant, reason, cover_letter, salary, score, advantage, keywords, persona, variant, archetype, highlights)
+        rel, reason, body, salary, score, advantage, keywords, persona, variant, archetype, highlights = await ai.analyze_job("Senior HR Manager", "We need a leader.")
         print(f"Relevant? {rel}")
         print(f"Reason: {reason}")
         print(f"Salary: {salary}")
+        print(f"Score: {score}")
         await ai.close()
     
     asyncio.run(test())

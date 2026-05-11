@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: sam-job-automator
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python launch_sam.py
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: PORT
+        value: "10000"
+      # All other env vars are managed via Render dashboard / API
+      # to keep secrets out of source control
