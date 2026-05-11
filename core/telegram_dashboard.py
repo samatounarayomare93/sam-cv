@@ -1346,6 +1346,22 @@ class SovereignDashboard:
             [KeyboardButton("🎓 Prep | التحضير"),               KeyboardButton("📝 CV Preview | معاينة السيرة")],
             [KeyboardButton("✉️ Cover Letter | رسالة التغطية"),  KeyboardButton("📧 Test Email | تجربة إيميل")],
             [KeyboardButton("🧪 Test Strike | تجربة ضربة"),     KeyboardButton("🔮 Oracle | أوراكل")],
+            # ── New Features ─────────────────────────────────────────────────
+            [KeyboardButton("🛰️ Track | التتبع المباشر"),       KeyboardButton("🔮 Oracle | أوراكل السوق")],
+            [KeyboardButton("🌐 Platforms | المواقع"),           KeyboardButton("📊 Campaign | الحملة")],
+            [KeyboardButton("🔑 API Keys | مفاتيح API"),         KeyboardButton("🧠 AI Check | فحص الذكاء")],
+            [KeyboardButton("✏️ Set Key | تغيير مفتاح"),         KeyboardButton("🧪 Test Key | اختبار مفتاح")],
+            [KeyboardButton("📌 Pin Lead | تثبيت أولوية"),       KeyboardButton("🔎 Find Emails | بحث إيميلات")],
+            [KeyboardButton("🌍 Countries | الدول المستهدفة"),   KeyboardButton("💼 Job Titles | المسميات الوظيفية")],
+            [KeyboardButton("📅 Weekly | أسبوعي"),               KeyboardButton("🗓️ Monthly | شهري")],
+            [KeyboardButton("🏆 Best Day | أفضل يوم"),           KeyboardButton("📉 Failure | نسبة الفشل")],
+            [KeyboardButton("⚡ Speed | سرعة الإرسال"),          KeyboardButton("📡 Ping | اختبار الخادم")],
+            [KeyboardButton("🔑 Env | المتغيرات"),               KeyboardButton("🧹 Clean | تنظيف الذاكرة")],
+            [KeyboardButton("🔥 Boost | تسريع"),                 KeyboardButton("🌙 Night | وضع الليل")],
+            [KeyboardButton("🧪 Dry Run | تجربة آمنة"),          KeyboardButton("🔁 Retry | إعادة الفاشلين")],
+            [KeyboardButton("⛔ Blacklist | القائمة السوداء"),   KeyboardButton("🔔 Notify | الإشعارات")],
+            [KeyboardButton("📬 Inbox | فحص الردود"),            KeyboardButton("🎪 Mass Strike | ضربة جماعية")],
+            [KeyboardButton("💾 Backup | نسخة احتياطية"),        KeyboardButton("🔄 Reboot | إعادة تشغيل")],
         ]
         reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
 
@@ -2510,10 +2526,115 @@ class SovereignDashboard:
             except Exception as e:
                 await status_msg.edit_text(f"💥 <b>Mass strike error:</b> {e}", parse_mode='HTML')
 
+        elif key == "track":
+            try:
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat().replace("+", "%2B")
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/applications?select=company_name,job_title,status,timestamp&order=timestamp.desc&limit=10&timestamp=gte.{today_start}"
+                )
+                apps = data if succ and isinstance(data, list) else []
+                lines = [f"{'✅' if a.get('status')=='SENT' else '🔄'} {a.get('company_name','?')[:22]} — {a.get('job_title','?')[:18]}" for a in apps[:10]]
+                await msg.reply_text(
+                    f"🛰️ <b>LIVE TRACKING — TODAY</b>\n━━━━━━━━━━━━━━━\n"
+                    f"📊 <b>Sent today:</b> {len(apps)}\n━━━━━━━━━━━━━━━\n"
+                    + ("\n".join(lines) if lines else "<i>No activity yet today.</i>") +
+                    "\n━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"❌ Track error: {e}", parse_mode='HTML')
+
+        elif key == "oracle":
+            status_msg = await msg.reply_text("🔮 <b>ORACLE SCANNING MARKET...</b>\n<i>Analyzing job market trends...</i>", parse_mode='HTML')
+            try:
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/leads?select=job_title,company_name&order=created_at.desc&limit=100"
+                )
+                leads = data if succ and isinstance(data, list) else []
+                from collections import Counter
+                titles = Counter(l.get('job_title','')[:30] for l in leads if l.get('job_title'))
+                top = titles.most_common(5)
+                lines = [f"🎯 <b>{t}:</b> {c} openings" for t, c in top]
+                await status_msg.edit_text(
+                    f"🔮 <b>MARKET ORACLE REPORT</b>\n━━━━━━━━━━━━━━━\n"
+                    f"📊 <b>Total leads analyzed:</b> {len(leads)}\n━━━━━━━━━━━━━━━\n"
+                    f"<b>🔥 Hottest roles right now:</b>\n"
+                    + ("\n".join(lines) if lines else "<i>Not enough data yet.</i>") +
+                    "\n━━━━━━━━━━━━━━━\n<i>Based on live job market data</i>",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await status_msg.edit_text(f"❌ Oracle error: {e}", parse_mode='HTML')
+
+        elif key == "synapse":
+            try:
+                stats = await self.db.get_stats() if self.db else {}
+                health = self.db.get_system_health() if self.db else {}
+                groq_ok = bool(os.getenv("GROQ_API_KEY"))
+                gemini_ok = bool(os.getenv("GEMINI_API_KEY"))
+                openrouter_ok = bool(os.getenv("OPENROUTER_API_KEY"))
+                ai_count = sum([groq_ok, gemini_ok, openrouter_ok])
+                await msg.reply_text(
+                    f"💪 <b>STRENGTH CHECK</b>\n━━━━━━━━━━━━━━━\n"
+                    f"🧠 <b>AI Providers:</b> {ai_count}/3 active\n"
+                    f"  {'✅' if groq_ok else '❌'} Groq\n"
+                    f"  {'✅' if gemini_ok else '❌'} Gemini\n"
+                    f"  {'✅' if openrouter_ok else '❌'} OpenRouter\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"🚀 <b>Total applications:</b> {stats.get('total_strikes', 0)}\n"
+                    f"🎯 <b>Total leads:</b> {stats.get('recon_rows', 0)}\n"
+                    f"⚙️ <b>Engine:</b> {health.get('engine', 'ACTIVE')}\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"{'✅ System at full strength' if ai_count >= 2 else '⚠️ Add more AI keys for redundancy'}",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"❌ Synapse error: {e}", parse_mode='HTML')
+
+        elif key == "platforms":
+            try:
+                succ, data = await self.db._request_with_retry(
+                    "GET",
+                    f"{self.db.url}/rest/v1/leads?select=job_url&limit=500"
+                )
+                leads = data if succ and isinstance(data, list) else []
+                from collections import Counter
+                import re as _re
+                platform_map = {
+                    "linkedin": "💼 LinkedIn", "indeed": "🔍 Indeed",
+                    "bayt": "🌍 Bayt", "naukrigulf": "🏢 Naukrigulf",
+                    "gulftalent": "⭐ GulfTalent", "daleel": "📋 Daleel Madani",
+                    "glassdoor": "🪟 Glassdoor", "monster": "👾 Monster",
+                }
+                counts = Counter()
+                for l in leads:
+                    url = (l.get('job_url') or '').lower()
+                    matched = False
+                    for kw, name in platform_map.items():
+                        if kw in url:
+                            counts[name] += 1
+                            matched = True
+                            break
+                    if not matched and url:
+                        counts["🌐 Other"] += 1
+                lines = [f"<b>{p}:</b> {c} leads" for p, c in counts.most_common(8)]
+                await msg.reply_text(
+                    "🌐 <b>JOB SOURCES</b>\n━━━━━━━━━━━━━━━\n"
+                    + ("\n".join(lines) if lines else "<i>No platform data yet.</i>") +
+                    "\n━━━━━━━━━━━━━━━",
+                    parse_mode='HTML'
+                )
+            except Exception as e:
+                await msg.reply_text(f"❌ Platforms error: {e}", parse_mode='HTML')
+
         elif key in ("stats", "status"):
             await self._dispatch_command(f"/{key}", update, context)
 
-        elif key in ("menu", "guide", "reboot", "launch_single", "settings", "fix", "backup", "audit", "synapse"):
+        elif key in ("menu", "guide", "reboot", "launch_single", "settings", "fix", "backup", "audit"):
             await self._dispatch_command(f"/{key}", update, context)
 
     async def handle_text_oracle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2781,7 +2902,35 @@ class SovereignDashboard:
             "skip lead": "skip_lead",             "تخطي": "skip_lead",
             "mass strike": "mass_strike",         "ضربة جماعية": "mass_strike",
             "synapse": "synapse", "platforms": "platforms", "sources": "platforms", "المواقع": "platforms",
-            "logs": "logs", "السجلات": "logs"
+            "logs": "logs", "السجلات": "logs",
+            "track": "track", "التتبع المباشر": "track",
+            "oracle": "oracle", "أوراكل السوق": "oracle",
+            "api keys": "keys", "مفاتيح api": "keys",
+            "ai check": "ai_check", "فحص الذكاء": "ai_check",
+            "set key": "setkey", "تغيير مفتاح": "setkey",
+            "test key": "testkey", "اختبار مفتاح": "testkey",
+            "pin lead": "pin_lead", "تثبيت أولوية": "pin_lead",
+            "find emails": "find_emails", "بحث إيميلات": "find_emails",
+            "countries": "countries_report", "الدول المستهدفة": "countries_report",
+            "job titles": "job_titles_report", "المسميات الوظيفية": "job_titles_report",
+            "weekly": "weekly_report", "أسبوعي": "weekly_report",
+            "monthly": "monthly_report", "شهري": "monthly_report",
+            "best day": "best_day", "أفضل يوم": "best_day",
+            "failure": "failure_rate", "نسبة الفشل": "failure_rate",
+            "speed": "speed_test", "سرعة الإرسال": "speed_test",
+            "ping": "ping_render", "اختبار الخادم": "ping_render",
+            "env": "env_check", "المتغيرات": "env_check",
+            "clean": "clean_disk", "تنظيف الذاكرة": "clean_disk",
+            "boost": "boost_mode", "تسريع": "boost_mode",
+            "night": "night_mode", "وضع الليل": "night_mode",
+            "dry run": "dry_run", "تجربة آمنة": "dry_run",
+            "retry": "retry_failed", "إعادة الفاشلين": "retry_failed",
+            "blacklist": "blacklist_view", "القائمة السوداء": "blacklist_view",
+            "notify": "notify_me", "الإشعارات": "notify_me",
+            "inbox": "inbox_check", "فحص الردود": "inbox_check",
+            "mass strike": "mass_strike", "ضربة جماعية": "mass_strike",
+            "backup": "backup", "نسخة احتياطية": "backup",
+            "campaign": "campaign", "الحملة": "campaign",
         }
 
         mapped = None
