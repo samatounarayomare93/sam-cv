@@ -85,72 +85,71 @@ class EmailRotator:
 
     def _get_available_providers(self) -> List[Dict]:
         providers = []
-        is_render = bool(os.getenv("RENDER"))
-        resend_from = os.getenv("RESEND_FROM_EMAIL", "").strip()
+        is_render = bool(os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID") or
+                         os.getenv("RENDER_EXTERNAL_URL"))
 
-        # Resend: only include if RESEND_FROM_EMAIL is set AND is a custom domain (not gmail/yahoo/etc.)
-        FREE_EMAIL_DOMAINS = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
-        resend_domain = resend_from.split('@')[-1].lower() if '@' in resend_from else ''
-        resend_domain_ok = resend_from and resend_domain not in FREE_EMAIL_DOMAINS
-        if resend_domain_ok:
-            if os.getenv("RESEND_API_KEY"):
-                providers.append({"name": "resend_1", "display_name": "Resend #1",
-                                   "limit": PROVIDER_LIMITS["resend_1"], "priority": 1})
-            if os.getenv("RESEND_API_KEY_2"):
-                providers.append({"name": "resend_2", "display_name": "Resend #2",
-                                   "limit": PROVIDER_LIMITS["resend_2"], "priority": 2})
-            if os.getenv("RESEND_API_KEY_3"):
-                providers.append({"name": "resend_3", "display_name": "Resend #3",
-                                   "limit": PROVIDER_LIMITS["resend_3"], "priority": 3})
+        # ── Resend: works with ANY from address (uses onboarding@resend.dev on free plan) ──
+        if os.getenv("RESEND_API_KEY"):
+            providers.append({"name": "resend_1", "display_name": "Resend #1",
+                               "limit": PROVIDER_LIMITS["resend_1"], "priority": 1})
+        if os.getenv("RESEND_API_KEY_2"):
+            providers.append({"name": "resend_2", "display_name": "Resend #2",
+                               "limit": PROVIDER_LIMITS["resend_2"], "priority": 2})
+        if os.getenv("RESEND_API_KEY_3"):
+            providers.append({"name": "resend_3", "display_name": "Resend #3",
+                               "limit": PROVIDER_LIMITS["resend_3"], "priority": 3})
 
-        # Brevo HTTP API — works on Render (no SMTP port needed), always first HTTP provider
+        # ── Brevo HTTP API — only if credits > 0 ──────────────────────────────
         if os.getenv("BREVO_API_KEY"):
-            providers.append({"name": "brevo", "display_name": "Brevo",
-                               "limit": PROVIDER_LIMITS["brevo"], "priority": 4})
+            # Quick credit check (cached — only check once per session)
+            brevo_ok = getattr(EmailRotator, '_brevo_credits_ok', None)
+            if brevo_ok is None:
+                try:
+                    import requests as _req
+                    r = _req.get("https://api.brevo.com/v3/account",
+                                 headers={"api-key": os.getenv("BREVO_API_KEY","")},
+                                 timeout=5)
+                    credits = next((p.get("credits",0) for p in r.json().get("plan",[])
+                                    if p.get("type")=="free"), 0)
+                    brevo_ok = credits > 0
+                    EmailRotator._brevo_credits_ok = brevo_ok
+                    if not brevo_ok:
+                        logging.warning("⚠️ [ROTATOR] Brevo credits=0 — skipping Brevo")
+                except Exception:
+                    brevo_ok = True  # assume OK if check fails
+                    EmailRotator._brevo_credits_ok = True
+            if brevo_ok:
+                providers.append({"name": "brevo", "display_name": "Brevo",
+                                   "limit": PROVIDER_LIMITS["brevo"], "priority": 4})
 
-        # Zoho Transactional API — handled by the HIJACK block below
-        # (Removed duplicate zoho_1 registration)
-
-        # Mailjet HTTP API — works on Render
+        # ── Mailjet HTTP API ───────────────────────────────────────────────────
         if os.getenv("MAILJET_API_KEY") and os.getenv("MAILJET_SECRET_KEY"):
             providers.append({"name": "mailjet", "display_name": "Mailjet",
                                "limit": PROVIDER_LIMITS["mailjet"], "priority": 5})
 
-        # SendPulse HTTP API — works on Render
-        if os.getenv("SENDPULSE_CLIENT_ID") and os.getenv("SENDPULSE_CLIENT_SECRET"):
-            providers.append({"name": "sendpulse", "display_name": "SendPulse",
-                               "limit": PROVIDER_LIMITS["sendpulse"], "priority": 6})
-
-        # [👑 HIJACK FIX]: Zoho accounts are now tunneled via Brevo on Port 2525, so they DO work on Render!
+        # ── Zoho SMTP — works on Render via port 465 SSL ──────────────────────
         if os.getenv("ZOHO_SMTP_USER") and os.getenv("ZOHO_APP_PASSWORD"):
-            providers.append({"name": "zoho_1", "display_name": "Zoho #1 (Tunneled)",
-                               "limit": PROVIDER_LIMITS["zoho_1"], "priority": 7})
+            providers.append({"name": "zoho_1", "display_name": "Zoho #1",
+                               "limit": PROVIDER_LIMITS["zoho_1"], "priority": 6})
         if os.getenv("ZOHO_SMTP_USER_2") and os.getenv("ZOHO_APP_PASSWORD_2"):
-            providers.append({"name": "zoho_2", "display_name": "Zoho #2 (Tunneled)",
-                               "limit": PROVIDER_LIMITS["zoho_2"], "priority": 8})
+            providers.append({"name": "zoho_2", "display_name": "Zoho #2",
+                               "limit": PROVIDER_LIMITS["zoho_2"], "priority": 7})
         if os.getenv("ZOHO_SMTP_USER_3") and os.getenv("ZOHO_APP_PASSWORD_3"):
-            providers.append({"name": "zoho_3", "display_name": "Zoho #3 (Tunneled)",
-                               "limit": PROVIDER_LIMITS.get("zoho_3", 500), "priority": 9})
+            providers.append({"name": "zoho_3", "display_name": "Zoho #3",
+                               "limit": PROVIDER_LIMITS.get("zoho_3", 500), "priority": 8})
 
-        # SMTP providers — Render blocks outbound SMTP ports (465/587), skip on cloud
+        # ── Gmail SMTP port 465 — works on Render ─────────────────────────────
+        if os.getenv("GMAIL_SMTP_USER") and os.getenv("GMAIL_APP_PASSWORD"):
+            providers.append({"name": "gmail", "display_name": "Gmail",
+                               "limit": PROVIDER_LIMITS["gmail"], "priority": 9})
+
+        # ── Yahoo / Outlook — local only ──────────────────────────────────────
         if not is_render:
-            if os.getenv("GMAIL_SMTP_USER") and os.getenv("GMAIL_APP_PASSWORD"):
-                providers.append({"name": "gmail", "display_name": "Gmail",
-                                   "limit": PROVIDER_LIMITS["gmail"], "priority": 10})
             if os.getenv("YAHOO_SMTP_USER") and os.getenv("YAHOO_APP_PASSWORD"):
                 providers.append({"name": "yahoo", "display_name": "Yahoo",
-                                   "limit": PROVIDER_LIMITS["yahoo"], "priority": 11})
+                                   "limit": PROVIDER_LIMITS["yahoo"], "priority": 10})
             if os.getenv("OUTLOOK_USER") and os.getenv("OUTLOOK_PASSWORD"):
                 providers.append({"name": "outlook", "display_name": "Outlook",
-                                   "limit": PROVIDER_LIMITS["outlook"], "priority": 12})
-        else:
-            # On Render: Gmail SMTP port 465 and Outlook port 587 are attempted in smtp_engine.py
-            # Register them here so the rotator tracks their usage correctly.
-            if os.getenv("GMAIL_SMTP_USER") and os.getenv("GMAIL_APP_PASSWORD"):
-                providers.append({"name": "gmail", "display_name": "Gmail (SMTP-465)",
-                                   "limit": PROVIDER_LIMITS["gmail"], "priority": 10})
-            if os.getenv("OUTLOOK_USER") and os.getenv("OUTLOOK_PASSWORD"):
-                providers.append({"name": "outlook", "display_name": "Outlook (SMTP-587)",
                                    "limit": PROVIDER_LIMITS["outlook"], "priority": 11})
 
         return sorted(providers, key=lambda x: x["priority"])
