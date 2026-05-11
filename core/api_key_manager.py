@@ -145,34 +145,82 @@ class APIKeyManager:
 
     # ── Write ─────────────────────────────────────────────────────────────────
     def set(self, key_name: str, value: str) -> Tuple[bool, str]:
-        """Save API key to Supabase and update env var immediately."""
+        """Save API key to Supabase AND sync to Render env vars immediately."""
         if key_name not in API_KEY_REGISTRY:
             return False, f"Unknown key: {key_name}"
 
         db_key = f"{_DB_PREFIX}{key_name}"
+        render_synced = False
+
+        # ── 1. Save to Supabase DB ────────────────────────────────────────────
         try:
-            # Upsert into system_settings
             r = requests.post(
                 f"{self.supa_url}/rest/v1/system_settings",
                 headers={**self._headers(), "Prefer": "resolution=merge-duplicates,return=representation"},
                 json={"key": db_key, "value": value},
                 timeout=10
             )
-            if r.status_code in (200, 201):
-                # Update cache and env
-                self._cache[key_name] = value
-                os.environ[key_name] = value
-                # Clear singleton AI agent so it re-initializes with new key
-                try:
-                    from core.ai_agent import OmniIntelligence
-                    OmniIntelligence._instance = None
-                except Exception:
-                    pass
-                return True, f"✅ {key_name} saved and active immediately"
-            else:
+            if r.status_code not in (200, 201):
                 return False, f"DB error: {r.status_code} — {r.text[:100]}"
         except Exception as e:
-            return False, f"Error: {e}"
+            return False, f"DB error: {e}"
+
+        # ── 2. Update local env immediately ──────────────────────────────────
+        self._cache[key_name] = value
+        os.environ[key_name] = value
+
+        # ── 3. Sync to Render environment variables ───────────────────────────
+        render_key = os.getenv("RENDER_API_KEY", "")
+        render_svc = os.getenv("RENDER_SERVICE_ID", "")
+        if render_key and render_svc:
+            try:
+                # Get current env vars from Render
+                r_get = requests.get(
+                    f"https://api.render.com/v1/services/{render_svc}/env-vars",
+                    headers={"Authorization": f"Bearer {render_key}",
+                             "Accept": "application/json"},
+                    timeout=10
+                )
+                if r_get.status_code == 200:
+                    current_vars = r_get.json()
+                    # Build updated list — update existing or add new
+                    updated = False
+                    for var in current_vars:
+                        if var.get("envVar", {}).get("key") == key_name:
+                            var["envVar"]["value"] = value
+                            updated = True
+                            break
+                    if not updated:
+                        current_vars.append({"envVar": {"key": key_name, "value": value}})
+
+                    # PUT the full updated list back
+                    env_payload = [
+                        {"key": v["envVar"]["key"], "value": v["envVar"]["value"]}
+                        for v in current_vars
+                        if v.get("envVar", {}).get("key")
+                    ]
+                    r_put = requests.put(
+                        f"https://api.render.com/v1/services/{render_svc}/env-vars",
+                        headers={"Authorization": f"Bearer {render_key}",
+                                 "Content-Type": "application/json"},
+                        json=env_payload,
+                        timeout=15
+                    )
+                    render_synced = r_put.status_code in (200, 201)
+                    if not render_synced:
+                        logging.warning(f"Render sync failed: {r_put.status_code} {r_put.text[:100]}")
+            except Exception as e:
+                logging.warning(f"Render sync error: {e}")
+
+        # ── 4. Reset AI agent singleton so it picks up new key ────────────────
+        try:
+            from core.ai_agent import OmniIntelligence
+            OmniIntelligence._instance = None
+        except Exception:
+            pass
+
+        render_note = " + Render ☁️" if render_synced else " (Render sync failed — key active via DB)"
+        return True, f"✅ {key_name} saved to DB{render_note} — active immediately!"
 
     # ── Delete ────────────────────────────────────────────────────────────────
     def delete(self, key_name: str) -> Tuple[bool, str]:
