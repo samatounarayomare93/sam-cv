@@ -397,6 +397,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # This works for ANY recipient.
     # ============================================================
     brevo_api_key = os.getenv("BREVO_API_KEY", "").strip()
+    resend_api_key = os.getenv("RESEND_API_KEY", "").strip()  # FIX: was NameError — must be defined before use
     resend_from_email = os.getenv("RESEND_FROM_EMAIL", "").strip()
     _FREE_DOMAINS = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
     _resend_domain = resend_from_email.split('@')[-1].lower() if '@' in resend_from_email else ''

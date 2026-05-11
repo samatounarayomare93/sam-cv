@@ -245,6 +245,7 @@
 .tInfo { color: var(--accent-blue); font-weight: bold; }
 .tWarn { color: #ffbd2e; font-weight: bold; }
 .tSuccess { color: var(--accent-green); font-weight: bold; }
+.tError { color: #ff5f56; font-weight: bold; }
 
 /* Radar Section [ZENITH] */
 .radarSection {

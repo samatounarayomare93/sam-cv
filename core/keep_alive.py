@@ -119,7 +119,7 @@ def _self_ping_loop():
     url = os.environ.get("RENDER_EXTERNAL_URL")
     if not url or not url.startswith("https://"):
         # Use the active service URL
-        url = "https://sam-bot-v2.onrender.com"
+        url = "https://sam-job-automator.onrender.com"
 
     logging.info(f"🛰️ [SELF-PING] Target: {url}")
     logging.info(f"🛡️ [IMMORTALITY] Bot will run FOREVER. Self-ping every 10 minutes.")

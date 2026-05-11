@@ -344,7 +344,7 @@ def scrape_glassdoor_jobs():
                             if title_elem:
                                 job_title = title_elem.get_text(strip=True)
                                 company = company_elem.get_text(strip=True) if company_elem else "Unknown"
-                                
+                                job_link = title_elem.get('href', '')  # FIX: was NameError
                                 if not db_manager.sync_is_duplicate(job_link or company + job_title):
                                     safe_company = "".join(c for c in company if c.isalnum() or c in ' -').strip()
                                     jobs.append({
@@ -354,7 +354,7 @@ def scrape_glassdoor_jobs():
                                         "salary": "0",
                                         "job_title": job_title,
                                         "description": "",
-                                        "link": "",
+                                        "link": job_link,
                                         "source_board": "glassdoor"
                                     })
                         except Exception:
@@ -445,7 +445,7 @@ def scrape_careerbuilder_jobs():
                         if title_elem:
                             job_title = title_elem.get_text(strip=True)
                             company = company_elem.get_text(strip=True) if company_elem else "Unknown"
-                            
+                            job_link = title_elem.get('href', '')  # FIX: was NameError
                             if not db_manager.sync_is_duplicate(job_link or company + job_title):
                                 safe_company = "".join(c for c in company if c.isalnum() or c in ' -').strip()
                                 jobs.append({
@@ -455,7 +455,7 @@ def scrape_careerbuilder_jobs():
                                     "salary": "0",
                                     "job_title": job_title,
                                     "description": "",
-                                    "link": "",
+                                    "link": job_link,
                                     "source_board": "careerbuilder"
                                 })
                     except Exception:
@@ -563,7 +563,7 @@ def scrape_jobportals():
                         if title_elem:
                             job_title = title_elem.get_text(strip=True)
                             company = company_elem.get_text(strip=True) if company_elem else "Unknown"
-                            
+                            job_link = title_elem.get('href', '')  # FIX: was NameError
                             if not db_manager.sync_is_duplicate(job_link or company + job_title):
                                 safe_company = "".join(c for c in company if c.isalnum() or c in ' -').strip()
                                 jobs.append({
@@ -573,7 +573,7 @@ def scrape_jobportals():
                                     "salary": "0",
                                     "job_title": job_title,
                                     "description": "",
-                                    "link": "",
+                                    "link": job_link,
                                     "source_board": portal["name"].lower()
                                 })
                     except Exception:
