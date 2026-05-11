@@ -154,7 +154,10 @@ class SovereignDashboard:
             BotCommand("unpause", "▶️ إلغاء الإيقاف (Unpause)"),
             BotCommand("omega_halt", "🛑 التوقف التام (Total Halt)"),
             BotCommand("fix", "🔧 إصلاح طارئ (Emergency Fix & Restart)"),
-            BotCommand("ai_check", "🧠 فحص الذكاء الاصطناعي (AI Status Check)")
+            BotCommand("ai_check", "🧠 فحص الذكاء الاصطناعي (AI Status Check)"),
+            BotCommand("keys", "🔑 إدارة API Keys (API Key Manager)"),
+            BotCommand("setkey", "✏️ تغيير API Key (Set API Key)"),
+            BotCommand("testkey", "🧪 اختبار API Key (Test API Key)")
         ]
         try:
             await application.bot.set_my_commands(commands)
@@ -602,6 +605,179 @@ class SovereignDashboard:
             engine = getattr(self.ai, 'primary_engine', 'unknown') if self.ai else 'unavailable'
             await update.effective_message.reply_text(
                 f"🛠️ <b>AI CONFIGURATION CORE</b>\n━━━━━━━━━━━━━━━\nEngine: <code>{engine}</code>\nStatus: <code>{'Ready' if self.ai else 'Unavailable'}</code>\n━━━━━━━━━━━━━━━\n<i>This page is informational; real AI work happens in /prep and /oracle.</i>",
+                parse_mode='HTML'
+            )
+
+        elif cmd == "/keys" or cmd == "/apikeys":
+            # ── Show all API keys status ──────────────────────────────────────
+            from core.api_key_manager import get_key_manager, API_KEY_REGISTRY
+            mgr = get_key_manager()
+            status = mgr.get_all_status()
+
+            # Group by category
+            categories = {}
+            for key_name, info in status.items():
+                cat = info["category"]
+                if cat not in categories:
+                    categories[cat] = []
+                categories[cat].append((key_name, info))
+
+            lines = ["🔑 <b>API KEYS MANAGER</b>", "━━━━━━━━━━━━━━━━━━━━"]
+
+            for cat, items in categories.items():
+                cat_icons = {"AI": "🧠", "Email": "📧", "Infra": "☁️"}
+                lines.append(f"\n{cat_icons.get(cat,'📌')} <b>{cat}:</b>")
+                for key_name, info in items:
+                    has = info["has_key"]
+                    src = f" <i>({info['source']})</i>" if has else ""
+                    masked = info["masked"]
+                    icon = "✅" if has else "❌"
+                    lines.append(
+                        f"  {icon} {info['icon']} <b>{info['label']}</b>{src}\n"
+                        f"     <code>{masked}</code>\n"
+                        f"     💡 {info['free_info']}"
+                    )
+
+            lines.append("\n━━━━━━━━━━━━━━━━━━━━")
+            lines.append("📝 <b>Commands:</b>")
+            lines.append("/setkey — Set/update a key")
+            lines.append("/testkey — Test a specific key")
+            lines.append("/ai_check — Test all AI keys live")
+
+            await update.effective_message.reply_text("\n".join(lines), parse_mode='HTML')
+
+        elif cmd == "/setkey":
+            # ── Set an API key from Telegram ──────────────────────────────────
+            # Usage: /setkey GROQ_API_KEY gsk_xxxxx
+            parts = update.message.text.strip().split(None, 2)
+            if len(parts) < 3:
+                from core.api_key_manager import API_KEY_REGISTRY
+                key_list = "\n".join(
+                    f"  • <code>{k}</code> — {v['icon']} {v['label']}"
+                    for k, v in API_KEY_REGISTRY.items()
+                )
+                await update.effective_message.reply_text(
+                    "🔑 <b>SET API KEY</b>\n━━━━━━━━━━━━━━━\n"
+                    "<b>Usage:</b> <code>/setkey KEY_NAME value</code>\n\n"
+                    "<b>Example:</b>\n"
+                    "<code>/setkey GROQ_API_KEY gsk_xxxxx</code>\n"
+                    "<code>/setkey OPENROUTER_API_KEY sk-or-xxxxx</code>\n\n"
+                    "<b>Available keys:</b>\n" + key_list +
+                    "\n\n⚠️ <i>Key is saved to DB and active immediately on Render!</i>",
+                    parse_mode='HTML'
+                )
+                return
+
+            _, key_name, new_value = parts
+            key_name = key_name.strip().upper()
+            new_value = new_value.strip()
+
+            from core.api_key_manager import get_key_manager, API_KEY_REGISTRY
+            if key_name not in API_KEY_REGISTRY:
+                await update.effective_message.reply_text(
+                    f"❌ Unknown key: <code>{key_name}</code>\n"
+                    f"Use /keys to see all available keys.",
+                    parse_mode='HTML'
+                )
+                return
+
+            # Save to DB
+            mgr = get_key_manager()
+            ok, msg_text = mgr.set(key_name, new_value)
+            info = API_KEY_REGISTRY[key_name]
+
+            if ok:
+                masked = f"{new_value[:8]}...{new_value[-4:]}" if len(new_value) > 12 else "SET"
+                # Also sync to Render env vars
+                try:
+                    render_key = os.getenv("RENDER_API_KEY", "")
+                    render_svc = os.getenv("RENDER_SERVICE_ID", "")
+                    if render_key and render_svc:
+                        import requests as _req
+                        _req.put(
+                            f"https://api.render.com/v1/services/{render_svc}/env-vars",
+                            headers={"Authorization": f"Bearer {render_key}",
+                                     "Content-Type": "application/json"},
+                            json=[{"key": key_name, "value": new_value}],
+                            timeout=10
+                        )
+                        render_note = "\n☁️ Also synced to Render!"
+                    else:
+                        render_note = ""
+                except Exception:
+                    render_note = ""
+
+                # Test the new key
+                ok_test, test_result = await mgr.test_key(key_name)
+                test_line = f"\n🧪 Test: {test_result}"
+
+                await update.effective_message.reply_text(
+                    f"✅ <b>{info['icon']} {info['label']} Updated!</b>\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"🔑 Key: <code>{masked}</code>\n"
+                    f"💾 Saved to: DB (active immediately){render_note}"
+                    f"{test_line}\n"
+                    f"━━━━━━━━━━━━━━━\n"
+                    f"<i>No restart needed — key is live now!</i>",
+                    parse_mode='HTML'
+                )
+            else:
+                await update.effective_message.reply_text(
+                    f"❌ <b>Failed to save {key_name}</b>\n{msg_text}",
+                    parse_mode='HTML'
+                )
+
+        elif cmd == "/testkey":
+            # ── Test a specific key ───────────────────────────────────────────
+            # Usage: /testkey GROQ_API_KEY
+            parts = update.message.text.strip().split(None, 1)
+            if len(parts) < 2:
+                from core.api_key_manager import API_KEY_REGISTRY
+                key_list = " | ".join(f"<code>{k}</code>" for k in API_KEY_REGISTRY.keys())
+                await update.effective_message.reply_text(
+                    f"🧪 <b>TEST API KEY</b>\n"
+                    f"<b>Usage:</b> <code>/testkey KEY_NAME</code>\n\n"
+                    f"<b>Available:</b>\n{key_list}",
+                    parse_mode='HTML'
+                )
+                return
+
+            key_name = parts[1].strip().upper()
+            from core.api_key_manager import get_key_manager, API_KEY_REGISTRY
+            if key_name not in API_KEY_REGISTRY:
+                await update.effective_message.reply_text(
+                    f"❌ Unknown key: <code>{key_name}</code>", parse_mode='HTML'
+                )
+                return
+
+            mgr = get_key_manager()
+            info = API_KEY_REGISTRY[key_name]
+            val = mgr.get(key_name)
+
+            if not val:
+                await update.effective_message.reply_text(
+                    f"❌ <b>{info['icon']} {info['label']}</b>\n"
+                    f"No key set!\n\n"
+                    f"Add it with:\n<code>/setkey {key_name} your_key_here</code>\n\n"
+                    f"Get free key: {info.get('signup', 'N/A')}",
+                    parse_mode='HTML'
+                )
+                return
+
+            msg_obj = await update.effective_message.reply_text(
+                f"🧪 Testing {info['icon']} {info['label']}...", parse_mode='HTML'
+            )
+            ok, result = await mgr.test_key(key_name)
+            masked = f"{val[:8]}...{val[-4:]}" if len(val) > 12 else "SET"
+
+            await msg_obj.edit_text(
+                f"{'✅' if ok else '❌'} <b>{info['icon']} {info['label']}</b>\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"🔑 Key: <code>{masked}</code>\n"
+                f"📊 Result: {result}\n"
+                f"💾 Source: {mgr.get_all_status().get(key_name, {}).get('source', 'env')}\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"{'💡 Key is working!' if ok else '⚠️ Update with: /setkey ' + key_name + ' new_key'}",
                 parse_mode='HTML'
             )
 
@@ -1162,10 +1338,10 @@ class SovereignDashboard:
             ],
             [
                 InlineKeyboardButton("🧠 AI STATUS | حالة الذكاء", callback_data="/ai_check"),
-                InlineKeyboardButton("🖥️ STATUS | الحالة", callback_data="/status")
+                InlineKeyboardButton("🔑 API KEYS | المفاتيح", callback_data="/keys")
             ],
             [
-                InlineKeyboardButton("📖 GUIDE | دليل", callback_data="/guide"),
+                InlineKeyboardButton("🖥️ STATUS | الحالة", callback_data="/status"),
                 InlineKeyboardButton("🔧 FIX | إصلاح", callback_data="/fix")
             ]
         ]
@@ -2485,6 +2661,7 @@ class SovereignDashboard:
             "uptime": "uptime_status", "وقت التشغيل": "uptime_status",
             "ai status": "ai_status", "حالة الذكاء": "ai_status",
             "ai check": "ai_check", "فحص ai": "ai_check", "فحص الذكاء": "ai_check",
+            "keys": "keys", "api keys": "keys", "مفاتيح": "keys", "المفاتيح": "keys",
             "inbox check": "inbox_check", "فحص الردود": "inbox_check",
             "top companies": "top_companies", "أفضل شركات": "top_companies",
             "scrape now": "scrape_now", "اسكان فوري": "scrape_now",
@@ -2543,7 +2720,7 @@ class SovereignDashboard:
                           "lazarus", "repair", "hygiene", "reboot", "status",
                           "guide", "evolution", "audit", "hud", "backup", "oracle",
                           "mock_interview", "synapse", "logs", "settings", "fix", "followup",
-                          "ai_check"}
+                          "ai_check", "keys", "apikeys", "setkey", "testkey"}
             if mapped in slash_cmds:
                 return await self._dispatch_command(f"/{mapped}", update, context)
             else:
