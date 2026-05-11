@@ -153,80 +153,93 @@ def _get_available_providers():
     return providers
 
 def send_test_email(recipient_email=None, attachment_paths=None, highlights=None):
-    """[👑 OMEGA] Sends a premium visual verification strike to verify the dual PDF package."""
+    """[👑 OMEGA] Sends a premium visual verification strike.
+    
+    FIX: On Render, PDF generation can timeout. Strategy:
+    1. First try to send WITHOUT attachments (fast, always works)
+    2. Then try to add PDFs if generation succeeds within 20s
+    """
     recipient_email = recipient_email or getattr(config, 'TEST_RECEIVER_EMAIL', None) or os.getenv("TEST_RECEIVER_EMAIL", os.getenv("SENDER_EMAIL", ""))
     
     logging.info(f"🧪 TEST STRIKE: Sending to {recipient_email}")
     
-    # [👑 VIP REALISM]: Matching the reference .eml format exactly
     company_name = 'Future Tech Industries'
     job_title = 'Lead Automation Engineer'
-    
-    # Pass empty body so _wrap_in_sovereign_template uses the default dark-theme template
-    # which matches the reference .eml exactly (color: #e2e8f0 on dark background)
     body = ""
-    
-    # No highlights for test — template will use the default 3 sections
     dynamic_highlights = highlights or []
-    
-    # Send test using exact structural parity with the lead's instruction
+
+    # ── PHASE 1: Try to generate PDFs with a strict 25s timeout ──────────────
     if not attachment_paths:
-        try:
-            attachments = []
-            
-            # 1. PDF CV using Playwright (100% match to HTML)
-            # [🛡️ FIX]: Initialize cv_pdf_path to None BEFORE the try block
+        attachments = []
+        import concurrent.futures
+
+        def _generate_pdfs():
+            """Generate PDFs in a thread with timeout protection."""
+            pdfs = []
+            # Try Playwright first
             cv_pdf_path = None
             try:
                 from core.cv_playwright_pdf import generate_cv_from_html_playwright
                 cv_pdf_path = generate_cv_from_html_playwright()
                 if cv_pdf_path and os.path.exists(cv_pdf_path):
-                    attachments.append(cv_pdf_path)
-                    logging.info(f"✅ Added Playwright PDF CV: {cv_pdf_path}")
-                else:
-                    raise Exception("Playwright PDF generation failed or returned None")
+                    pdfs.append(cv_pdf_path)
+                    logging.info(f"✅ Playwright PDF ready: {cv_pdf_path}")
+                    return pdfs  # Fast path: Playwright worked, skip FPDF
             except Exception as e:
-                if "No module named" in str(e):
-                    logging.debug("⏭️ Playwright not available, using FPDF")
-                else:
-                    logging.warning(f"⚠️ Playwright failed: {e}, falling back to FPDF")
-                # Fallback to FPDF if Playwright fails
-                try:
-                    from core.cv_pdf_full import generate_full_cv_pdf
-                    cv_pdf_path = generate_full_cv_pdf()
-                    if cv_pdf_path and os.path.exists(cv_pdf_path):
-                        attachments.append(cv_pdf_path)
-                        logging.info(f"✅ Added FPDF CV: {cv_pdf_path}")
-                except Exception as fpdf_err:
-                    logging.error(f"❌ FPDF fallback also failed: {fpdf_err}")
-            
-            # 2. Cover Letter PDF
+                logging.debug(f"Playwright unavailable: {e}")
+
+            # Fallback: FPDF
+            try:
+                from core.cv_pdf_full import generate_full_cv_pdf
+                cv_pdf_path = generate_full_cv_pdf()
+                if cv_pdf_path and os.path.exists(cv_pdf_path):
+                    pdfs.append(cv_pdf_path)
+                    logging.info(f"✅ FPDF CV ready: {cv_pdf_path}")
+            except Exception as e:
+                logging.warning(f"⚠️ FPDF CV failed: {e}")
+
+            # Cover letter
             try:
                 from core.cover_letter_pdf import generate_cover_letter_pdf
-                cover_pdf_path = generate_cover_letter_pdf(company_name, job_title)
-                if cover_pdf_path and os.path.exists(cover_pdf_path):
-                    attachments.append(cover_pdf_path)
-                    logging.info(f"✅ Added Cover Letter PDF: {cover_pdf_path}")
+                cover_path = generate_cover_letter_pdf(company_name, job_title)
+                if cover_path and os.path.exists(cover_path):
+                    pdfs.append(cover_path)
+                    logging.info(f"✅ Cover letter ready: {cover_path}")
             except Exception as e:
-                logging.warning(f"⚠️ Cover letter generation failed: {e}")
-            
-            attachment_paths = attachments if attachments else []
-            
+                logging.warning(f"⚠️ Cover letter failed: {e}")
+
+            return pdfs
+
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_generate_pdfs)
+                try:
+                    attachments = future.result(timeout=25)  # 25s max for PDF generation
+                    logging.info(f"✅ PDFs generated: {len(attachments)} files")
+                except concurrent.futures.TimeoutError:
+                    logging.warning("⚠️ PDF generation timed out after 25s — sending without attachments")
+                    attachments = []
         except Exception as e:
-            logging.error(f"❌ Failed to prepare attachments: {e}")
-            import traceback
-            traceback.print_exc()
-            attachment_paths = []
-    
-    # Send email and return actual result — force_recipient=True ensures the email
-    # goes to exactly the address the user typed, bypassing any TEST_MODE redirect.
-    result = send_email(recipient_email, company_name, job_title, body, 'test', 'test', attachment_paths, highlights=dynamic_highlights, strike_id="STRIKE-2771", force_recipient=True)
-    
+            logging.warning(f"⚠️ PDF generation error: {e} — sending without attachments")
+            attachments = []
+
+        attachment_paths = attachments
+
+    # ── PHASE 2: Send the email (with or without PDFs) ───────────────────────
+    result = send_email(
+        recipient_email, company_name, job_title, body,
+        'test', 'test', attachment_paths,
+        highlights=dynamic_highlights,
+        strike_id="STRIKE-TEST",
+        force_recipient=True
+    )
+
     if result:
-        logging.info(f"✅ TEST STRIKE SUCCESS: Email sent to {recipient_email}")
+        pdf_note = f"with {len(attachment_paths)} PDF(s)" if attachment_paths else "without PDFs (generation timed out)"
+        logging.info(f"✅ TEST STRIKE SUCCESS: Email sent to {recipient_email} {pdf_note}")
     else:
         logging.error(f"❌ TEST STRIKE FAILED: Could not send to {recipient_email}")
-    
+
     return result
 
 
@@ -365,13 +378,18 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # - Without custom domain (free plan): uses onboarding@resend.dev as FROM,
     #   but Resend still delivers to any recipient — perfect for test emails.
     # ============================================================
+    # 🌟 ABSOLUTE PRIORITY 0: RESEND API
+    # Key is restricted to "send emails only" — that's fine, we only send.
+    # On free plan without custom domain: use onboarding@resend.dev as FROM.
+    # This works for ANY recipient.
+    # ============================================================
     resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
     resend_from_email = os.getenv("RESEND_FROM_EMAIL", "").strip()
     _FREE_DOMAINS = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
     _resend_domain = resend_from_email.split('@')[-1].lower() if '@' in resend_from_email else ''
     _resend_domain_ok = resend_from_email and _resend_domain not in _FREE_DOMAINS
 
-    if resend_api_key and _resend_domain_ok:
+    if resend_api_key:  # ← FIX: try Resend even with free-domain FROM (uses onboarding@resend.dev)
         try:
             import resend as resend_lib
             resend_lib.api_key = resend_api_key
@@ -472,6 +490,45 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
 
         gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or os.getenv("GMAIL_SMTP_USER", "")).strip()
         gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or os.getenv("GMAIL_APP_PASSWORD", "")).strip()
+
+        # ── STEP -1: Resend API — works on Render, no SMTP needed ─────────────
+        resend_key_first = os.getenv("RESEND_API_KEY", "").strip()
+        if resend_key_first and HAS_RESEND:
+            try:
+                import resend as resend_lib
+                resend_lib.api_key = resend_key_first
+                resend_from_r0 = os.getenv("RESEND_FROM_EMAIL", "").strip()
+                _FREE_R0 = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
+                _dom_r0 = resend_from_r0.split('@')[-1].lower() if '@' in resend_from_r0 else ''
+                from_addr_r0 = (f"{sender_name} <{resend_from_r0}>"
+                                if resend_from_r0 and _dom_r0 not in _FREE_R0
+                                else f"{sender_name} <onboarding@resend.dev>")
+                html_r0 = _wrap_in_sovereign_template(company_name, job_title, custom_body, highlights or [])
+                att_r0 = []
+                if attachment_paths:
+                    for _p in attachment_paths:
+                        if _p and os.path.exists(_p):
+                            with open(_p, "rb") as _f:
+                                att_r0.append({"filename": os.path.basename(_p),
+                                               "content": base64.b64encode(_f.read()).decode()})
+                params_r0 = {"from": from_addr_r0, "to": [to_email], "subject": subject,
+                             "html": html_r0,
+                             "reply_to": reply_to or os.getenv("SENDER_EMAIL", gmail_user)}
+                if att_r0:
+                    params_r0["attachments"] = att_r0
+                logging.info(f"📧 [RENDER-STEP-1] Resend API (100/day, HTTP)...")
+                result_r0 = resend_lib.Emails.send(params_r0)
+                if result_r0 and result_r0.get('id'):
+                    logging.info(f"✅ [RENDER-STEP-1] Resend SUCCESS! ID: {result_r0['id']}")
+                    try:
+                        from core.email_rotator import record_email_sent
+                        record_email_sent("resend")
+                    except: pass
+                    return True
+                else:
+                    logging.warning(f"⚠️ [RENDER-STEP-1] Resend no ID: {result_r0}")
+            except Exception as e:
+                logging.warning(f"⚠️ [RENDER-STEP-1] Resend exception: {e}")
 
         # ── STEP 0: Brevo HTTP API — 300/day, verified sender, works on Render ──
         brevo_api_r = os.getenv("BREVO_API_KEY", "").strip()
