@@ -43,9 +43,12 @@ ENV_VARS_TO_SYNC = {
     'SUPABASE_KEY': os.getenv('SUPABASE_KEY', ''),
     'SUPABASE_SERVICE_ROLE_KEY': os.getenv('SUPABASE_SERVICE_ROLE_KEY', ''),
     
-    # AI
+    # AI - Extended
     'GROQ_API_KEY': os.getenv('GROQ_API_KEY', ''),
     'GEMINI_API_KEY': os.getenv('GEMINI_API_KEY', ''),
+    'OPENROUTER_API_KEY': os.getenv('OPENROUTER_API_KEY', ''),
+    'DEEPSEEK_API_KEY': os.getenv('DEEPSEEK_API_KEY', ''),
+    'HUGGINGFACE_API_KEY': os.getenv('HUGGINGFACE_API_KEY', ''),
     
     # Resend
     'RESEND_API_KEY': os.getenv('RESEND_API_KEY', ''),

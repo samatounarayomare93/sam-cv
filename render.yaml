@@ -1,17 +1,13 @@
+# Render deployment config
+# NOTE: All env vars are managed via Render API (sync_all_to_account2.py)
+# This file only defines build/start commands
 services:
   - type: web
-    name: sam-job-automator
+    name: sam-bot-v2
     runtime: python
-    region: oregon
+    region: frankfurt
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python launch_sam.py
     healthCheckPath: /
     autoDeploy: true
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.0"
-      - key: PORT
-        value: "10000"
-      # All other env vars are managed via Render dashboard / API
-      # to keep secrets out of source control

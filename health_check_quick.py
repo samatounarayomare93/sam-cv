@@ -65,9 +65,9 @@ try:
 except Exception as e:
     results.append(f"BREVO API:     ERROR - {e}")
 
-# 5. Render service
+# 5. Render service (Account 2 - active)
 try:
-    render_url = "https://sam-job-automator.onrender.com"
+    render_url = "https://sam-bot-v2.onrender.com"
     r = requests.get(render_url, timeout=15)
     results.append(f"RENDER SERVICE: OK - HTTP {r.status_code} ({render_url})")
 except Exception as e:

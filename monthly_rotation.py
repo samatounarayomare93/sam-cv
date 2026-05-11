@@ -126,13 +126,28 @@ print("\nStep 4: Sync env vars to new service...")
 # Re-run sync
 import subprocess
 result = subprocess.run(
-    ['.sovereign_runtime/python.exe', 'sync_env_to_render.py'],
+    ['.sovereign_runtime/python.exe', 'sync_all_to_account2.py'],
     capture_output=True, text=True, timeout=60
 )
 if 'SUCCESS' in result.stdout:
     print("  Env vars synced!")
 else:
     print(f"  Sync output: {result.stdout[:100]}")
+
+print("\nStep 5: Update keep_alive.py with new URL...")
+import re as _re
+ka_path = 'core/keep_alive.py'
+with open(ka_path, 'r', encoding='utf-8') as f:
+    ka_content = f.read()
+new_url = activate['services']['bot_url']
+ka_content = _re.sub(
+    r'url = "https://[^"]+\.onrender\.com"',
+    f'url = "{new_url}"',
+    ka_content
+)
+with open(ka_path, 'w', encoding='utf-8') as f:
+    f.write(ka_content)
+print(f"  keep_alive.py updated to ping: {new_url}")
 
 print("\n" + "="*60)
 print("ROTATION COMPLETE!")

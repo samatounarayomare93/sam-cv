@@ -118,8 +118,8 @@ def _self_ping_loop():
     """[IMMORTALITY]: Background loop that pings the external URL to prevent sleep."""
     url = os.environ.get("RENDER_EXTERNAL_URL")
     if not url or not url.startswith("https://"):
-        # Use the active service URL
-        url = "https://sam-job-automator.onrender.com"
+        # Use the active service URL (Account 2 - sam-bot-v2)
+        url = "https://sam-bot-v2.onrender.com"
 
     logging.info(f"🛰️ [SELF-PING] Target: {url}")
     logging.info(f"🛡️ [IMMORTALITY] Bot will run FOREVER. Self-ping every 10 minutes.")
