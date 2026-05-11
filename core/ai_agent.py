@@ -720,68 +720,177 @@ class OmniIntelligence:
         return {}
 
     async def _fallback_groq(self, prompt: str, job_title: str, news_headline: str = None, company_values: str = None, competitor_fail: str = None, internal_lingo: str = None, executive_names: str = None, peer_inspiration: str = None) -> Tuple[bool, str, str, str, int, str, list, str, str, str, list]:
-        """Exponential backoff Groq with full JSON support and session reuse"""
-        headers = {
-            "Authorization": f"Bearer {self.groq_key}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": "llama-3.3-70b-versatile", # Using 70b specifically for fallback for higher intelligence
-            "messages": [{"role": "user", "content": prompt[:12000]}],  # [👑 FIX: Truncate to avoid 400 context overflow]
-            "response_format": {"type": "json_object"},
-            "temperature": 0.3
-        }
-        
-        max_retries = 2
-        base_delay = 1
-        
-        for attempt in range(max_retries):
+        """
+        Multi-provider AI fallback chain (all 100% free):
+        1. Groq (llama-3.3-70b) — 14,400 req/day
+        2. DeepSeek (deepseek-chat) — 500 req/day free
+        3. OpenRouter (free models) — unlimited free tier
+        4. Together AI (free models) — 60 req/min free
+        5. Static fallback
+        """
+        # ── Helper: parse AI JSON response ───────────────────────────────────
+        def _parse_response(content: str):
+            parsed = json.loads(content)
+            return (
+                parsed.get("is_relevant", False),
+                parsed.get("reason", "AI decision"),
+                parsed.get("cover_letter_body", ""),
+                parsed.get("extracted_salary", "0"),
+                parsed.get("lead_score", 0),
+                parsed.get("competitive_advantage", "Senior Network Engineer — Cisco CCNA, Fortinet NSE, MikroTik MTCNA certified with 15+ years enterprise experience."),
+                parsed.get("keywords", []),
+                parsed.get("culture_persona", "Modern"),
+                parsed.get("psychological_variant", "EMPATHETIC"),
+                parsed.get("personality_archetype", "VISIONARY_TECH"),
+                parsed.get("highlights", [])
+            )
+
+        session = await self._get_session()
+
+        # ── 1. GROQ (primary free AI) ─────────────────────────────────────────
+        if self.groq_key:
+            for attempt in range(2):
+                try:
+                    response = await session.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"},
+                        json={"model": "llama-3.3-70b-versatile",
+                              "messages": [{"role": "user", "content": prompt[:12000]}],
+                              "response_format": {"type": "json_object"}, "temperature": 0.3}
+                    )
+                    if response.status_code == 200:
+                        logging.info("✅ [AI] Groq responded")
+                        return _parse_response(response.json()['choices'][0]['message']['content'])
+                    elif response.status_code == 429:
+                        logging.warning("⏳ [AI] Groq rate limited — trying DeepSeek")
+                        break
+                    else:
+                        logging.warning(f"⚠️ [AI] Groq HTTP {response.status_code}")
+                        break
+                except Exception as e:
+                    logging.warning(f"⚠️ [AI] Groq error: {e}")
+                    if self._session:
+                        try: await self._session.aclose()
+                        except: pass
+                        self._session = None
+                        session = await self._get_session()
+                    break
+
+        # ── 2. DEEPSEEK (free tier: 500 req/day, very smart) ─────────────────
+        deepseek_key = os.getenv("DEEPSEEK_API_KEY", "")
+        if deepseek_key:
             try:
-                session = await self._get_session()
+                logging.info("🔄 [AI] Trying DeepSeek...")
                 response = await session.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers=headers,
-                    json=data
+                    "https://api.deepseek.com/chat/completions",
+                    headers={"Authorization": f"Bearer {deepseek_key}", "Content-Type": "application/json"},
+                    json={"model": "deepseek-chat",
+                          "messages": [{"role": "user", "content": prompt[:12000]}],
+                          "response_format": {"type": "json_object"}, "temperature": 0.3}
                 )
                 if response.status_code == 200:
-                    res_json = response.json()
-                    content = res_json['choices'][0]['message']['content']
-                    parsed = json.loads(content)
-                    return (
-                        parsed.get("is_relevant", False),
-                        parsed.get("reason", "Groq fallback decision"),
-                        parsed.get("cover_letter_body", ""),
-                        parsed.get("extracted_salary", "0"),
-                        parsed.get("lead_score", 0),
-                        parsed.get("competitive_advantage", "Senior Network Engineer — Cisco CCNA, Fortinet NSE, MikroTik MTCNA certified with 15+ years enterprise experience."),
-                        parsed.get("keywords", []),
-                        parsed.get("culture_persona", "Modern"),
-                        parsed.get("psychological_variant", "EMPATHETIC"),
-                        parsed.get("personality_archetype", "VISIONARY_TECH"),
-                        parsed.get("highlights", [])  # 11th value — required by analyze_job caller
-                    )
-                elif response.status_code == 429:
-                    # Daily token limit hit — don't retry, return immediately to save tokens
-                    logging.warning(f"⏳ GROQ DAILY LIMIT HIT — skipping retries to preserve tokens")
-                    break
+                    logging.info("✅ [AI] DeepSeek responded")
+                    return _parse_response(response.json()['choices'][0]['message']['content'])
                 else:
-                    error_body = response.text[:300] if hasattr(response, 'text') else 'No body'
-                    logging.error(f"❌ GROQ HTTP {response.status_code}: {error_body}")
-                    break
-            except asyncio.TimeoutError:
-                logging.warning(f"⏳ GROQ TIMEOUT - Attempt {attempt + 1}")
-                await asyncio.sleep(1)
+                    logging.warning(f"⚠️ [AI] DeepSeek HTTP {response.status_code}: {response.text[:100]}")
             except Exception as e:
-                resp_code = locals().get('response', None)
-                resp_code = resp_code.status_code if resp_code and hasattr(resp_code, 'status_code') else 'N/A'
-                logging.error(f"❌ GROQ FAILURE: {resp_code} — {str(e)[:200]}")
-                # Reset session on failure so next attempt uses a fresh connection
-                if self._session:
-                    try: await self._session.aclose()
-                    except: pass
-                    self._session = None
-                break
-        
+                logging.warning(f"⚠️ [AI] DeepSeek error: {e}")
+
+        # ── 3. OPENROUTER (free models: meta-llama, mistral, etc.) ───────────
+        openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
+        if openrouter_key:
+            # Free models on OpenRouter (no credits needed)
+            free_models = [
+                "meta-llama/llama-3.1-8b-instruct:free",
+                "mistralai/mistral-7b-instruct:free",
+                "google/gemma-2-9b-it:free",
+            ]
+            for model in free_models:
+                try:
+                    logging.info(f"🔄 [AI] Trying OpenRouter ({model.split('/')[1][:20]})...")
+                    response = await session.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {openrouter_key}",
+                                 "Content-Type": "application/json",
+                                 "HTTP-Referer": "https://sam-job-automator.onrender.com",
+                                 "X-Title": "Sam Job Automator"},
+                        json={"model": model,
+                              "messages": [{"role": "user", "content": prompt[:8000]}],
+                              "temperature": 0.3}
+                    )
+                    if response.status_code == 200:
+                        content = response.json()['choices'][0]['message']['content']
+                        # OpenRouter free models don't support JSON mode — extract manually
+                        try:
+                            # Try direct JSON parse
+                            return _parse_response(content)
+                        except Exception:
+                            # Extract JSON from text
+                            match = re.search(r'\{.*\}', content, re.DOTALL)
+                            if match:
+                                return _parse_response(match.group())
+                        logging.warning(f"⚠️ [AI] OpenRouter {model}: could not parse JSON")
+                    else:
+                        logging.warning(f"⚠️ [AI] OpenRouter {model}: HTTP {response.status_code}")
+                except Exception as e:
+                    logging.warning(f"⚠️ [AI] OpenRouter {model}: {e}")
+                    continue
+
+        # ── 4. TOGETHER AI (free tier: 60 req/min) ───────────────────────────
+        together_key = os.getenv("TOGETHER_API_KEY", "")
+        if together_key:
+            try:
+                logging.info("🔄 [AI] Trying Together AI...")
+                response = await session.post(
+                    "https://api.together.xyz/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {together_key}", "Content-Type": "application/json"},
+                    json={"model": "meta-llama/Llama-3-8b-chat-hf",
+                          "messages": [{"role": "user", "content": prompt[:8000]}],
+                          "temperature": 0.3, "max_tokens": 2000}
+                )
+                if response.status_code == 200:
+                    content = response.json()['choices'][0]['message']['content']
+                    try:
+                        return _parse_response(content)
+                    except Exception:
+                        match = re.search(r'\{.*\}', content, re.DOTALL)
+                        if match:
+                            return _parse_response(match.group())
+                    logging.warning("⚠️ [AI] Together AI: could not parse JSON")
+                else:
+                    logging.warning(f"⚠️ [AI] Together AI HTTP {response.status_code}")
+            except Exception as e:
+                logging.warning(f"⚠️ [AI] Together AI error: {e}")
+
+        # ── 5. HUGGING FACE (free inference API) ─────────────────────────────
+        hf_key = os.getenv("HUGGINGFACE_API_KEY", "")
+        if hf_key:
+            try:
+                logging.info("🔄 [AI] Trying HuggingFace...")
+                # Use a simple prompt for HF (no JSON mode)
+                simple_prompt = f"Analyze this job and return JSON with is_relevant(bool), lead_score(0-100), cover_letter_body(string): {prompt[:3000]}"
+                response = await session.post(
+                    "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
+                    headers={"Authorization": f"Bearer {hf_key}", "Content-Type": "application/json"},
+                    json={"inputs": simple_prompt, "parameters": {"max_new_tokens": 1000, "temperature": 0.3}}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    content = data[0].get("generated_text", "") if isinstance(data, list) else str(data)
+                    match = re.search(r'\{.*\}', content, re.DOTALL)
+                    if match:
+                        try:
+                            return _parse_response(match.group())
+                        except Exception:
+                            pass
+                    logging.warning("⚠️ [AI] HuggingFace: could not parse response")
+                else:
+                    logging.warning(f"⚠️ [AI] HuggingFace HTTP {response.status_code}")
+            except Exception as e:
+                logging.warning(f"⚠️ [AI] HuggingFace error: {e}")
+
+        # ── 6. Static fallback (always works) ────────────────────────────────
+        logging.warning("⚠️ [AI] All providers failed — using static fallback")
         return self._apex_static_fallback(job_title, news_headline)
 
     async def generate_decoy_persona(self, job_title: str, company: str) -> Dict[str, str]:
