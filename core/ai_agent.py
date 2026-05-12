@@ -699,7 +699,7 @@ class OmniIntelligence:
         # Truncate prompt aggressively to save tokens
         data = {
             "model": "llama-3.3-70b-versatile",
-            "messages": [{"role": "user", "content": prompt[:4000]}],
+            "messages": [{"role": "user", "content": f"Respond in JSON format only.\n\n{prompt[:4000]}"}],
             "response_format": {"type": "json_object"},
             "temperature": 0.0
         }
