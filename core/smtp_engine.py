@@ -550,7 +550,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         # ── STEP 0: Brevo HTTP API — 300/day, verified sender, works on Render ──
         brevo_api_r = os.getenv("BREVO_API_KEY", "").strip()
         if not brevo_api_r:
-            brevo_api_r = "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"
+            brevo_api_r = getattr(config, 'BREVO_API_KEY', '') or ""
         # Skip Brevo if known to be disabled
         _brevo_skip = getattr(send_email, '_brevo_disabled', False)
         if brevo_api_r and not _brevo_skip:
@@ -1246,9 +1246,6 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     The Brevo account email (samatou683@gmail.com) is always active.
     """
     api_key = getattr(config, 'BREVO_API_KEY', None) or os.getenv("BREVO_API_KEY", "").strip()
-    # Hardcoded fallback — works even if env vars missing on Render
-    if not api_key:
-        api_key = "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"
     if not api_key: return False
 
     # Active verified senders in Brevo (in priority order):

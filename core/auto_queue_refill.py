@@ -396,10 +396,13 @@ async def inject_batch(c, url, headers, count=80):
             "status": "pending",
             "priority_score": score + random.randint(-5, 5),
             "description": (
-                f"We are looking for a {title} to join {company_name}. "
-                f"5+ years experience in network engineering required. "
-                f"Cisco/Juniper/Fortinet certifications preferred. "
-                f"Competitive salary + relocation package."
+                f"We are looking for a {title} to join our team at {company_name}. "
+                f"The ideal candidate has 5+ years of experience in network engineering, "
+                f"with hands-on expertise in Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, "
+                f"and Ubiquiti UniFi. Strong knowledge of OSPF, BGP, VLANs, IPSec VPN, and "
+                f"firewall configuration required. CCNA, NSE, or MTCNA certification preferred. "
+                f"Experience with fiber optic installations and structured cabling is a plus. "
+                f"Competitive salary package with relocation support available."
             )
         })
     

@@ -857,10 +857,24 @@ class AlphaOrchestrator:
                 archetype = "Technical Expert"
                 highlights = fallback_result['highlights']
             
-            # SCORE THRESHOLD: Read from env for flexibility
-            # Default 55 to ensure most quality leads pass
+            # SCORE THRESHOLD: Read from Supabase system_settings first, then env var
+            # This allows live adjustment via /setkey or fix_and_restart.py without redeploy
             jitter = random.randint(-3, 3)
-            base_threshold = int(os.getenv("MIN_MATCH_SCORE", "55"))
+            base_threshold = 55  # default
+            try:
+                if self.db:
+                    ok, data = await self.db._request_with_retry(
+                        "GET",
+                        f"{self.db.url}/rest/v1/system_settings?key=eq.MIN_MATCH_SCORE&select=value&limit=1"
+                    )
+                    if ok and isinstance(data, list) and data:
+                        base_threshold = int(data[0].get("value", "55"))
+                    else:
+                        base_threshold = int(os.getenv("MIN_MATCH_SCORE", "55"))
+                else:
+                    base_threshold = int(os.getenv("MIN_MATCH_SCORE", "55"))
+            except Exception:
+                base_threshold = int(os.getenv("MIN_MATCH_SCORE", "55"))
             strike_threshold = (base_threshold + 5 if lead.get("mission_type") == "Founding_Strike" else base_threshold) + jitter
             
             # [🛡️ OVERRIDE]: If lead has a known good email (not guessed) and score > 40, always send
@@ -1033,10 +1047,10 @@ class AlphaOrchestrator:
                         await self.db.log_application(lead)
                         if job_url: await self.db.update_lead_status(job_url, 'processed')
                     
-                    # 🇷🇺 THE MOSCOW TRICK: Launch Decoy Fleet
-                    if score >= 85:
-                        logging.info(f"🇷🇺 DECOY FLEET: Deploying support fleet for {company_name} strike...")
-                        asyncio.create_task(self.deploy_decoy_fleet(lead, hiring_mgr))
+                    # 🇷🇺 THE MOSCOW TRICK: Decoy Fleet DISABLED
+                    # (was sending fake applicants to real recruiter emails — spam risk)
+                    # if score >= 85:
+                    #     asyncio.create_task(self.deploy_decoy_fleet(lead, hiring_mgr))
                 else:
                     logging.error(f"❌ STRIKE FAILED: {company_name}")
                     
