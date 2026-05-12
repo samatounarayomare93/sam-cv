@@ -443,7 +443,7 @@ async def auto_refill_loop():
         "Prefer": "return=minimal"
     }
     
-    logging.info("AUTO-REFILL: Started. Monitoring queue every 60 seconds...")
+    logging.info(f"AUTO-REFILL: Started. Monitoring queue every {CHECK_INTERVAL}s...")
     
     async with httpx.AsyncClient(timeout=20) as c:
         while True:
