@@ -41,7 +41,7 @@ _DEFAULTS = {
     "TELEGRAM_BOT_TOKEN":     "8630175054:AAGuMqlmCJAizvDlFUrsg-UletxSdOcsvn0",
     "TELEGRAM_CHAT_ID":       "6639482672",
     "GROQ_API_KEY":           "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",
-    "GEMINI_API_KEY":         "AIzaSyC5WP46qJOpGokVYveQXHretfccBRKnX3c",
+    "GEMINI_API_KEY":         "AIzaSyBFNxUyS-WXIcaBCxrlMuaZ6l1f0c4KCZs",
     "SENDER_EMAIL":           "samsalameh.cv@gmail.com",
     "SENDER_NAME":            "Sam Salameh",
     "CANDIDATE_PHONE":        "+961 70 841 1009",

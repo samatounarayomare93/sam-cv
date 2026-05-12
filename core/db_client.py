@@ -258,8 +258,6 @@ class RealityShapingDB:
             pass
         self._session = httpx.AsyncClient(timeout=20, follow_redirects=True)
         return self._session
-        self._session = httpx.AsyncClient(timeout=20, follow_redirects=True)
-        return self._session
 
     @staticmethod
     def _safe_run_async(coro):
