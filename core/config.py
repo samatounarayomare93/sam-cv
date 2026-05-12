@@ -27,7 +27,7 @@ _DEFAULTS = {
     "SUPABASE_URL":          "https://lckiazbadymeikmxesit.supabase.co",
     "SUPABASE_KEY":          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2lhemJhZHltZWlrbXhlc2l0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzMxNzE1NSwiZXhwIjoyMDkyODkzMTU1fQ.NWdt3IcKs60M-6T_syPLQU4m22msqugqGA7wZpCXNbg",
     "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2lhemJhZHltZWlrbXhlc2l0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzMxNzE1NSwiZXhwIjoyMDkyODkzMTU1fQ.NWdt3IcKs60M-6T_syPLQU4m22msqugqGA7wZpCXNbg",
-    "BREVO_API_KEY":          "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",
+    "BREVO_API_KEY":          "",  # Set via .env or Supabase secrets (not hardcoded for security)
     "BREVO_SMTP_LOGIN":       "a974ef001@smtp-brevo.com",
     "BREVO_SMTP_PASSWORD":    "xsmtpsib-4ffec113189337d3602362d9b18e53d9462bdf499ee7ac27a1778f66a478bb7c-7rFR8WTs1UMRNoyw",
     "BREVO_ACCOUNT_EMAIL":    "samatou683@gmail.com",
