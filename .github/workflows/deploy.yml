@@ -12,20 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Trigger Render Deploy (Account 2 - sam-bot-v2)
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_ACC2 }}
-          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID_ACC2 }}
-        run: |
-          echo "Triggering deploy on sam-bot-v2 (Account 2)..."
-          RESPONSE=$(curl -s -X POST \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" \
-            -H "Content-Type: application/json" \
-            -d '{"clearCache": "do_not_clear"}')
-          echo "Deploy response: $RESPONSE"
-
-      - name: Sync env vars to Render (Account 2)
+      - name: Trigger Render Deploy and sync env vars
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY_ACC2 }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID_ACC2 }}
@@ -35,30 +22,50 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
           GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           ZOHO_SMTP_USER: ${{ secrets.ZOHO_SMTP_USER }}
           ZOHO_APP_PASSWORD: ${{ secrets.ZOHO_APP_PASSWORD }}
           ZOHO_SMTP_USER_2: ${{ secrets.ZOHO_SMTP_USER_2 }}
           ZOHO_APP_PASSWORD_2: ${{ secrets.ZOHO_APP_PASSWORD_2 }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           BREVO_SMTP_LOGIN: ${{ secrets.BREVO_SMTP_LOGIN }}
           BREVO_SMTP_PASSWORD: ${{ secrets.BREVO_SMTP_PASSWORD }}
-          TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
-          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
         run: |
-          echo "Syncing env vars to sam-bot-v2..."
           python3 - << 'PYEOF'
-          import os, json, urllib.request
+          import os, json, urllib.request, time
 
           svc = os.environ.get("RENDER_SERVICE_ID", "")
           key = os.environ.get("RENDER_API_KEY", "")
 
+          if not svc or not key:
+            print("ERROR: RENDER_SERVICE_ID or RENDER_API_KEY not set in secrets!")
+            exit(1)
+
+          def render_request(method, path, data=None):
+            url = f"https://api.render.com/v1{path}"
+            req = urllib.request.Request(url, method=method,
+              headers={"Authorization": f"Bearer {key}",
+                       "Content-Type": "application/json",
+                       "Accept": "application/json"})
+            if data:
+              req.data = json.dumps(data).encode()
+            try:
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                return resp.status, json.loads(resp.read())
+            except urllib.error.HTTPError as e:
+              return e.code, {}
+            except Exception as e:
+              return 0, {"error": str(e)}
+
+          # Step 1: Sync env vars FIRST (before deploy)
           env_vars = [
             {"key": "SUPABASE_URL",              "value": os.environ.get("SUPABASE_URL","")},
             {"key": "SUPABASE_KEY",              "value": os.environ.get("SUPABASE_KEY","")},
@@ -108,23 +115,22 @@ jobs:
             {"key": "BUSINESS_HOURS_END",        "value": "23"},
             {"key": "PORT",                      "value": "10000"},
           ]
-
-          # Filter empty values
           env_vars = [e for e in env_vars if e["value"].strip()]
 
-          data = json.dumps(env_vars).encode()
-          req = urllib.request.Request(
-            f"https://api.render.com/v1/services/{svc}/env-vars",
-            data=data, method="PUT",
-            headers={
-              "Authorization": f"Bearer {key}",
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            }
-          )
-          try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-              print(f"✅ Env sync: HTTP {resp.status} - {len(env_vars)} vars synced")
-          except Exception as e:
-            print(f"⚠️ Env sync error: {e}")
+          status, resp = render_request("PUT", f"/services/{svc}/env-vars", env_vars)
+          print(f"Step 1 - Env sync: HTTP {status} ({len(env_vars)} vars)")
+
+          # Step 2: Trigger deploy (env vars already set, deploy picks them up)
+          status2, resp2 = render_request("POST", f"/services/{svc}/deploys", {"clearCache": "do_not_clear"})
+          deploy_id = resp2.get("deploy", resp2).get("id", "?")
+          print(f"Step 2 - Deploy triggered: HTTP {status2}, ID={deploy_id[:12] if deploy_id != '?' else '?'}")
+
+          # Step 3: Wait for deploy to complete, then sync env vars AGAIN
+          # This ensures env vars survive even if Render resets them during deploy
+          print("Step 3 - Waiting 120s for deploy to complete...")
+          time.sleep(120)
+
+          status3, resp3 = render_request("PUT", f"/services/{svc}/env-vars", env_vars)
+          print(f"Step 3 - Post-deploy env sync: HTTP {status3} ({len(env_vars)} vars)")
+          print("Done! Bot deployed with all credentials.")
           PYEOF
