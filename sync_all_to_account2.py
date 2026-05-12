@@ -89,6 +89,14 @@ env_vars = [
     {'key': 'PORT',                      'value': '10000'},
 ]
 
+# Add GMAIL_TOKEN_JSON from token.json file
+import base64 as _b64
+_token_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'token.json')
+if os.path.exists(_token_path):
+    with open(_token_path, 'r') as _f:
+        _token_encoded = _b64.b64encode(_f.read().encode()).decode()
+    env_vars.append({'key': 'GMAIL_TOKEN_JSON', 'value': _token_encoded})
+
 # Filter out empty values
 env_vars = [e for e in env_vars if e['value'].strip()]
 print(f"Syncing {len(env_vars)} env vars...")
