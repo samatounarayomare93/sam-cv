@@ -99,7 +99,7 @@ class EmailRotator:
             providers.append({"name": "resend_3", "display_name": "Resend #3",
                                "limit": PROVIDER_LIMITS["resend_3"], "priority": 3})
 
-        # ── Brevo HTTP API — only if credits > 0 AND API key is active ────────
+        # ── Brevo HTTP API — only if credits > 0 ──────────────────────────────
         if os.getenv("BREVO_API_KEY"):
             # Quick credit check (cached — only check once per session)
             brevo_ok = getattr(EmailRotator, '_brevo_credits_ok', None)
@@ -109,20 +109,15 @@ class EmailRotator:
                     r = _req.get("https://api.brevo.com/v3/account",
                                  headers={"api-key": os.getenv("BREVO_API_KEY","")},
                                  timeout=5)
-                    if r.status_code == 401:
-                        brevo_ok = False
-                        EmailRotator._brevo_credits_ok = False
-                        logging.warning("⚠️ [ROTATOR] Brevo API key disabled (401) — skipping Brevo")
-                    else:
-                        credits = next((p.get("credits",0) for p in r.json().get("plan",[])
-                                        if p.get("type")=="free"), 0)
-                        brevo_ok = credits > 0
-                        EmailRotator._brevo_credits_ok = brevo_ok
-                        if not brevo_ok:
-                            logging.warning("⚠️ [ROTATOR] Brevo credits=0 — skipping Brevo")
+                    credits = next((p.get("credits",0) for p in r.json().get("plan",[])
+                                    if p.get("type")=="free"), 0)
+                    brevo_ok = credits > 0
+                    EmailRotator._brevo_credits_ok = brevo_ok
+                    if not brevo_ok:
+                        logging.warning("⚠️ [ROTATOR] Brevo credits=0 — skipping Brevo")
                 except Exception:
-                    brevo_ok = False  # skip if check fails
-                    EmailRotator._brevo_credits_ok = False
+                    brevo_ok = True  # assume OK if check fails
+                    EmailRotator._brevo_credits_ok = True
             if brevo_ok:
                 providers.append({"name": "brevo", "display_name": "Brevo",
                                    "limit": PROVIDER_LIMITS["brevo"], "priority": 4})
