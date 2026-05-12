@@ -36,10 +36,13 @@ class AntiBanProtection:
         self.failed_applications: Dict[str, int] = {}
         
         # Honeypot indicators — use exact word patterns (checked with \b boundaries)
+        # IMPORTANT: Only use words that NEVER appear in real company names
         self.honeypot_keywords = {
-            'test', 'fake', 'honeypot', 'trap', 'automated',
-            'spam', 'scam', 'phishing', 'verification', 'validate',
-            'check', 'monitor', 'detect', 'crawler', 'scraper'
+            'honeypot', 'trap', 'automated',
+            'spam', 'scam', 'phishing',
+            'crawler', 'scraper'
+            # REMOVED: 'test', 'fake', 'check', 'monitor', 'detect', 'verification', 'validate'
+            # These match real companies: Check Point, Elm Company, etc.
         }
         # Keywords that must match as whole words only (not substrings)
         self.honeypot_whole_word_keywords = {

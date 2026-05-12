@@ -231,23 +231,33 @@ class RealityShapingDB:
             logging.warning(f"⚠️ SECRET VAULT ACCESS FAILED: {secrets}")
 
     async def _get_session(self) -> httpx.AsyncClient:
-        # [FIX] Always create a fresh AsyncClient per-call to avoid "Event loop is closed"
-        # errors when the DB singleton is reused across different event loops (e.g. when
-        # auto_queue_refill runs in a thread with its own loop). httpx client creation is
-        # cheap — this is the safest approach on Render's single-instance free tier.
-        if self._session is not None and not self._session.is_closed:
-            try:
-                # Quick check: if the underlying transport is still usable
-                _ = self._session.is_closed  # just access it
-                return self._session
-            except Exception:
-                pass
-        # Create fresh session
+        # Always create a fresh AsyncClient to avoid "Event loop is closed" errors.
+        # The DB singleton is shared across multiple async contexts (main loop, scrapers,
+        # auto_queue_refill). Each context may have a different event loop.
+        # Creating a new client is cheap and eliminates all loop-binding issues.
+        try:
+            if self._session is not None and not self._session.is_closed:
+                # Verify the session is bound to the CURRENT running loop
+                current_loop = asyncio.get_running_loop()
+                session_loop = getattr(self._session._transport, '_loop', None) if hasattr(self._session, '_transport') else None
+                if session_loop is None or session_loop is current_loop:
+                    return self._session
+                # Different loop — close old session and create new one
+                try:
+                    await self._session.aclose()
+                except Exception:
+                    pass
+                self._session = None
+        except RuntimeError:
+            pass
+        # Create fresh session bound to current loop
         try:
             if self._session and not self._session.is_closed:
                 await self._session.aclose()
         except Exception:
             pass
+        self._session = httpx.AsyncClient(timeout=20, follow_redirects=True)
+        return self._session
         self._session = httpx.AsyncClient(timeout=20, follow_redirects=True)
         return self._session
 

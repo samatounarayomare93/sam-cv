@@ -337,9 +337,9 @@ async def main():
                 asyncio.create_task(disk_janitor(),               name="DiskJanitor"),
                 asyncio.create_task(auto_refill_loop(),           name="AutoQueueRefill"),
                 asyncio.create_task(
-                    continuous_scraper_background(engine, 600,  "DALEEL"),   name="Scraper-Daleel"),
+                    continuous_scraper_background(engine, 900,  "DALEEL"),   name="Scraper-Daleel"),
                 asyncio.create_task(
-                    continuous_scraper_background(engine, 900,  "OMNI"),     name="Scraper-Omni"),
+                    continuous_scraper_background(engine, 1800, "OMNI"),     name="Scraper-Omni"),
             ]
 
             # Dashboard is NON-CRITICAL — runs independently, auto-restarts if it dies
