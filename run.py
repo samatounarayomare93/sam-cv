@@ -313,6 +313,15 @@ async def main():
             shared_db = RealityShapingDB()
             shared_ai = OmniIntelligence()
 
+            # Bootstrap secrets from Supabase BEFORE starting the engine
+            # This loads BREVO_API_KEY, GMAIL_TOKEN_JSON, etc. into os.environ
+            try:
+                await shared_db.bootstrap()
+                await asyncio.sleep(3)  # Give bootstrap time to complete
+                logging.info("✅ [STARTUP] Cloud secrets bootstrapped from Supabase")
+            except Exception as e:
+                logging.warning(f"⚠️ [STARTUP] Bootstrap failed (using config.py defaults): {e}")
+
             engine = AlphaOrchestrator(db=shared_db, ai=shared_ai)
             dashboard = SovereignDashboard(db=shared_db, ai=shared_ai)
 

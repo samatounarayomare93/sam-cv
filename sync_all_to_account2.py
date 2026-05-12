@@ -122,21 +122,11 @@ if r.status_code == 200:
         f.write(content)
     print("✅ Local .env updated to point to Account 2")
     
-    # Trigger a redeploy so the new env vars take effect
-    print("\nTriggering redeploy with new env vars...")
-    r2 = requests.post(
-        f'https://api.render.com/v1/services/{A2_SVC}/deploys',
-        headers=headers,
-        json={'clearCache': 'do_not_clear'},
-        timeout=15
-    )
-    if r2.status_code in (200, 201):
-        dep = r2.json().get('deploy', r2.json())
-        print(f"✅ Redeploy triggered! Deploy ID: {dep.get('id', '?')[:12]}")
-        print(f"   Status: {dep.get('status', '?')}")
-        print(f"\n⏳ Wait 2-3 minutes then test: @samcvbot → /status")
-    else:
-        print(f"⚠️ Redeploy: HTTP {r2.status_code} - {r2.text[:100]}")
+    # Trigger a redeploy ONLY if explicitly requested
+    # Auto-deploy is disabled on Render to prevent env vars from being wiped
+    print("\n✅ Env vars synced. No auto-redeploy (auto-deploy is disabled).")
+    print("To deploy manually: python deploy_account2.py")
+    print("Or send /status to @samcvbot - bot will restart with new vars on next cycle.")
 else:
     print(f"❌ FAILED: HTTP {r.status_code}")
     print(r.text[:300])
