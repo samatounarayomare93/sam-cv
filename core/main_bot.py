@@ -1286,13 +1286,13 @@ class AlphaOrchestrator:
                 # [🔥 FIX]: Single lead fetch per cycle (removed duplicate fetch above)
                 try:
                     logging.info("🧠 CLOUD SYNC: Checking for pending strikes in the Hive-Mind...")
-                    # Limit to 20 leads per cycle to prevent OOM on Render 512MB
-                    batch_size = int(os.getenv("BATCH_SIZE", "20"))
+                    # Limit to 10 leads per cycle to prevent OOM on Render 512MB free tier
+                    batch_size = int(os.getenv("BATCH_SIZE", "10"))
                     cloud_leads = await self.db.get_pending_leads(limit=batch_size)
                     if cloud_leads:
                         logging.info(f"🚀 MISSION READY: Found {len(cloud_leads)} pending strikes. Igniting Strikes...")
-                        # Process in small batches of 5 to control memory
-                        chunk = 5
+                        # Process in small batches of 3 to control memory
+                        chunk = 3
                         for i in range(0, len(cloud_leads), chunk):
                             batch = cloud_leads[i:i+chunk]
                             tasks = [self.process_single_lead(lead, variant_weights=weights) for lead in batch]
@@ -1300,7 +1300,7 @@ class AlphaOrchestrator:
                             for j, res in enumerate(results):
                                 if isinstance(res, Exception):
                                     logging.error(f"❌ STRIKE FAILURE lead {i+j}: {type(res).__name__}: {res}")
-                            await asyncio.sleep(1)  # Brief pause between chunks
+                            await asyncio.sleep(2)  # Brief pause between chunks
                     else:
                         logging.info("📡 CLOUD SYNC: No pending strikes found. Proceeding to scouting...")
                 except Exception as e:
