@@ -1115,6 +1115,7 @@ class SovereignDashboard:
                 f"🎯 <b>GLOBAL STATS:</b>\n"
                 f"📋 <b>Total Leads:</b> {stats.get('recon_rows', 0)}\n"
                 f"🚀 <b>Total Strikes:</b> {stats.get('total_strikes', 0)}\n"
+                f"📅 <b>Today's Strikes:</b> {today_apps}\n"
                 f"🛡️ <b>Shield Blocks:</b> {health.get('pdf_cache_count', 0)} assets\n"
                 f"💓 <b>Pulse:</b> ACTIVE 24/7\n"
                 f"━━━━━━━━━━━━━━━\n"
