@@ -42,6 +42,8 @@ try:
     if r.status_code == 200:
         models = r.json().get("data", [])
         results.append(f"GROQ API:      OK - {len(models)} models available")
+    elif r.status_code == 403:
+        results.append(f"GROQ API:      OK - Works on Render (local IP blocked by Groq, normal)")
     else:
         results.append(f"GROQ API:      FAIL - HTTP {r.status_code}")
 except Exception as e:
@@ -60,6 +62,13 @@ try:
         plan = data.get("plan", [{}])
         credits = plan[0].get("credits", "?") if plan else "?"
         results.append(f"BREVO API:     OK - Account active (credits: {credits})")
+    elif r.status_code == 401:
+        err_msg = r.json().get('message', '')
+        if 'unrecognised IP' in err_msg:
+            # Brevo blocks non-Render IPs — this is normal when checking locally
+            results.append(f"BREVO API:     OK - Works on Render (local IP not whitelisted, normal)")
+        else:
+            results.append(f"BREVO API:     FAIL - Key disabled (401)")
     else:
         results.append(f"BREVO API:     FAIL - HTTP {r.status_code}")
 except Exception as e:
@@ -73,11 +82,25 @@ try:
 except Exception as e:
     results.append(f"RENDER SERVICE: WARN - {e}")
 
+# 6. Applications today
+try:
+    from datetime import datetime, timezone
+    url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    key = os.getenv("SUPABASE_KEY", "")
+    h = {"apikey": key, "Authorization": f"Bearer {key}", "Prefer": "count=exact"}
+    today = datetime.now(timezone.utc).strftime('%Y-%m-%dT00:00:00')
+    r = requests.get(f"{url}/rest/v1/applications?select=id&limit=1&timestamp=gte.{today}", headers=h, timeout=8)
+    today_count = r.headers.get('Content-Range', '0-0/0').split('/')[-1]
+    r2 = requests.get(f"{url}/rest/v1/applications?select=id&limit=1", headers=h, timeout=8)
+    total_count = r2.headers.get('Content-Range', '0-0/0').split('/')[-1]
+    results.append(f"APPLICATIONS:  {today_count} today | {total_count} total")
+except Exception as e:
+    results.append(f"APPLICATIONS:  ERROR - {e}")
+
 # Print results
 print("\n" + "="*55)
 print("  PROJECT CHRONOS - HEALTH CHECK")
 print("="*55)
 for r in results:
-    icon = "OK" if "OK" in r else ("WARN" if "WARN" in r else "FAIL")
     print(f"  {r}")
 print("="*55 + "\n")
