@@ -94,6 +94,11 @@ class SovereignDashboard:
             if isinstance(error, Conflict):
                 logging.debug("🔄 TELEGRAM 409 CONFLICT: Library will auto-retry.")
                 return
+            # Suppress common transient network errors
+            err_str = str(error)
+            if any(x in err_str for x in ['ReadError', 'NetworkError', 'TimedOut', 'ConnectionError', 'httpx']):
+                logging.debug(f"🔄 TELEGRAM NETWORK HICCUP (auto-retry): {type(error).__name__}")
+                return
             logging.error(f"⚠️ POLLING ERROR: {error}")
 
         def _error_callback(error):

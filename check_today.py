@@ -13,7 +13,7 @@ today = datetime.now(timezone.utc).strftime('%Y-%m-%dT00:00:00')
 # Today's applications
 r = requests.get(
     f'{URL}/rest/v1/applications?select=company_name,job_title,timestamp'
-    f'&timestamp=gte.{today}&order=timestamp.desc&limit=20',
+    f'&timestamp=gte.{today}&order=timestamp.desc&limit=50',
     headers=h, timeout=10
 )
 apps = r.json() if r.status_code == 200 else []
