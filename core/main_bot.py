@@ -1177,6 +1177,11 @@ class AlphaOrchestrator:
                 f"{self.db.url}/rest/v1/leads?status=eq.processing",
                 payload={"status": "pending"})
 
+            # 1b. RECYCLE: Reset rate_limited leads back to pending (anti-ban cooldown expired)
+            await self.db._request_with_retry('PATCH',
+                f"{self.db.url}/rest/v1/leads?status=eq.rate_limited",
+                payload={"status": "pending"})
+
             # 2. PURGE JUNK: Single bulk query (top 20 patterns only)
             junk_list = ','.join(f'"{p}"' for p in list(JUNK_COMPANY_NAMES)[:20])
             await self.db._request_with_retry('PATCH',
