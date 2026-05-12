@@ -126,11 +126,16 @@ jobs:
           print(f"Step 2 - Deploy triggered: HTTP {status2}, ID={deploy_id[:12] if deploy_id != '?' else '?'}")
 
           # Step 3: Wait for deploy to complete, then sync env vars AGAIN
-          # This ensures env vars survive even if Render resets them during deploy
-          print("Step 3 - Waiting 120s for deploy to complete...")
-          time.sleep(120)
+          # Render resets env vars during deploy - we must sync AFTER deploy finishes
+          print("Step 3 - Waiting 300s for deploy to fully complete...")
+          time.sleep(300)
 
           status3, resp3 = render_request("PUT", f"/services/{svc}/env-vars", env_vars)
           print(f"Step 3 - Post-deploy env sync: HTTP {status3} ({len(env_vars)} vars)")
+
+          # Step 4: One more sync after 60s to be absolutely sure
+          time.sleep(60)
+          status4, resp4 = render_request("PUT", f"/services/{svc}/env-vars", env_vars)
+          print(f"Step 4 - Final env sync: HTTP {status4} ({len(env_vars)} vars)")
           print("Done! Bot deployed with all credentials.")
           PYEOF
