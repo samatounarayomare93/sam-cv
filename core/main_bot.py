@@ -958,21 +958,42 @@ class AlphaOrchestrator:
             
             await self.poisson_jitter(5)
             # 👑 [ABSOLUTE VMAX: TWO-FILE PACKAGE]
-            # Attaching PDF Cover Letter (Byblos Standard) + HTML VMAX CV.
-            package = await asyncio.to_thread(generate_ultimate_package, lead)
-            
+            # On Render: use pre-embedded PDFs (zero RAM, instant, no OOM risk)
+            # Locally: generate fresh PDFs via generate_ultimate_package
+            import platform as _plat
+            _is_render = bool(
+                os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID") or
+                (_plat.system() == "Linux" and not os.getenv("LOCAL_DEV"))
+            )
+
             final_attachments = []
-            # [🔥 FIX]: generate_ultimate_package returns {"cl_pdf": ..., "cv_html": ...}
-            if package.get("cl_pdf") and os.path.exists(str(package.get("cl_pdf", ""))): 
-                final_attachments.append(package["cl_pdf"])
-            if package.get("cv_html") and os.path.exists(str(package.get("cv_html", ""))): 
-                final_attachments.append(package["cv_html"])
-            # Fallback keys in case function signature changed
-            if not final_attachments:
-                if package.get("cv") and os.path.exists(str(package.get("cv", ""))): 
-                    final_attachments.append(package["cv"])
-                if package.get("cl") and os.path.exists(str(package.get("cl", ""))): 
-                    final_attachments.append(package["cl"])
+            if _is_render:
+                # Cloud: use pre-embedded PDFs (zero RAM, instant)
+                try:
+                    from core.embedded_pdfs import get_cv_pdf_path, get_cover_letter_pdf_path
+                    cv_path = get_cv_pdf_path()
+                    cl_path = get_cover_letter_pdf_path(company_name, job_title)
+                    if cv_path and os.path.exists(cv_path):
+                        final_attachments.append(cv_path)
+                    if cl_path and os.path.exists(cl_path):
+                        final_attachments.append(cl_path)
+                    logging.info(f"✅ [CLOUD] Using embedded PDFs for {company_name} ({len(final_attachments)} files)")
+                except Exception as e:
+                    logging.warning(f"⚠️ Embedded PDFs unavailable: {e} — falling back to generate_ultimate_package")
+                    _is_render = False  # Fall through to local generation
+
+            if not _is_render:
+                # Local: generate fresh PDFs
+                package = await asyncio.to_thread(generate_ultimate_package, lead)
+                if package.get("cl_pdf") and os.path.exists(str(package.get("cl_pdf", ""))):
+                    final_attachments.append(package["cl_pdf"])
+                if package.get("cv_html") and os.path.exists(str(package.get("cv_html", ""))):
+                    final_attachments.append(package["cv_html"])
+                if not final_attachments:
+                    if package.get("cv") and os.path.exists(str(package.get("cv", ""))):
+                        final_attachments.append(package["cv"])
+                    if package.get("cl") and os.path.exists(str(package.get("cl", ""))):
+                        final_attachments.append(package["cl"])
             # Last resort: generate cover letter PDF directly
             if not final_attachments:
                 logging.warning(f"⚠️ Package empty for {company_name}, generating fallback PDF...")
@@ -1005,9 +1026,8 @@ class AlphaOrchestrator:
                     # 📱 TELEGRAM NOTIFICATION: Notify Sam on every successful send
                     try:
                         tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-                        tg_chat = os.getenv("TELEGRAM_CHAT_ID", "")
-                        if tg_token and tg_chat:
-                            import httpx as _httpx
+                        tg_chat_raw = os.getenv("TELEGRAM_CHAT_ID", "")
+                        if tg_token and tg_chat_raw:
                             msg = (
                                 f"✅ <b>APPLICATION SENT!</b>\n"
                                 f"🏢 <b>{company_name}</b>\n"
@@ -1015,18 +1035,24 @@ class AlphaOrchestrator:
                                 f"📧 {email}\n"
                                 f"⭐ Score: {score}/100"
                             )
-                            await asyncio.wait_for(
-                                asyncio.to_thread(
-                                    lambda: __import__('requests').post(
-                                        f"https://api.telegram.org/bot{tg_token}/sendMessage",
-                                        json={"chat_id": tg_chat, "text": msg, "parse_mode": "HTML"},
-                                        timeout=5
+                            # Support comma-separated chat IDs
+                            chat_ids = [c.strip() for c in tg_chat_raw.split(',') if c.strip()]
+                            for chat_id in chat_ids:
+                                try:
+                                    await asyncio.wait_for(
+                                        asyncio.to_thread(
+                                            lambda cid=chat_id: __import__('requests').post(
+                                                f"https://api.telegram.org/bot{tg_token}/sendMessage",
+                                                json={"chat_id": cid, "text": msg, "parse_mode": "HTML"},
+                                                timeout=5
+                                            )
+                                        ),
+                                        timeout=8.0
                                     )
-                                ),
-                                timeout=8.0
-                            )
-                    except Exception:
-                        pass  # Never let Telegram notification break the flow
+                                except Exception:
+                                    pass
+                    except Exception as tg_err:
+                        logging.debug(f"Telegram notification failed (non-fatal): {tg_err}")
                     
                     # 🛡️ ANTI-BAN: Record successful application
                     from core.anti_ban_protection import get_protection

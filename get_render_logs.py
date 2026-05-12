@@ -1,34 +1,27 @@
-import requests
+"""Get logs from the ACTIVE Render service (Account 2 - sam-bot-v2)"""
+import requests, os
+from dotenv import load_dotenv
+load_dotenv()
 
-RENDER_API_KEY = 'rnd_X4vP0V0M4LOJEGbFiKs2TM72NgTg'
-SERVICE_ID = 'srv-d7s6rf6gvqtc73bt431g'
+# Always use Account 2 (active)
+A2_KEY = os.getenv('RENDER_API_KEY', 'rnd_m4ozEoc4nQYOT16Omj0U9QGd3pra')
+A2_SVC = os.getenv('RENDER_SERVICE_ID', 'srv-d80th10g4nts738vk7b0')
+h = {'Authorization': f'Bearer {A2_KEY}', 'Accept': 'application/json'}
 
-headers = {
-    'Authorization': f'Bearer {RENDER_API_KEY}',
-    'Accept': 'application/json'
-}
+# Get owner ID
+r = requests.get('https://api.render.com/v1/owners', headers=h, timeout=10)
+owner_id = r.json()[0].get('owner', r.json()[0]).get('id', '')
 
 # Get logs
-print("=== RENDER LOGS (last 100 lines) ===")
-r = requests.get(
-    f'https://api.render.com/v1/services/{SERVICE_ID}/logs?limit=100',
-    headers=headers, timeout=15
+r2 = requests.get(
+    f'https://api.render.com/v1/logs?ownerId={owner_id}&resource={A2_SVC}&limit=200',
+    headers=h, timeout=15
 )
-print(f"Status: {r.status_code}")
-if r.status_code == 200:
-    data = r.json()
-    logs = data.get('logs', [])
-    print(f"Log entries: {len(logs)}")
-    for log in logs[-50:]:  # Last 50
-        print(log.get('message', ''))
+if r2.status_code == 200:
+    logs = r2.json() if isinstance(r2.json(), list) else r2.json().get('logs', [])
+    print(f"=== RENDER LOGS (last {len(logs)} lines) ===")
+    for entry in logs[-100:]:
+        msg = entry.get('message', str(entry)) if isinstance(entry, dict) else str(entry)
+        print(msg[:300])
 else:
-    print(f"Error: {r.text[:300]}")
-    
-    # Try alternative endpoint
-    print("\nTrying alternative logs endpoint...")
-    r2 = requests.get(
-        f'https://api.render.com/v1/logs?serviceId={SERVICE_ID}&limit=100',
-        headers=headers, timeout=15
-    )
-    print(f"Status: {r2.status_code}")
-    print(r2.text[:500])
+    print(f"Error: HTTP {r2.status_code} - {r2.text[:200]}")

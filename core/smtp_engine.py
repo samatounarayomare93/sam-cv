@@ -38,6 +38,10 @@ class _SafeFormatDict(dict):
 # MAXIMUM POWER: Pre-built connection pool for SMTP
 _SMTP_POOL = {}
 _POOL_LOCK = threading.Lock()
+
+# Module-level Brevo disable flag — shared across all send_email calls
+# Set to True when Brevo returns 401 (key disabled) to avoid retrying
+_BREVO_SESSION_DISABLED = False
 _SMTP_POOL_MAX_SIZE = 10  # Never keep more than 10 open connections
 
 def _test_smtp_connection(conn):
@@ -404,7 +408,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     _resend_domain_ok = resend_from_email and _resend_domain not in _FREE_DOMAINS
 
     # Skip Brevo entirely if API key is disabled/invalid (saves time)
-    _brevo_enabled = bool(brevo_api_key) and not getattr(send_email, '_brevo_disabled', False)
+    _brevo_enabled = bool(brevo_api_key) and not _BREVO_SESSION_DISABLED
 
     if resend_api_key:  # ← try Resend even with free-domain FROM (uses onboarding@resend.dev)
         try:
@@ -552,7 +556,7 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         if not brevo_api_r:
             brevo_api_r = getattr(config, 'BREVO_API_KEY', '') or ""
         # Skip Brevo if known to be disabled
-        _brevo_skip = getattr(send_email, '_brevo_disabled', False)
+        _brevo_skip = _BREVO_SESSION_DISABLED
         if brevo_api_r and not _brevo_skip:
             try:
                 logging.info("📧 [RENDER-STEP0] Brevo HTTP API (300/day)...")
@@ -1245,6 +1249,7 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     Check: app.brevo.com → Senders & IPs → Senders
     The Brevo account email (samatou683@gmail.com) is always active.
     """
+    global _BREVO_SESSION_DISABLED  # FIX: declare global at top of function
     api_key = getattr(config, 'BREVO_API_KEY', None) or os.getenv("BREVO_API_KEY", "").strip()
     if not api_key: return False
 
@@ -1306,8 +1311,16 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
             # Disable Brevo for this session if API key is invalid/disabled
             if response.status_code == 401:
                 logging.warning("⚠️ [BREVO] API key disabled — skipping Brevo for this session")
-                send_email_via_brevo_http._disabled = True
+                global _BREVO_SESSION_DISABLED
+                _BREVO_SESSION_DISABLED = True
                 return False
+            # Handle credits exhausted (400 with daily limit message)
+            if response.status_code == 400:
+                resp_text = response.text.lower()
+                if 'daily' in resp_text or 'limit' in resp_text or 'quota' in resp_text:
+                    logging.warning("⚠️ [BREVO] Daily sending limit reached — disabling Brevo for today")
+                    _BREVO_SESSION_DISABLED = True
+                    return False
             # [🛡️ SMART RECOVERY]: If unauthorized sender, try account email immediately
             if response.status_code == 400 and "unauthorized" in response.text.lower() and sender_email != brevo_account:
                 logging.warning(f"⚠️ [BREVO] Sender {sender_email} unauthorized. Retrying with account owner {brevo_account}...")
