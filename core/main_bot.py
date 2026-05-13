@@ -1184,7 +1184,7 @@ class AlphaOrchestrator:
 
         now = time.time()
         last_heal = getattr(self, '_last_self_heal', 0)
-        if now - last_heal < 3600:
+        if now - last_heal < 7200:  # Every 2 hours max
             return
         self._last_self_heal = now
 
@@ -1314,8 +1314,8 @@ class AlphaOrchestrator:
                 # [🔥 FIX]: Single lead fetch per cycle (removed duplicate fetch above)
                 try:
                     logging.info("🧠 CLOUD SYNC: Checking for pending strikes in the Hive-Mind...")
-                    # Limit to 5 leads per cycle to prevent OOM on Render 512MB free tier
-                    batch_size = int(os.getenv("BATCH_SIZE", "5"))
+                    # Limit to 8 leads per cycle — balance between speed and memory
+                    batch_size = int(os.getenv("BATCH_SIZE", "8"))
                     cloud_leads = await self.db.get_pending_leads(limit=batch_size)
                     if cloud_leads:
                         logging.info(f"🚀 MISSION READY: Found {len(cloud_leads)} pending strikes. Igniting Strikes...")
@@ -1430,18 +1430,18 @@ class AlphaOrchestrator:
                 if self.emergency_strike_requested:
                     self.emergency_strike_requested = False
                     logging.info("⚡ EMERGENCY STRIKE: Bypassing heartbeat cycle.")
-                elif pending_count > 50:
-                    # Lots of leads waiting → process fast
-                    logging.info(f"⚡ FAST-TRACK: {pending_count} leads in queue. Short cooldown (30s).")
-                    await asyncio.sleep(30)
+                elif pending_count > 20:
+                    # Lots of leads waiting → process immediately, minimal wait
+                    logging.info(f"⚡ FAST-TRACK: {pending_count} leads in queue. Minimal cooldown (5s).")
+                    await asyncio.sleep(5)
                 elif pending_count > 0:
-                    # Some leads → short wait
-                    logging.info(f"⚡ FAST-TRACK: {pending_count} leads remaining. Skipping deep sleep.")
-                    await self.poisson_jitter(30)
+                    # Some leads → very short wait
+                    logging.info(f"⚡ FAST-TRACK: {pending_count} leads remaining. Short wait (10s).")
+                    await asyncio.sleep(10)
                 else:
-                    # Queue empty → scrape immediately, no long wait
-                    logging.info(f"📭 QUEUE EMPTY: Triggering immediate scrape cycle (no wait).")
-                    await asyncio.sleep(10)  # Just 10 seconds then scrape again
+                    # Queue empty → scrape immediately
+                    logging.info(f"📭 QUEUE EMPTY: Triggering immediate scrape cycle.")
+                    await asyncio.sleep(5)
 
             except Exception as e:
                 logging.error(f"Divine loop cycle failed: {e}")

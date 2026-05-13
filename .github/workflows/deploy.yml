@@ -107,7 +107,7 @@ jobs:
             {"key": "MAX_EMAILS_PER_DAY",        "value": "1900"},
             {"key": "MAX_APPLICATIONS_PER_DAY",  "value": "1500"},
             {"key": "MAX_APPLICATIONS_PER_HOUR", "value": "120"},
-            {"key": "BATCH_SIZE",                "value": "5"},
+            {"key": "BATCH_SIZE",                "value": "8"},
             {"key": "MIN_MATCH_SCORE",           "value": "45"},
             {"key": "DIVINE_LOG_LEVEL",          "value": "INFO"},
             {"key": "USE_AI_ANALYSIS",           "value": "true"},
