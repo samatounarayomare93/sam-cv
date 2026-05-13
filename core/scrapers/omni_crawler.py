@@ -597,7 +597,7 @@ class OmniCrawler:
         
         queries = queries + self.SOCIAL_QUERIES + MarketOracle.EXPANSION_QUERIES + DEEP_WEB_QUERIES
         
-        batch_queries = random.sample(queries, min(len(queries), 20)) # [🛡️ OOM-FIX]: Reduced from 55 to 20 to prevent 512MB memory crash
+        batch_queries = random.sample(queries, min(len(queries), 8))  # Max 8 queries to prevent OOM
         discovered_jobs = []
         user_agent = random.choice(USER_AGENTS)
         
@@ -862,38 +862,37 @@ class OmniCrawler:
             return []
             
         logging.info(f"🌐 SOVEREIGN HUNT: Preparing to strike {len(platforms)} custom platforms...")
-        
+
+        all_leads = []
+        # Process platforms sequentially (not parallel) to avoid task explosion
         for platform in platforms:
             domain = urlparse(platform['url']).netloc
             logging.info(f"🎯 Striking Platform: {platform['name']} ({domain})")
-            
-            # 🧬 Strategy: Use domain-specific search to extract latest postings
-            queries = [
-                f'site:{domain} "Operations" "Lebanon" "2024"',
-                f'site:{domain} "Business" "Dubai" "hiring"',
-                f'site:{domain} "Administrative" "Riyadh"'
-            ]
-            
-            for q in queries:
-                try:
-                    results = await asyncio.to_thread(_safe_ddgs_search, q, 10)
-                    for r in results:
-                        # ✅ FIX: STOP using "Automatic Target". Extract from URL.
-                        company_name = "Unknown"
-                        try:
-                            company_name = domain.split(".")[0].capitalize()
-                        except: pass
-                        
-                        all_leads.append({
-                            "company_name": company_name,
-                            "job_title": r['title'],
-                            "url": r['href'],
-                            "email": None,
-                            "source": platform['name']
-                        })
-                except: continue
-                await asyncio.sleep(2)
-        
+
+            # Only 1 query per platform to reduce load
+            q = f'site:{domain} "Network Engineer" OR "IT Manager" Lebanon OR Dubai hiring'
+            try:
+                results = await asyncio.wait_for(
+                    asyncio.to_thread(_safe_ddgs_search, q, 5),
+                    timeout=15
+                )
+                for r in results:
+                    company_name = "Unknown"
+                    try:
+                        company_name = domain.split(".")[0].capitalize()
+                    except:
+                        pass
+                    all_leads.append({
+                        "company_name": company_name,
+                        "job_title": r.get('title', 'Network Engineer'),
+                        "url": r.get('href', ''),
+                        "email": None,
+                        "source": platform['name']
+                    })
+            except (asyncio.TimeoutError, Exception):
+                pass
+            await asyncio.sleep(2)
+
         return all_leads
 
     async def recon_surge(self, company_name: str) -> list:

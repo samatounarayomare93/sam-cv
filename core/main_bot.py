@@ -1340,31 +1340,62 @@ class AlphaOrchestrator:
                 logging.info("🌍 Launching Vanguard Scraps...")
                 raw_leads = []
                 try:
-                    scrape_tasks = []
-                    if scraper:
-                        scrape_tasks.append(asyncio.to_thread(scraper.get_latest_jobs))
-                    if self.omni_crawler:
-                        await self.telemetry_stream("INFO", "🕵️‍♂️ OMNI-CRAWLER: Engaging deep web re-connaissance...")
-                        scrape_tasks.append(daleel_parallel_scan(self.db, pages=1))
-
+                    # Sequential scraping to prevent task explosion
                     if self.omni_crawler:
                         logging.info("🛰️ SOVEREIGN HUNT: Scanning registered custom platforms...")
-                        platform_leads = await self.omni_crawler.hunt_registered_platforms()
-                        raw_leads.extend(platform_leads)
-                        
-                        # [👑 OMEGA-STRIKE]: Every 10 cycles, perform a massive web-wide discovery
-                        if strike_counter % 10 == 0:
-                            await self.telemetry_stream("INFO", "🕵️‍♂️ OMNI-CRAWLER MAX: Initiating web-wide deep discovery...")
-                            web_leads = await self.omni_crawler.hunt_the_web()
-                            raw_leads.extend(web_leads)
+                        try:
+                            platform_leads = await asyncio.wait_for(
+                                self.omni_crawler.hunt_registered_platforms(),
+                                timeout=60
+                            )
+                            raw_leads.extend(platform_leads)
+                        except asyncio.TimeoutError:
+                            logging.warning("⏱️ Platform hunt timeout — skipping")
+                        except Exception as e:
+                            logging.warning(f"⚠️ Platform hunt error: {e}")
+                        gc.collect()
 
-                    if scrape_tasks:
-                        results = await asyncio.gather(*scrape_tasks, return_exceptions=True)
-                        for res in results:
-                            if isinstance(res, list):
-                                raw_leads.extend(res)
-                            elif isinstance(res, Exception):
-                                logging.error(f"Scraper Sub-node Failure: {res}")
+                    # Daleel scan (sequential, not parallel)
+                    if self.omni_crawler and self.db:
+                        try:
+                            daleel_leads = await asyncio.wait_for(
+                                daleel_parallel_scan(self.db, pages=1),
+                                timeout=90
+                            )
+                            raw_leads.extend(daleel_leads)
+                        except asyncio.TimeoutError:
+                            logging.warning("⏱️ Daleel timeout — skipping")
+                        except Exception as e:
+                            logging.warning(f"⚠️ Daleel error: {e}")
+                        gc.collect()
+
+                    # Main scraper (thread-based, sequential)
+                    if scraper:
+                        try:
+                            scraper_leads = await asyncio.wait_for(
+                                asyncio.to_thread(scraper.get_latest_jobs),
+                                timeout=60
+                            )
+                            if isinstance(scraper_leads, list):
+                                raw_leads.extend(scraper_leads)
+                        except (asyncio.TimeoutError, Exception) as e:
+                            logging.warning(f"⚠️ Main scraper error: {e}")
+                        gc.collect()
+
+                    # Web hunt only every 15 cycles (expensive)
+                    if self.omni_crawler and strike_counter % 15 == 0:
+                        await self.telemetry_stream("INFO", "🕵️ OMNI-CRAWLER MAX: Web-wide discovery...")
+                        try:
+                            web_leads = await asyncio.wait_for(
+                                self.omni_crawler.hunt_the_web(),
+                                timeout=120
+                            )
+                            raw_leads.extend(web_leads)
+                        except asyncio.TimeoutError:
+                            logging.warning("⏱️ Web hunt timeout — skipping")
+                        except Exception as e:
+                            logging.warning(f"⚠️ Web hunt error: {e}")
+                        gc.collect()
 
                 except Exception as e:
                     logging.error(f"Vanguard Scrape failed: {e}")
