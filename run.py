@@ -152,34 +152,48 @@ async def resource_watchdog():
     """Monitor memory and pressure-clean the system."""
     while True:
         try:
-            await asyncio.sleep(60)  # Check every minute (was 120s)
+            await asyncio.sleep(45)  # Check every 45s
             gc.collect()
             try:
                 import psutil
                 process = psutil.Process()
                 mem_mb = process.memory_info().rss / (1024 * 1024)
-                if mem_mb > 420:
-                    logging.warning(f"⚠️ [WATCHDOG] CRITICAL MEMORY: {mem_mb:.0f}MB! Emergency cleanup...")
+
+                # Count active tasks
+                current_tasks = [t for t in asyncio.all_tasks() if not t.done()]
+                task_count = len(current_tasks)
+
+                if mem_mb > 400 or task_count > 30:
+                    logging.warning(f"⚠️ [WATCHDOG] CRITICAL: {mem_mb:.0f}MB RAM, {task_count} tasks! Emergency cleanup...")
                     gc.collect(2)
                     gc.collect()
-                    # Force kill excess tasks if memory still high
-                    current_tasks = [t for t in asyncio.all_tasks() if not t.done()]
-                    if len(current_tasks) > 20:
-                        logging.warning(f"⚠️ [WATCHDOG] Too many tasks: {len(current_tasks)}. Cancelling non-critical...")
-                        # Cancel scraper tasks to free memory
-                        for task in current_tasks:
-                            name = task.get_name()
-                            if 'Scraper' in name and not task.done():
-                                task.cancel()
+                    # Cancel ALL non-essential tasks aggressively
+                    KEEP_TASKS = {'Engine', 'Watchdog', 'HealthMonitor', 'DiskJanitor',
+                                  'AutoQueueRefill', 'Dashboard', 'CloudHeartbeat', 'SelfPing'}
+                    cancelled = 0
+                    for task in current_tasks:
+                        name = task.get_name()
+                        # Cancel any task not in the keep list
+                        if not any(k in name for k in KEEP_TASKS) and not task.done():
+                            task.cancel()
+                            cancelled += 1
+                    if cancelled:
+                        logging.warning(f"⚠️ [WATCHDOG] Cancelled {cancelled} non-critical tasks to free RAM")
+                    # Force another GC pass
+                    await asyncio.sleep(2)
+                    gc.collect(2)
+                    gc.collect()
+                    mem_after = process.memory_info().rss / (1024 * 1024)
+                    logging.info(f"💚 [WATCHDOG] After cleanup: {mem_after:.0f}MB")
                 elif mem_mb > 350:
-                    logging.warning(f"⚠️ [WATCHDOG] HIGH MEMORY: {mem_mb:.0f}MB! Cleaning...")
+                    logging.warning(f"⚠️ [WATCHDOG] HIGH MEMORY: {mem_mb:.0f}MB ({task_count} tasks). Cleaning...")
                     gc.collect(2)
                     gc.collect()
                 else:
-                    logging.info(f"💚 [WATCHDOG] Memory: {mem_mb:.0f}MB OK")
+                    logging.info(f"💚 [WATCHDOG] Memory: {mem_mb:.0f}MB | Tasks: {task_count} OK")
             except ImportError:
                 gc.collect()
-                logging.info("💚 [WATCHDOG] GC complete")
+                logging.info("💚 [WATCHDOG] GC complete (psutil not available)")
         except asyncio.CancelledError:
             break
         except Exception as e:

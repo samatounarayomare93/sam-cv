@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import logging
 import os
 import sys
@@ -1317,13 +1318,13 @@ class AlphaOrchestrator:
                 # [🔥 FIX]: Single lead fetch per cycle (removed duplicate fetch above)
                 try:
                     logging.info("🧠 CLOUD SYNC: Checking for pending strikes in the Hive-Mind...")
-                    # Limit to 10 leads per cycle to prevent OOM on Render 512MB free tier
-                    batch_size = int(os.getenv("BATCH_SIZE", "10"))
+                    # Limit to 5 leads per cycle to prevent OOM on Render 512MB free tier
+                    batch_size = int(os.getenv("BATCH_SIZE", "5"))
                     cloud_leads = await self.db.get_pending_leads(limit=batch_size)
                     if cloud_leads:
                         logging.info(f"🚀 MISSION READY: Found {len(cloud_leads)} pending strikes. Igniting Strikes...")
-                        # Process in small batches of 3 to control memory
-                        chunk = 3
+                        # Process in small batches of 2 to control memory on Render 512MB
+                        chunk = 2
                         for i in range(0, len(cloud_leads), chunk):
                             batch = cloud_leads[i:i+chunk]
                             tasks = [self.process_single_lead(lead, variant_weights=weights) for lead in batch]
@@ -1331,7 +1332,8 @@ class AlphaOrchestrator:
                             for j, res in enumerate(results):
                                 if isinstance(res, Exception):
                                     logging.error(f"❌ STRIKE FAILURE lead {i+j}: {type(res).__name__}: {res}")
-                            await asyncio.sleep(2)  # Brief pause between chunks
+                            await asyncio.sleep(3)  # Pause between chunks to free memory
+                            gc.collect()  # Force GC between batches
                     else:
                         logging.info("📡 CLOUD SYNC: No pending strikes found. Proceeding to scouting...")
                 except Exception as e:
@@ -1354,8 +1356,8 @@ class AlphaOrchestrator:
                         platform_leads = await self.omni_crawler.hunt_registered_platforms()
                         raw_leads.extend(platform_leads)
                         
-                        # [👑 OMEGA-STRIKE]: Every 3 cycles, perform a massive web-wide discovery
-                        if strike_counter % 3 == 0:
+                        # [👑 OMEGA-STRIKE]: Every 10 cycles, perform a massive web-wide discovery
+                        if strike_counter % 10 == 0:
                             await self.telemetry_stream("INFO", "🕵️‍♂️ OMNI-CRAWLER MAX: Initiating web-wide deep discovery...")
                             web_leads = await self.omni_crawler.hunt_the_web()
                             raw_leads.extend(web_leads)
@@ -1394,9 +1396,13 @@ class AlphaOrchestrator:
                     save_tasks = [self.db.save_potential_lead(l, score=l.get('priority_score', 80)) for l in clean_leads]
                     await asyncio.gather(*save_tasks, return_exceptions=True)
                     
-                    # Limit to top 15 most valuable to prevent API burn, but prioritize Ghost Jobs
-                    tasks = [self.process_single_lead(lead, variant_weights=weights) for lead in raw_leads[:15]]
-                    await asyncio.gather(*tasks, return_exceptions=True)
+                    # Limit to top 10 most valuable, process sequentially to save RAM
+                    for lead in raw_leads[:10]:
+                        try:
+                            await self.process_single_lead(lead, variant_weights=weights)
+                        except Exception as _le:
+                            logging.error(f"❌ Lead processing error: {_le}")
+                        gc.collect()
 
                 logging.info("💤 Cycle concluded. Entering 100% Heartbeat cooldown.")
                 
