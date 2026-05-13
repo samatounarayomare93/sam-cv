@@ -401,16 +401,19 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # This works for ANY recipient.
     # ============================================================
     brevo_api_key = os.getenv("BREVO_API_KEY", "").strip()
-    resend_api_key = os.getenv("RESEND_API_KEY", "").strip()  # FIX: was NameError — must be defined before use
+    resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
     resend_from_email = os.getenv("RESEND_FROM_EMAIL", "").strip()
     _FREE_DOMAINS = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
     _resend_domain = resend_from_email.split('@')[-1].lower() if '@' in resend_from_email else ''
+    # Only use Resend if we have a VERIFIED custom domain (not gmail/yahoo/etc)
+    # Without verified domain, Resend rejects all non-owner emails — skip it entirely
     _resend_domain_ok = resend_from_email and _resend_domain not in _FREE_DOMAINS
 
     # Skip Brevo entirely if API key is disabled/invalid (saves time)
     _brevo_enabled = bool(brevo_api_key) and not _BREVO_SESSION_DISABLED
 
-    if resend_api_key:  # ← try Resend even with free-domain FROM (uses onboarding@resend.dev)
+    # Only try Resend if we have a verified custom domain — otherwise skip directly to Brevo
+    if resend_api_key and _resend_domain_ok:
         try:
             import resend as resend_lib
             resend_lib.api_key = resend_api_key
@@ -512,9 +515,13 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
         gmail_user = (getattr(config, 'GMAIL_SMTP_USER', '') or os.getenv("GMAIL_SMTP_USER", "")).strip()
         gmail_pass = (getattr(config, 'GMAIL_APP_PASSWORD', '') or os.getenv("GMAIL_APP_PASSWORD", "")).strip()
 
-        # ── STEP -1: Resend API — works on Render, no SMTP needed ─────────────
+        # ── STEP -1: Resend API — only if verified custom domain ─────────────
         resend_key_first = os.getenv("RESEND_API_KEY", "").strip()
-        if resend_key_first and HAS_RESEND:
+        resend_from_first = os.getenv("RESEND_FROM_EMAIL", "").strip()
+        _FREE_R0 = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
+        _dom_r0_check = resend_from_first.split('@')[-1].lower() if '@' in resend_from_first else ''
+        _resend_verified = resend_from_first and _dom_r0_check not in _FREE_R0
+        if resend_key_first and HAS_RESEND and _resend_verified:
             try:
                 import resend as resend_lib
                 resend_lib.api_key = resend_key_first

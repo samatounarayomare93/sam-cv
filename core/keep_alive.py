@@ -127,24 +127,39 @@ def _self_ping_loop():
     time.sleep(60)
 
     ping_count = 0
+def _self_ping_loop():
+    """[IMMORTALITY]: Background loop that pings the external URL to prevent sleep.
+    Pings every 8 minutes — Render sleeps after 15 min of inactivity, so 8 min is safe.
+    On failure: retries every 2 minutes (NOT exponential backoff — that was causing sleep).
+    """
+    url = os.environ.get("RENDER_EXTERNAL_URL", "").strip()
+    if not url or not url.startswith("https://"):
+        url = "https://sam-bot-v2.onrender.com"
+
+    logging.info(f"🛰️ [SELF-PING] Target: {url}")
+    logging.info(f"🛡️ [IMMORTALITY] Pinging every 8 minutes to prevent Render sleep.")
+
+    # Wait 30s before first ping (let server start)
+    time.sleep(30)
+
+    ping_count = 0
     fail_count = 0
-    backoff = 600
     start_time = time.time()
 
     while True:
         try:
-            r = requests.get(url, timeout=15)
+            r = requests.get(url, timeout=20)
             ping_count += 1
             fail_count = 0
-            backoff = 600
             uptime_hours = (time.time() - start_time) / 3600
             logging.info(f"💓 [HEARTBEAT #{ping_count}] Status: {r.status_code} | Uptime: {uptime_hours:.1f}h")
+            # Success: wait 8 minutes before next ping
+            time.sleep(480)
         except Exception as e:
             fail_count += 1
-            backoff = min(backoff * 2, 1800)
             logging.warning(f"⚠️ [HEARTBEAT] Ping failed ({fail_count}): {e}")
-
-        time.sleep(backoff)
+            # Failure: retry in 2 minutes (NOT exponential — keep pinging!)
+            time.sleep(120)
 
 def run_keep_alive_server():
     """Blocking function to run the aiohttp server. Best for main-thread execution on Render."""
@@ -161,3 +176,5 @@ def keep_alive():
     p.start()
     
     logging.info("🛡️ [IMMORTALITY] Redundant Heartbeat Threads launched.")
+    logging.info("🛡️ [IMMORTALITY] Self-ping every 8 min — Render will NEVER sleep.")
+    logging.info("💡 [TIP] For extra reliability, add https://sam-bot-v2.onrender.com to UptimeRobot.com (free)")
