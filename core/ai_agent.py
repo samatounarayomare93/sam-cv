@@ -1019,8 +1019,20 @@ class OmniIntelligence:
                 )
                 return response.text.strip()
             elif self.groq_key:
-                data = await self.structural_query(prompt)  # FIX: was self.ai.structural_query (self.ai doesn't exist)
-                return data.get("reply_message", "Oracle is silent.")
+                # Fix: structural_query returns a JSON dict with json_object format.
+                # The prompt asks for HTML text, not JSON — use direct Groq call instead.
+                session = await self._get_session()
+                headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
+                resp = await session.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json={"model": "llama-3.3-70b-versatile",
+                          "messages": [{"role": "user", "content": prompt}],
+                          "max_tokens": 500}
+                )
+                if resp.status_code == 200:
+                    return resp.json()['choices'][0]['message']['content'].strip()
+                return "Oracle is silent."
         except Exception as e:
             return f"Error in tactical extraction: {e}"
         return "Intelligence Retrieval Failed."
