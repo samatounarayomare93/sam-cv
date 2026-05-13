@@ -156,8 +156,8 @@ _FAKE_EXACT_EMAILS: frozenset = frozenset({
     'careers@confidential.com', 'careers@ahiringcompany.com',
 })
 _NON_HIRING_DOMAINS: frozenset = frozenset({
-    'stackoverflow.com', 'windows.com', 'microsoft.com', 'google.com',
-    'apple.com', 'amazon.com', 'youtube.com', 'wikipedia.org',
+    'stackoverflow.com', 'windows.com',
+    'youtube.com', 'wikipedia.org',
     'facebook.com', 'twitter.com', 'instagram.com', 'tiktok.com',
     'reddit.com', 'github.com', 'zippia.com',
     'linkedin.com', 'lv.linkedin.com', 'ae.linkedin.com', 'uk.linkedin.com',
