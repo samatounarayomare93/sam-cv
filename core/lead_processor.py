@@ -62,9 +62,14 @@ class LeadProcessor:
         if not self.ai:
             return
 
-        is_relevant, reason, cover_letter, salary, score, advantage, keywords, persona, psych_variant, personality_archetype, highlights = await self.ai.analyze_job(
-            job_title, description[:3000] if description else ""
-        )
+        try:
+            is_relevant, reason, cover_letter, salary, score, advantage, keywords, persona, psych_variant, personality_archetype, highlights = await self.ai.analyze_job(
+                job_title, description[:3000] if description else ""
+            )
+        except Exception as e:
+            logging.warning(f"⚠️ [AI] analyze_job failed for {company_name}: {e} — skipping lead")
+            return
+
         if not is_relevant or score < _MIN_SCORE:
             self.cycle_stats['rejected'] += 1
             return

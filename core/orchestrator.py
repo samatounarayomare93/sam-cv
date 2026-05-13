@@ -84,6 +84,9 @@ class AlphaOrchestrator:
         # Lazy-init semaphore inside running event loop
         if self.semaphore is None:
             self.semaphore = asyncio.Semaphore(self._concurrency_limit)
+        # Fix: update ScrapeService with the real semaphore now that it's created
+        if self.scrape_service and self.scrape_service.semaphore is None:
+            self.scrape_service.semaphore = self.semaphore
         await self.scheduler.run()
 
     async def close(self):

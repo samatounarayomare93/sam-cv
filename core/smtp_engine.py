@@ -879,7 +879,11 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     # 🚀 RENDER OPTIMIZATION: Prioritize Port 2525
     # Render blocks 587/465 but allows 2525.
     # ============================================================
-    is_render = os.getenv("RENDER") is not None
+    # Fix: use same 4-condition detection as the top of send_email
+    is_render = bool(
+        os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID") or
+        (_platform.system() == "Linux" and not os.getenv("LOCAL_DEV"))
+    )
     if is_render:
         brevo_smtp_user = (getattr(config, 'BREVO_SMTP_LOGIN', '') or '').strip()
         brevo_smtp_pass = (getattr(config, 'BREVO_SMTP_PASSWORD', '') or '').strip()

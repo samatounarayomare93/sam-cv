@@ -35,7 +35,8 @@ async def handle_index(request):
 async def handle_api_stats(request):
     """Serve live stats to the TWA."""
     try:
-        loop = asyncio.get_event_loop()
+        # Fix: use get_running_loop() — get_event_loop() is deprecated in Python 3.10+
+        loop = asyncio.get_running_loop()
         data = await loop.run_in_executor(None, get_stats)
         headers = {
             "Access-Control-Allow-Origin": "*",
@@ -72,7 +73,11 @@ async def handle_api_action(request):
                                  headers={"Access-Control-Allow-Origin": "*"})
 
 def _run_server():
-    """Runs the aiohttp web server synchronously inside the daemon thread."""
+    """Runs the aiohttp web server in its own dedicated event loop (daemon thread)."""
+    # Fix: create a fresh event loop for this thread to avoid conflicts with the main asyncio loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     app = web.Application()
     app.router.add_get('/', handle_index)
     app.router.add_get('/api/stats', handle_api_stats)
@@ -90,14 +95,16 @@ def _run_server():
     host = '0.0.0.0'
     logging.info(f"🌐 [CLOUD-ALIVE] Binding Heartbeat to {host}:{port}...")
     try:
-        web.run_app(app, host=host, port=port, handle_signals=False, access_log=None)
+        web.run_app(app, host=host, port=port, handle_signals=False, access_log=None, loop=loop)
     except OSError as e:
-        if e.errno == 10048:
-            logging.warning(f"⚠️ [CLOUD-ALIVE] Port {port} already in use. Skipping locally.")
+        if e.errno == 10048 or e.errno == 98:  # 98 = EADDRINUSE on Linux
+            logging.warning(f"⚠️ [CLOUD-ALIVE] Port {port} already in use. Skipping.")
         else:
             logging.error(f"⚠️ [CLOUD-ALIVE] Fatal Crash: {e}")
     except Exception as e:
         logging.error(f"⚠️ [CLOUD-ALIVE] Fatal Crash: {e}")
+    finally:
+        loop.close()
 
 
 def _self_ping_loop():

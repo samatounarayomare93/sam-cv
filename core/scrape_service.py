@@ -17,7 +17,10 @@ except ImportError:
 
 class ScrapeService:
     def __init__(self, semaphore: asyncio.Semaphore, omni_crawler=None):
+        # semaphore may be None at construction time (lazy-init in orchestrator)
+        # stealth_scrape_target will create one on first use if still None
         self.semaphore = semaphore
+        self._semaphore_limit = 5
         self.evasion = EvasionRouter()
         self.omni_crawler = omni_crawler
         self._session = None
@@ -41,6 +44,9 @@ class ScrapeService:
             self._session = None
 
     async def stealth_scrape_target(self, target_url: str) -> Optional[str]:
+        # Lazy-init semaphore if not set yet
+        if self.semaphore is None:
+            self.semaphore = asyncio.Semaphore(self._semaphore_limit)
         async with self.semaphore:
             headers = self.evasion.get_stealth_headers()
             for attempt in range(3):
@@ -70,7 +76,14 @@ class ScrapeService:
     async def collect_leads(self) -> List[Dict[str, Any]]:
         raw_leads = []
         if scraper:
-            raw_leads.extend(await asyncio.to_thread(scraper.get_latest_jobs))
+            try:
+                raw_leads.extend(await asyncio.to_thread(scraper.get_latest_jobs))
+            except Exception as e:
+                logging.warning(f"⚠️ [SCRAPE] scraper.get_latest_jobs failed: {e}")
         if self.omni_crawler:
-            raw_leads.extend(await asyncio.to_thread(self.omni_crawler.hunt_the_web))
+            try:
+                # Fix: hunt_the_web is async — call it directly, not via to_thread
+                raw_leads.extend(await self.omni_crawler.hunt_the_web())
+            except Exception as e:
+                logging.warning(f"⚠️ [SCRAPE] omni_crawler.hunt_the_web failed: {e}")
         return raw_leads

@@ -36,8 +36,9 @@ class Scheduler:
         while self.is_running:
             try:
                 self.lead_processor.reset_cycle_stats()
-                await self.kill_switch_cb()
-                if not self.is_running:
+                # Fix: check kill_switch return value — if True, stop the loop
+                killed = await self.kill_switch_cb()
+                if killed or not self.is_running:
                     break
 
                 due_naps = await self.follow_up.get_due_follow_ups()

@@ -287,7 +287,8 @@ class SovereignDashboard:
             )
             await update.effective_message.reply_text("🎮 <b>DYNAMIC COMMAND CENTER:</b>", reply_markup=inline_markup, parse_mode='HTML')
 
-        elif cmd in ("/stats", "/menu"):
+        elif cmd == "/stats":
+            # /stats redirects to /status for unified HUD
             await self._dispatch_command("/status", update, context)
             return
 

@@ -387,9 +387,9 @@ def generate_cover_letter_pdf(company, job_title, lead=None):
     
     p = load_profile().get("candidate", {})
     # 1. HEADER (Official Branding)
-    pdf.set_font("Arial", 'B', 16)
+    pdf.set_font("Helvetica", 'B', 16)
     pdf.cell(0, 10, p.get("name", "Candidate"), new_x="LMARGIN", new_y="NEXT", align='L')
-    pdf.set_font("Arial", '', 10)
+    pdf.set_font("Helvetica", '', 10)
     pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 5, p.get("title", ""), new_x="LMARGIN", new_y="NEXT", align='L')
     pdf.cell(0, 5, f"{p.get('email', '')} | {p.get('phone', '')} | {p.get('linkedin', '')}", new_x="LMARGIN", new_y="NEXT", align='L')
@@ -399,22 +399,22 @@ def generate_cover_letter_pdf(company, job_title, lead=None):
     pdf.ln(15)
     
     # 2. DATE & ADDRESSEE
-    pdf.set_font("Arial", '', 10)
+    pdf.set_font("Helvetica", '', 10)
     pdf.set_text_color(0, 0, 0)
     pdf.cell(0, 5, f"Date: {datetime.now().strftime('%B %d, %Y')}", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
-    pdf.set_font("Arial", 'B', 10)
+    pdf.set_font("Helvetica", 'B', 10)
     pdf.cell(0, 5, "Hiring Manager", new_x="LMARGIN", new_y="NEXT")
     pdf.cell(0, 5, company, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(10)
     
     # 3. SUBJECT
-    pdf.set_font("Arial", 'BU', 11)
+    pdf.set_font("Helvetica", 'BU', 11)
     pdf.cell(0, 7, f"Application for {job_title}", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(8)
     
     # 4. GREETING
-    pdf.set_font("Arial", '', 11)
+    pdf.set_font("Helvetica", '', 11)
     pdf.cell(0, 7, f"Dear {company} Hiring Team,", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
     
@@ -455,7 +455,7 @@ def generate_cover_letter_pdf(company, job_title, lead=None):
     pdf.ln(10)
     
     # 6. SIGN-OFF
-    pdf.set_font("Arial", 'B', 11)
+    pdf.set_font("Helvetica", 'B', 11)
     pdf.cell(0, 7, "Sincerely,", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
     pdf.cell(0, 7, p.get("name", "Candidate"), new_x="LMARGIN", new_y="NEXT")

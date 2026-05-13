@@ -1256,8 +1256,11 @@ class AlphaOrchestrator:
         asyncio.create_task(self._leadership_watchdog())
         
         # [🛡️ SOVEREIGN MODE DETECTION]
-        health = self.db.get_system_health() if self.db else {"mode": "standalone"}
-        mode_msg = f"🛰️ SWARM MODE: {health['mode']} Protocol Active."
+        try:
+            health = self.db.get_system_health() if self.db else {"mode": "standalone"}
+        except Exception:
+            health = {"mode": "standalone"}
+        mode_msg = f"🛰️ SWARM MODE: {health.get('mode', 'standalone')} Protocol Active."
         logging.info(mode_msg)
         await self.telemetry_stream("INFO", mode_msg)
             
@@ -1404,20 +1407,13 @@ class AlphaOrchestrator:
                 if raw_leads:
                     # Sort by priority_score (Descending) to ensure high-value strikes happen first
                     raw_leads.sort(key=lambda x: x.get("priority_score", 0), reverse=True)
-                    
-                    # 🛡️ PRE-SAVE FILTER: Remove junk before persisting to DB
-                    JUNK_COMPANY_NAMES = {
-                        'unknown', 'none', 'null', 'target node', 'automatic target',
-                        'oracle lead', 'undefined', 'error', 'test', 'example',
-                        'linkedin', 'indeed', 'glassdoor', 'bayt', 'naukrigulf',
-                        'monster', 'gulftalent', 'dubizzle', 'daleel madani',
-                    }
+
+                    # 🛡️ PRE-SAVE FILTER: Use module-level JUNK_COMPANY_NAMES (full 80-entry set)
+                    # Fix: removed local redefinition that shadowed the module-level constant with only 13 entries
                     clean_leads = [
                         l for l in raw_leads
                         if l.get('company_name', '').lower().strip() not in JUNK_COMPANY_NAMES
                         and len(l.get('company_name', '').strip()) >= 3
-                        # [🔥 FIX]: Don't reject leads without email - email guessing will handle them
-                        # Previously: and l.get('email', '') != ''  ← THIS WAS BLOCKING 80% OF LEADS!
                     ]
                     logging.info(f"📥 PERSISTENCE: Archiving {len(clean_leads)}/{len(raw_leads)} clean leads to the Hive-Mind...")
                     save_tasks = [self.db.save_potential_lead(l, score=l.get('priority_score', 80)) for l in clean_leads]
