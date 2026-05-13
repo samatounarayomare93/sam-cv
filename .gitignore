@@ -29,15 +29,29 @@ health_check.json
 metrics.json
 tracker.json
 
-# Environment files
+# Environment files — NEVER commit credentials
 .env
 .env.*
 !.env.example
+!.env.template
+
+# Google OAuth credentials — NEVER commit
+credentials.json
+token.json
+gmail_token.json
+*.token.json
+
+# Plain-text credential files
+render_env_vars.txt
+COPY_THESE_VALUES.txt
+cv_data_uri.txt
+launch_config.example.env
 
 # OS / IDE
 .DS_Store
 Thumbs.db
 .idea/
+.vscode/
 
 # Portable / embedded Python artifacts
 portable_python/
@@ -58,36 +72,30 @@ python_embedded.zip
 python_portable.zip
 
 # Generated PDF cache (contains personal data)
+pdf_cache/
 core/pdf_cache/
 core/temp_cvs/
 temp_mirror/
+cover_letters/
 
 # SQLite databases
 *.db
 
 # Scratch / verification scripts (dev-only)
 scratch/
-verify_*.py
-truth_test_*.py
-
-# Explicitly track scripts/ and src/lib/ (Windows case-insensitive workaround)
-!scripts/
-!rita-command-center/src/lib/
 
 # Node.js / Next.js
 node_modules/
 .next/
-rita-command-center/node_modules/
-rita-command-center/.next/
-rita-command-center/package-lock.json
-
-# Gmail API Secrets (Allowed for private cloud sync)
+sam-command-center/node_modules/
+sam-command-center/.next/
+sam-command-center/package-lock.json
+ui/node_modules/
+ui/.next/
+ui/package-lock.json
 
 # Python runtime
 .sovereign_runtime/
 
-
-sam-command-center/node_modules/
-sam-command-center/.next/
-pdf_cache/
-.sovereign_runtime/
+# Cache directories
+cache/

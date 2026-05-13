@@ -877,6 +877,7 @@ class RealityShapingDB:
         except: pass
 
     async def stream_log(self, level: str, message: str):
+        # Write to local SQLite first (always works)
         try:
             conn = self._sqlite_connect()
             cursor = conn.cursor()
@@ -884,6 +885,17 @@ class RealityShapingDB:
             conn.commit()
             conn.close()
         except: pass
+        # Also write to Supabase so the dashboard can display live logs
+        if self.enabled:
+            try:
+                payload = {"level": level, "message": message[:500]}  # cap at 500 chars
+                await self._request_with_retry(
+                    "POST",
+                    f"{self.url}/rest/v1/system_logs",
+                    payload
+                )
+            except Exception:
+                pass  # Never crash the bot over a log write
 
     async def get_recent_blacklist(self, limit: int = 5) -> List[Dict]:
         blacklist = []

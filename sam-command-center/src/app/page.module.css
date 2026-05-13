@@ -516,3 +516,51 @@
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Live Stats Bar ──────────────────────────────────────── */
+.liveBar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0 2.5rem;
+  padding: 1.2rem 1.5rem;
+  background: rgba(0, 212, 255, 0.04);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+}
+
+.liveBarItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+.liveBarItem:last-child { border-right: none; }
+
+.liveBarLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.4);
+  font-weight: 600;
+}
+
+.liveBarValue {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  background: var(--gradient-main);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+
+@media (max-width: 768px) {
+  .liveBar { grid-template-columns: repeat(2, 1fr); }
+  .liveBarItem { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .liveBarItem:nth-child(2n) { border-bottom: none; }
+}

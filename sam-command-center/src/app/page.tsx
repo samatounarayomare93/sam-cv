@@ -9,8 +9,9 @@ type ToastType = 'success' | 'error' | 'info';
 
 export default function Home() {
   const [stats, setStats] = useState({ nodes: 0, leads: 0, strikes: 0, heals: 0 });
-  const [logs, setLogs] = useState<any[]>([]);
-  const [missions, setMissions] = useState<any[]>([]);
+  const [extraStats, setExtraStats] = useState({ todayApps: 0, lastCompany: '', pendingLeads: 0 });
+  const [logs, setLogs] = useState<{timestamp: string; level: string; message: string}[]>([]);
+  const [missions, setMissions] = useState<{id: number; type: string; target: string; message: string; status: string}[]>([]);
   const [isPulsing, setIsPulsing] = useState(false);
   const [hoveredDescription, setHoveredDescription] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: ToastType } | null>(null);
@@ -51,7 +52,7 @@ export default function Home() {
         { count: appCount },
         { count: nodeCount },
         { count: patchCount },
-        { data: latestLogs },
+        { data: rawLogs, error: logsError },
         { data: activeMissions },
         { data: killData },
       ] = await Promise.all([
@@ -66,17 +67,59 @@ export default function Home() {
 
       setStats({ nodes: nodeCount || 0, leads: leadCount || 0, strikes: appCount || 0, heals: patchCount || 0 });
 
+      // If system_logs table doesn't exist, fall back to recent applications
+      let latestLogs = rawLogs;
+      if (logsError) {
+        const { data: appLogs } = await supabase
+          .from('applications')
+          .select('company_name,timestamp,status')
+          .order('timestamp', { ascending: false })
+          .limit(12);
+        latestLogs = (appLogs || []).map((a: {company_name: string; timestamp: string; status: string}) => ({
+          timestamp: a.timestamp,
+          level: 'INFO',
+          message: `✅ Strike sent → ${a.company_name} [${a.status}]`,
+        }));
+      }
+
       if (latestLogs && latestLogs.length > 0) {
         setLogs(prev => {
-          if (prev.length > 0 && latestLogs[0].timestamp !== prev[0].timestamp) {
+          if (prev.length > 0 && latestLogs![0].timestamp !== prev[0].timestamp) {
             setIsPulsing(true);
             setTimeout(() => setIsPulsing(false), 2000);
           }
-          return latestLogs;
+          return latestLogs!;
         });
       }
 
       if (activeMissions) setMissions(activeMissions);
+
+      // ── Extra stats: today's apps + last company + pending leads ──
+      try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const [
+          { count: todayCount },
+          { data: lastApp },
+          { count: pendingCount },
+        ] = await Promise.all([
+          supabase.from('applications')
+            .select('*', { count: 'exact', head: true })
+            .gte('timestamp', todayStart.toISOString()),
+          supabase.from('applications')
+            .select('company_name')
+            .order('timestamp', { ascending: false })
+            .limit(1),
+          supabase.from('leads')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'pending'),
+        ]);
+        setExtraStats({
+          todayApps: todayCount || 0,
+          lastCompany: lastApp?.[0]?.company_name || '—',
+          pendingLeads: pendingCount || 0,
+        });
+      } catch { /* non-critical */ }
 
       // Sync kill switch state
       if (killData && killData.length > 0) {
@@ -205,8 +248,9 @@ export default function Home() {
         default:
           showToast(`${btn} — command received`, 'info');
       }
-    } catch (err: any) {
-      showToast(`❌ Error: ${err.message || 'Unknown error'}`, 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      showToast(`❌ Error: ${message}`, 'error');
     } finally {
       setLoadingBtn(null);
       await fetchStats();
@@ -363,6 +407,26 @@ export default function Home() {
             <span className={styles.statValue}>{stats.heals}</span>
             <span className={styles.statLabel}>Automated Scraper Repairs</span>
           </div>
+        </div>
+      </div>
+
+      {/* Live Stats Bar */}
+      <div className={styles.liveBar}>
+        <div className={styles.liveBarItem}>
+          <span className={styles.liveBarLabel}>📅 Today&apos;s Strikes</span>
+          <span className={styles.liveBarValue}>{extraStats.todayApps}</span>
+        </div>
+        <div className={styles.liveBarItem}>
+          <span className={styles.liveBarLabel}>🎯 Pending Leads</span>
+          <span className={styles.liveBarValue}>{extraStats.pendingLeads}</span>
+        </div>
+        <div className={styles.liveBarItem}>
+          <span className={styles.liveBarLabel}>🏢 Last Target</span>
+          <span className={styles.liveBarValue} style={{fontSize: '0.85rem'}}>{extraStats.lastCompany}</span>
+        </div>
+        <div className={styles.liveBarItem}>
+          <span className={styles.liveBarLabel}>📋 LinkedIn Queue</span>
+          <span className={styles.liveBarValue}>{missions.length}</span>
         </div>
       </div>
 

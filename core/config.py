@@ -11,6 +11,10 @@ ENHANCED FEATURES:
 ✓ AI Filter - Intelligent job matching
 ✓ Auto-Retry - Self-healing on failures
 ✓ Rate Limiting - Anti-ban protection
+
+SECURITY NOTE:
+All credentials MUST be set via environment variables (.env file or Render/cloud platform).
+No hardcoded credentials are stored in this file.
 """
 
 import os
@@ -18,55 +22,6 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-
-# ============================================================================
-# 🔑 HARDCODED FALLBACKS — used when env vars are missing (e.g. Render free plan)
-# These are the actual credentials. Env vars take priority if set.
-# ============================================================================
-_DEFAULTS = {
-    "SUPABASE_URL":          "https://lckiazbadymeikmxesit.supabase.co",
-    "SUPABASE_KEY":          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2lhemJhZHltZWlrbXhlc2l0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzMxNzE1NSwiZXhwIjoyMDkyODkzMTU1fQ.NWdt3IcKs60M-6T_syPLQU4m22msqugqGA7wZpCXNbg",
-    "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxja2lhemJhZHltZWlrbXhlc2l0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzMxNzE1NSwiZXhwIjoyMDkyODkzMTU1fQ.NWdt3IcKs60M-6T_syPLQU4m22msqugqGA7wZpCXNbg",
-    "BREVO_API_KEY":          "",  # Set via .env or Supabase secrets (not hardcoded for security)
-    "BREVO_SMTP_LOGIN":       "a974ef001@smtp-brevo.com",
-    "BREVO_SMTP_PASSWORD":    "xsmtpsib-4ffec113189337d3602362d9b18e53d9462bdf499ee7ac27a1778f66a478bb7c-7rFR8WTs1UMRNoyw",
-    "BREVO_ACCOUNT_EMAIL":    "samatou683@gmail.com",
-    "BREVO_SENDER_EMAIL":     "samatou683@gmail.com",
-    "GMAIL_SMTP_USER":        "samsalameh.cv@gmail.com",
-    "GMAIL_APP_PASSWORD":     "oimuanudzzngklnf",
-    "ZOHO_SMTP_USER":         "samsalameh.cv@zohomail.com",
-    "ZOHO_APP_PASSWORD":      "R0R6dqr5qL1g",
-    "ZOHO_SMTP_USER_2":       "samsalameh@zohomail.com",
-    "ZOHO_APP_PASSWORD_2":    "EGDUw41ADNmM",
-    "TELEGRAM_BOT_TOKEN":     "8630175054:AAGuMqlmCJAizvDlFUrsg-UletxSdOcsvn0",
-    "TELEGRAM_CHAT_ID":       "6639482672",
-    "GROQ_API_KEY":           "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",
-    "GEMINI_API_KEY":         "AIzaSyBFNxUyS-WXIcaBCxrlMuaZ6l1f0c4KCZs",
-    "SENDER_EMAIL":           "samsalameh.cv@gmail.com",
-    "SENDER_NAME":            "Sam Salameh",
-    "CANDIDATE_PHONE":        "+961 70 841 1009",
-    "LINKEDIN_URL":           "https://www.linkedin.com/in/sam-salameh",
-    "CANDIDATE_PROFESSION":   "Senior Network Engineer",
-    "TEST_RECEIVER_EMAIL":    "samsalameh.cv@gmail.com",
-    "KILL_SWITCH_ACTIVE":     "false",
-    "MAX_PARALLEL_STRIKES":   "3",
-    "MAX_QUALIFIED_LEADS_PER_CYCLE": "100",
-    "MIN_MATCH_SCORE":        "45",
-    # Gmail API token (base64 encoded token.json) — bypasses SMTP blocks on Render
-    "GMAIL_TOKEN_JSON":       "eyJ0b2tlbiI6ICJ5YTI5LmEwQWE3TVlpcmtMTEo2VUwtaDA2NUl1NVBfcWt1ZWpNNlUybEtfSzh5OUc3aGx2STVNWnN3bFFyYjdFbWRmbVRGMnZkV1QtN0Q2WTNETktPbGdCbHpsaV9uQmRlTGdyQUVyMTg1bGs5VXRHSG1VV2FQNV9VdmUyajhyd0tkcm5nVmlWZm9yQVBDSU1BMGxQcDJadVMtUS04TnhmRmp6LXlyM08tUlR2cER6VFFOckxtNDBRb0UwZTNUbTR1TzZEY2VTeWk0cW9OSGlhQ2dZS0FhQVNBUlFTRlFIR1gyTWladkQ5RFZNS2IwR1hSTjcycVpETk1RMDIwNyIsICJyZWZyZXNoX3Rva2VuIjogIjEvLzBnSTRmNUZaWTlpT1FDZ1lJQVJBQUdCQVNOd0YtTDlJcmkzVzUza2dfX2dGUFdpNHhqZTd4bWZyQ1JfYXFqcW5WZWtzeURRMk1raWRFMUdxdHBQMmJzZWhtRVQtVWhQR3hpQmsiLCAidG9rZW5fdXJpIjogImh0dHBzOi8vb2F1dGgyLmdvb2dsZWFwaXMuY29tL3Rva2VuIiwgImNsaWVudF9pZCI6ICI3Mjc2ODg2MzE0MjMtbzMyY3N0YXRsaHVya2VmMnIwcGV2anZmcGE4czU0MjEuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCAiY2xpZW50X3NlY3JldCI6ICJHT0NTUFgtU3NGOW5Ham1SQnk4Zjkwd25EcmlpUk45ZGlzbyIsICJzY29wZXMiOiBbImh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvZ21haWwuc2VuZCJdLCAidW5pdmVyc2VfZG9tYWluIjogImdvb2dsZWFwaXMuY29tIiwgImFjY291bnQiOiAiIiwgImV4cGlyeSI6ICIyMDI2LTA0LTIxVDE5OjM2OjQyLjU5MjA3MFoifQ==",
-}
-
-def _get(key: str, default: str = "") -> str:
-    """Get env var, falling back to hardcoded defaults if not set."""
-    val = os.getenv(key, "")
-    if val:
-        return val
-    return _DEFAULTS.get(key, default)
-
-# Apply defaults for missing env vars
-for _k, _v in _DEFAULTS.items():
-    if not os.getenv(_k):
-        os.environ[_k] = _v
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -187,8 +142,11 @@ DELAY_BETWEEN_EMAILS_MAX = 3
 MAX_EMAILS_PER_MINUTE = 20
 
 # Parallel Processing
-MAX_PARALLEL_STRIKES = 3
-MAX_QUALIFIED_LEADS_PER_CYCLE = 100
+MAX_PARALLEL_STRIKES = int(os.getenv("MAX_PARALLEL_STRIKES", "3"))
+MAX_QUALIFIED_LEADS_PER_CYCLE = int(os.getenv("MAX_QUALIFIED_LEADS_PER_CYCLE", "100"))
+
+# Job Match Threshold — leads below this score are rejected
+MIN_MATCH_SCORE = int(os.getenv("MIN_MATCH_SCORE", "75"))
 
 # Performance
 REQUEST_TIMEOUT = 15

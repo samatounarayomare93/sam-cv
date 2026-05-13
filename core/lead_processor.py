@@ -8,6 +8,13 @@ from core.lead_schema import normalize_lead
 from core.pdf_generator import create_personalized_pdf
 from core.smtp_engine import send_strike
 
+# Import threshold from config so it's controlled from one place
+try:
+    from core.config import MIN_MATCH_SCORE as _CFG_MIN_SCORE
+    _MIN_SCORE = int(_CFG_MIN_SCORE)
+except Exception:
+    _MIN_SCORE = 75  # safe fallback
+
 
 class LeadProcessor:
     def __init__(self, ai, db=None, telemetry=None, omni_crawler=None):
@@ -58,7 +65,7 @@ class LeadProcessor:
         is_relevant, reason, cover_letter, salary, score, advantage, keywords, persona, psych_variant, personality_archetype, highlights = await self.ai.analyze_job(
             job_title, description[:3000] if description else ""
         )
-        if not is_relevant or score < 75:
+        if not is_relevant or score < _MIN_SCORE:
             self.cycle_stats['rejected'] += 1
             return
 
