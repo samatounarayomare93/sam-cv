@@ -41,7 +41,8 @@ class DatabaseManager:
         return await self.client.get_pending_leads(limit)
 
     async def get_variant_performance(self) -> Dict[str, float]:
-        return await self.client.get_variant_performance()
+        # get_variant_performance is an alias for get_variant_weights in RealityShapingDB
+        return await self.client.get_variant_weights()
 
     async def get_stats(self) -> Dict[str, Any]:
         return await self.client.get_stats()
