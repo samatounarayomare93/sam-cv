@@ -323,6 +323,12 @@ async def main():
         try:
             from core.db_client import RealityShapingDB
             from core.ai_agent import OmniIntelligence
+            from core.main_bot import AlphaOrchestrator as _AO
+
+            # Reset singletons on every restart — prevents stale event loop references
+            RealityShapingDB._instance = None
+            OmniIntelligence._instance = None
+            _AO._instance = None
 
             shared_db = RealityShapingDB()
             shared_ai = OmniIntelligence()
@@ -374,7 +380,7 @@ async def main():
 
             done, pending = await asyncio.wait(
                 critical_tasks,  # Only wait on CRITICAL tasks
-                return_when=asyncio.FIRST_EXCEPTION
+                return_when=asyncio.FIRST_COMPLETED  # restart if ANY task ends (crash or normal exit)
             )
 
             # Cancel all tasks cleanly

@@ -14,14 +14,9 @@ except ImportError:
 
 def get_stats():
     """Synchronous stats aggregator for the background telemetry server."""
-    # We delay load DB client to avoid cycle issues in the thread
     from core.db_client import RealityShapingDB
     db = RealityShapingDB()
-    
-    # Use the high-availability synchronous bridge
     stats = db.sync_get_stats()
-    
-    # [💎 CLOUD-PERFECTION]: Minimize memory calls
     return {
         "scanned": stats.get("scanned", 0),
         "strikes": stats.get("strikes", 0),
@@ -35,15 +30,13 @@ async def handle_index(request):
     file_path = os.path.join("core", "web_app", "index.html")
     if os.path.exists(file_path):
         return web.FileResponse(file_path)
-    return web.Response(text="🟢 Sovereign Core Online. (Web App UI Missing)")
+    return web.Response(text="🟢 Sovereign Core Online.")
 
 async def handle_api_stats(request):
     """Serve live stats to the TWA."""
     try:
-        # Run synchronous get_stats in executor to avoid blocking the event loop
         loop = asyncio.get_event_loop()
         data = await loop.run_in_executor(None, get_stats)
-        
         headers = {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -52,7 +45,8 @@ async def handle_api_stats(request):
         return web.json_response(data, headers=headers)
     except Exception as e:
         logging.error(f"API Stats Error: {e}")
-        return web.json_response({"error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"error": str(e)}, status=500,
+                                 headers={"Access-Control-Allow-Origin": "*"})
 
 async def handle_api_action(request):
     """Receive and queue tactical actions from the HUD."""
@@ -60,16 +54,12 @@ async def handle_api_action(request):
         data = await request.json()
         action = data.get("action")
         if not action:
-            return web.json_response({"error": "No action specified"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
-        
+            return web.json_response({"error": "No action specified"}, status=400,
+                                     headers={"Access-Control-Allow-Origin": "*"})
         logging.info(f"⚡ HUD ACTION RECEIVED: {action}")
-        
         from core.db_client import RealityShapingDB
         db = RealityShapingDB()
-        
-        # Queue the task synchronously via the HA bridge
         db.sync_add_task(task_type=action, target="HUD_COMMAND", meta="browser_trigger")
-        
         headers = {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -78,7 +68,8 @@ async def handle_api_action(request):
         return web.json_response({"status": "queued", "action": action}, headers=headers)
     except Exception as e:
         logging.error(f"API Action Error: {e}")
-        return web.json_response({"error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"error": str(e)}, status=500,
+                                 headers={"Access-Control-Allow-Origin": "*"})
 
 def _run_server():
     """Runs the aiohttp web server synchronously inside the daemon thread."""
@@ -86,8 +77,7 @@ def _run_server():
     app.router.add_get('/', handle_index)
     app.router.add_get('/api/stats', handle_api_stats)
     app.router.add_post('/api/action', handle_api_action)
-    
-    # Handle preflight CORS for the POST request
+
     async def preflight(request):
         return web.Response(headers={
             "Access-Control-Allow-Origin": "*",
@@ -95,51 +85,34 @@ def _run_server():
             "Access-Control-Allow-Headers": "Content-Type",
         })
     app.router.add_options('/api/action', preflight)
-    
-    # Render assigns a dynamic port via the PORT environment variable.
-    # We must bind to 0.0.0.0 and this specific port to survive.
+
     port = int(os.environ.get("PORT", 10000))
     host = '0.0.0.0'
-    
     logging.info(f"🌐 [CLOUD-ALIVE] Binding Heartbeat to {host}:{port}...")
-    
     try:
-        # We use access_log=None to keep Render logs cleaner
         web.run_app(app, host=host, port=port, handle_signals=False, access_log=None)
     except OSError as e:
-        if e.errno == 10048: # WinError 10048: Address already in use
-            logging.warning(f"⚠️ [CLOUD-ALIVE] Port {port} is already in use. Skipping Web HUD bind locally.")
+        if e.errno == 10048:
+            logging.warning(f"⚠️ [CLOUD-ALIVE] Port {port} already in use. Skipping locally.")
         else:
             logging.error(f"⚠️ [CLOUD-ALIVE] Fatal Crash: {e}")
     except Exception as e:
         logging.error(f"⚠️ [CLOUD-ALIVE] Fatal Crash: {e}")
 
+
 def _self_ping_loop():
-    """[IMMORTALITY]: Background loop that pings the external URL to prevent sleep."""
-    url = os.environ.get("RENDER_EXTERNAL_URL")
-    if not url or not url.startswith("https://"):
-        # Use the active service URL (Account 2 - sam-bot-v2)
-        url = "https://sam-bot-v2.onrender.com"
-
-    logging.info(f"🛰️ [SELF-PING] Target: {url}")
-    logging.info(f"🛡️ [IMMORTALITY] Bot will run FOREVER. Self-ping every 10 minutes.")
-
-    time.sleep(60)
-
-    ping_count = 0
-def _self_ping_loop():
-    """[IMMORTALITY]: Background loop that pings the external URL to prevent sleep.
-    Pings every 8 minutes — Render sleeps after 15 min of inactivity, so 8 min is safe.
-    On failure: retries every 2 minutes (NOT exponential backoff — that was causing sleep).
+    """[IMMORTALITY]: Pings every 8 minutes to prevent Render from sleeping.
+    On failure: retries every 2 minutes (fixed interval, NOT exponential backoff).
+    Render sleeps after 15 min of inactivity — 8 min ping keeps it awake forever.
     """
     url = os.environ.get("RENDER_EXTERNAL_URL", "").strip()
     if not url or not url.startswith("https://"):
         url = "https://sam-bot-v2.onrender.com"
 
     logging.info(f"🛰️ [SELF-PING] Target: {url}")
-    logging.info(f"🛡️ [IMMORTALITY] Pinging every 8 minutes to prevent Render sleep.")
+    logging.info(f"🛡️ [IMMORTALITY] Pinging every 8 min — Render will NEVER sleep.")
 
-    # Wait 30s before first ping (let server start)
+    # Wait 30s for server to start before first ping
     time.sleep(30)
 
     ping_count = 0
@@ -152,29 +125,32 @@ def _self_ping_loop():
             ping_count += 1
             fail_count = 0
             uptime_hours = (time.time() - start_time) / 3600
-            logging.info(f"💓 [HEARTBEAT #{ping_count}] Status: {r.status_code} | Uptime: {uptime_hours:.1f}h")
-            # Success: wait 8 minutes before next ping
-            time.sleep(480)
+            logging.info(
+                f"💓 [HEARTBEAT #{ping_count}] Status: {r.status_code} | "
+                f"Uptime: {uptime_hours:.1f}h"
+            )
+            time.sleep(480)   # 8 minutes between successful pings
         except Exception as e:
             fail_count += 1
             logging.warning(f"⚠️ [HEARTBEAT] Ping failed ({fail_count}): {e}")
-            # Failure: retry in 2 minutes (NOT exponential — keep pinging!)
-            time.sleep(120)
+            time.sleep(120)   # 2 minutes on failure — keep trying!
+
 
 def run_keep_alive_server():
-    """Blocking function to run the aiohttp server. Best for main-thread execution on Render."""
+    """Blocking function to run the aiohttp server."""
     _run_server()
 
+
 def keep_alive():
-    """Spawns isolated background threads to run the pingable server and self-ping heartbeat."""
-    # 1. Start the external-facing server (for Render port-binding)
+    """Spawns background threads: web server + self-ping heartbeat."""
+    # 1. External-facing web server (Render port-binding)
     t = threading.Thread(target=_run_server, name="CloudHeartbeat", daemon=True)
     t.start()
-    
-    # 2. Start the internal self-ping loop (to prevent sleeping)
+
+    # 2. Self-ping loop (prevent Render sleep)
     p = threading.Thread(target=_self_ping_loop, name="SelfPing", daemon=True)
     p.start()
-    
-    logging.info("🛡️ [IMMORTALITY] Redundant Heartbeat Threads launched.")
-    logging.info("🛡️ [IMMORTALITY] Self-ping every 8 min — Render will NEVER sleep.")
-    logging.info("💡 [TIP] For extra reliability, add https://sam-bot-v2.onrender.com to UptimeRobot.com (free)")
+
+    logging.info("🛡️ [IMMORTALITY] Heartbeat threads launched.")
+    logging.info("🛡️ [IMMORTALITY] Self-ping every 8 min — bot runs 24/7.")
+    logging.info("💡 [TIP] Add https://sam-bot-v2.onrender.com to UptimeRobot.com for extra reliability (free)")

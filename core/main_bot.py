@@ -1163,20 +1163,12 @@ class AlphaOrchestrator:
                 logging.error(f"🇷🇺 DECOY FAILURE: {e}")
 
     async def _leadership_watchdog(self):
-        """[👑 SOVEREIGN WATCHDOG]: Continuously monitors leadership to prevent 409 conflicts."""
+        """[👑 SOVEREIGN WATCHDOG]: Monitors leadership — never kills the process."""
         while self.is_running:
             try:
                 if self.db:
-                    is_leader = await self.db.claim_bot_leadership()
-                    is_render = os.getenv("RENDER") is not None
-                    
-                    if not is_leader and not is_render:
-                        # Check if a cloud node is actually active (not just stale)
-                        # The db_client already handles staleness logic in claim_bot_leadership,
-                        # but we want to be extra careful here.
-                        logging.critical("🏰 SOVEREIGN OVERRIDE: Cloud Node is active. Shutting down local instance.")
-                        import sys
-                        sys.exit(0)
+                    await self.db.claim_bot_leadership()
+                    # On Render: always leader (single instance) — no need to exit
             except Exception as e:
                 logging.debug(f"Leadership watchdog error: {e}")
             await asyncio.sleep(30)

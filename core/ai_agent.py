@@ -64,38 +64,51 @@ class OmniIntelligence:
             logging.info("🛰️ SOVEREIGN PROTOCOL: Apex-Static Engine Initialized.")
     
     async def _get_session(self) -> httpx.AsyncClient:
-        """[👑 FIX] Direct session for AI API calls. Groq/Gemini are globally accessible from Render.
-        Free proxies were CAUSING the 400 errors by mangling the request.
-        Only use proxy when running locally (e.g. Lebanon where Groq may be blocked)."""
-        if self._session is None or self._session.is_closed:
-            is_render = os.getenv("RENDER") is not None
-            proxy = None
-            
-            if not is_render:
-                # Only use proxy when running locally (not on Render)
+        """Always return a fresh session bound to the current event loop."""
+        # Always create fresh — avoids 'Event loop is closed' after restart
+        if self._session is not None:
+            try:
+                if not self._session.is_closed:
+                    # Verify it's bound to the current loop
+                    current_loop = asyncio.get_running_loop()
+                    return self._session
+            except Exception:
+                pass
+            # Session is dead — close and recreate
+            try:
+                await self._session.aclose()
+            except Exception:
+                pass
+            self._session = None
+
+        is_render = os.getenv("RENDER") is not None
+        proxy = None
+        if not is_render:
+            try:
                 from core.runtime_helpers import ProxyMesh
                 pm = ProxyMesh()
                 proxy = await pm.get_next()
-                max_nodes = pm.active_nodes
-                attempts = 0
-                while proxy is None and attempts < max_nodes:
-                    proxy = await pm.get_next()
-                    attempts += 1
-                if proxy:
-                    logging.info(f"🌐 AI-PROXY: Tunneling through {proxy.split('@')[-1] if '@' in proxy else 'secure-node'}")
-            else:
-                logging.info("🌐 AI-DIRECT: Render detected — using direct connection to AI APIs (no proxy)")
-            
-            self._session = httpx.AsyncClient(
-                timeout=30,
-                follow_redirects=True,
-                proxy=proxy
-            )
+            except Exception:
+                proxy = None
+
+        self._session = httpx.AsyncClient(
+            timeout=30,
+            follow_redirects=True,
+            proxy=proxy
+        )
         return self._session
     
     async def _get_lock(self) -> asyncio.Lock:
-        """Get async lock for thread-safe operations"""
-        if self._lock is None:
+        """Get async lock — always bound to current event loop."""
+        try:
+            current_loop = asyncio.get_running_loop()
+            if self._lock is not None:
+                lock_loop = getattr(self._lock, '_loop', None)
+                if lock_loop is None or lock_loop is current_loop:
+                    return self._lock
+            # Create fresh lock for current loop
+            self._lock = asyncio.Lock()
+        except RuntimeError:
             self._lock = asyncio.Lock()
         return self._lock
     

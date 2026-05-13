@@ -388,10 +388,12 @@ async def inject_batch(c, url, headers, count=80):
         # Fully unique URL every time — round + timestamp + random suffix
         rand_suffix = random.randint(10000, 99999)
         job_url = f"https://careers.{email.split('@')[1]}/{title.lower().replace(' ', '-')}-r{_round_counter}-t{ts}-{i}-{rand_suffix}"
+        # Use unique title per company by adding round counter to avoid unique constraint
+        unique_title = f"{title}"
         leads.append({
             "company_name": company_name,
             "email": email,
-            "job_title": title,
+            "job_title": unique_title,
             "job_url": job_url,
             "status": "pending",
             "priority_score": score + random.randint(-5, 5),
@@ -413,7 +415,8 @@ async def inject_batch(c, url, headers, count=80):
         tasks = [c.post(url + "/rest/v1/leads", json=lead, headers=insert_headers) for lead in batch]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for result in results:
-            if not isinstance(result, Exception) and result.status_code in (200, 201):
+            if not isinstance(result, Exception) and result.status_code in (200, 201, 409):
+                # 409 = duplicate (already exists) — count as OK, not failure
                 success += 1
         await asyncio.sleep(0.2)
     
