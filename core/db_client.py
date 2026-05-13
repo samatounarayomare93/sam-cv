@@ -1120,6 +1120,18 @@ class RealityShapingDB:
             return True
         except: return False
 
+    async def add_task(self, task_type: str, target: str = "", meta: str = ""):
+        """Async alias for sync_add_task — also writes to Supabase if enabled."""
+        # Write locally first
+        self.sync_add_task(task_type, target, meta)
+        # Also write to Supabase so dashboard sees it
+        if self.enabled:
+            try:
+                payload = {"type": task_type, "target": target, "meta": meta, "status": "PENDING"}
+                await self._request_with_retry("POST", f"{self.url}/rest/v1/tasks", payload)
+            except Exception:
+                pass
+
     def sync_get_vip_stats(self) -> List[Dict[str, Any]]:
         try:
             conn = self._sqlite_connect()
