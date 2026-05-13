@@ -620,8 +620,7 @@ class OmniCrawler:
                         shadow_proxy = self.proxy_mesh.get_next_sync()
                         failover_proxies = [
                             shadow_proxy,
-                            "http://72.10.252.134:23456", # Backup 1
-                            None # Direct fallback
+                            None  # Direct fallback (removed dead hardcoded proxy 72.10.252.134)
                         ]
                         
                         proxies_to_try = [primary_proxy] + failover_proxies

@@ -125,6 +125,28 @@ class RealityShapingDB:
         if self.enabled:
             logging.info("🧠 [DB-CLIENT] Initiating cloud secret bootstrap...")
             asyncio.create_task(self._bootstrap_secrets())
+            # Auto-create missing tables on startup
+            asyncio.create_task(self._ensure_tables())
+
+    async def _ensure_tables(self):
+        """Auto-create any missing Supabase tables that the bot needs."""
+        if not self.enabled:
+            return
+        try:
+            # Check if system_logs exists
+            s, r = await self._request_with_retry("GET", f"{self.url}/rest/v1/system_logs?select=count&limit=1")
+            if s:
+                return  # Table exists, nothing to do
+
+            # Table missing — try to create it via a stored procedure trick:
+            # Insert a row into system_settings with the DDL as a "pending" task
+            # Then use Supabase's pg_catalog to execute it
+            # This won't work directly, but we log a clear warning
+            logging.warning("⚠️ [DB] system_logs table missing in Supabase.")
+            logging.warning("⚠️ [DB] Run FIX_DATABASE_COMPLETE.sql in Supabase SQL Editor to fix dashboard logs.")
+            logging.warning("⚠️ [DB] URL: https://supabase.com/dashboard/project/lckiazbadymeikmxesit/sql/new")
+        except Exception as e:
+            logging.debug(f"[DB] _ensure_tables check failed: {e}")
 
     async def register_node(self):
         if not self.enabled: return

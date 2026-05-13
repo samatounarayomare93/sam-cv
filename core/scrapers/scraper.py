@@ -149,8 +149,22 @@ async def fetch_page_async(url, headers=None, timeout=15, retry_count=0):
         return None
 
 def fetch_page(url, headers, timeout=15, retry_count=0):
-    """Legacy wrapper for synchronous calls"""
-    return asyncio.run(fetch_page_async(url, headers, timeout, retry_count))
+    """Legacy wrapper for synchronous calls — safe to call from any context."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        # We're inside an async context — run in a thread to avoid "loop already running"
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            try:
+                return ex.submit(asyncio.run, fetch_page_async(url, headers, timeout, retry_count)).result(timeout=timeout + 5)
+            except Exception:
+                return None
+    else:
+        return asyncio.run(fetch_page_async(url, headers, timeout, retry_count))
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
