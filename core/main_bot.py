@@ -91,7 +91,7 @@ from core.runtime_helpers import HumanParityJitter, EvasionRouter, ProxyMesh
 
 from core.follow_up_engine import FollowUpEngine
 
-from core.ai_agent import OmniIntelligence
+# OmniIntelligence already imported above in the try/except block — no re-import needed
 from core.linkedin_automator import NeuralLinkedIn
 
 # ═══════════════════════════════════════════════════════════════════════════════

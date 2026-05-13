@@ -66,6 +66,11 @@ ZOHO_SMTP_SERVER = "smtp.zoho.com"
 ZOHO_SMTP_PORT = 587
 ZOHO_SMTP_USER = os.getenv("ZOHO_SMTP_USER", "")
 ZOHO_APP_PASSWORD = os.getenv("ZOHO_APP_PASSWORD", "")
+# Zoho account #2 and #3 (extra 500/day each)
+ZOHO_SMTP_USER_2 = os.getenv("ZOHO_SMTP_USER_2", "")
+ZOHO_APP_PASSWORD_2 = os.getenv("ZOHO_APP_PASSWORD_2", "")
+ZOHO_SMTP_USER_3 = os.getenv("ZOHO_SMTP_USER_3", "")
+ZOHO_APP_PASSWORD_3 = os.getenv("ZOHO_APP_PASSWORD_3", "")
 
 # BACKUP: Yahoo Mail (DMARC-aligned, needs 24-48h for new accounts)
 YAHOO_SMTP_SERVER = "smtp.mail.yahoo.com"
@@ -88,7 +93,8 @@ SMTP_PRE_SEND_DELAY_MAX_SECONDS = float(os.getenv("SMTP_PRE_SEND_DELAY_MAX_SECON
 # IMPORTANT: TEST_RECEIVER_EMAIL must be explicitly set in TEST_MODE; no hardcoded default in production.
 TEST_RECEIVER_EMAIL = os.getenv("TEST_RECEIVER_EMAIL", "")
 SENDER_NAME = "Sam Salameh"
-SENDER_EMAIL = os.getenv("SENDER_EMAIL", "sam.dev1@outlook.com")
+# Fix: fallback to GMAIL_SMTP_USER if SENDER_EMAIL not explicitly set (avoids sam.dev1@outlook.com)
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "") or os.getenv("GMAIL_SMTP_USER", "") or "sam.dev1@outlook.com"
 # TEST_MODE defaults to False for production safety. Set TEST_MODE=true only in development/CI test phases.
 TEST_MODE = _env_flag("TEST_MODE", False)
 

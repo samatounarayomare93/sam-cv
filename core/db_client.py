@@ -111,6 +111,15 @@ class RealityShapingDB:
             except: pass
         return f"{socket.gethostname()}-{os.getenv('RENDER_SERVICE_ID', 'local')}"
 
+    async def close(self):
+        """Gracefully close the HTTP session. Safe to call multiple times."""
+        try:
+            if self._session and not self._session.is_closed:
+                await self._session.aclose()
+        except Exception:
+            pass
+        self._session = None
+
     async def bootstrap(self):
         """Safe async initialization to start background sync tasks."""
         if self.enabled:
@@ -337,7 +346,7 @@ class RealityShapingDB:
                         headers_escalated["apikey"] = self.service_role_key
                         headers_escalated["Authorization"] = f"Bearer {self.service_role_key}"
                         # Try one more time with escalated privileges directly
-                        response = await session.request(method, endpoint, headers=headers_escalated, json=payload)
+                        response = await session.request(method, endpoint, headers=headers_escalated, json=payload, **({"params": params} if params else {}))
                         if response.status_code in [200, 201, 204, 206]:
                             if response.status_code == 204: return True, {}
                             if "count=exact" in str(req_headers.get("Prefer", "")):
@@ -359,7 +368,8 @@ class RealityShapingDB:
                     delay = self._base_delay * (2 ** retry_count)
                     logging.warning(f"⚠️ [DB] HTTP {response.status_code} on {method} {endpoint.split('?')[0].split('/')[-1]} — retry {retry_count + 1}/{self._max_retries} in {delay:.1f}s")
                     await asyncio.sleep(delay)
-                    return await self._request_with_retry(method, endpoint, payload, retry_count + 1)
+                    # Fix: forward ALL original args including use_service_role, headers, params
+                    return await self._request_with_retry(method, endpoint, payload, retry_count + 1, use_service_role, headers, params)
                 return False, {"error": f"HTTP {response.status_code}", "detail": text}
             except Exception as e:
                 if retry_count < self._max_retries:
@@ -376,7 +386,8 @@ class RealityShapingDB:
                         self._semaphore = None  # Reset semaphore too
                     logging.warning(f"⚠️ [DB] Exception on {method} {endpoint.split('?')[0].split('/')[-1]} — retry {retry_count + 1}/{self._max_retries}: {type(e).__name__}: {e}")
                     await asyncio.sleep(self._base_delay)
-                    return await self._request_with_retry(method, endpoint, payload, retry_count + 1)
+                    # Fix: forward ALL original args including use_service_role, headers, params
+                    return await self._request_with_retry(method, endpoint, payload, retry_count + 1, use_service_role, headers, params)
                 logging.error(f"❌ [DB] All retries exhausted for {method} {endpoint.split('?')[0].split('/')[-1]}: {e}")
                 return False, {"error": str(e)}
 

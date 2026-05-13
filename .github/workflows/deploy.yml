@@ -38,9 +38,11 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CANDIDATE_PHONE: ${{ secrets.CANDIDATE_PHONE }}
         run: |
           python3 - << 'PYEOF'
-          import os, json, urllib.request, time
+          import os, json, urllib.request
 
           svc = os.environ.get("RENDER_SERVICE_ID", "")
           key = os.environ.get("RENDER_API_KEY", "")
@@ -69,7 +71,8 @@ jobs:
           env_vars = [
             {"key": "SUPABASE_URL",              "value": os.environ.get("SUPABASE_URL","")},
             {"key": "SUPABASE_KEY",              "value": os.environ.get("SUPABASE_KEY","")},
-            {"key": "SUPABASE_SERVICE_ROLE_KEY", "value": os.environ.get("SUPABASE_KEY","")},
+            # Fix: use dedicated SERVICE_ROLE_KEY secret, not the anon key
+            {"key": "SUPABASE_SERVICE_ROLE_KEY", "value": os.environ.get("SUPABASE_SERVICE_ROLE_KEY", os.environ.get("SUPABASE_KEY",""))},
             {"key": "GROQ_API_KEY",              "value": os.environ.get("GROQ_API_KEY","")},
             {"key": "GEMINI_API_KEY",            "value": os.environ.get("GEMINI_API_KEY","")},
             {"key": "OPENROUTER_API_KEY",        "value": os.environ.get("OPENROUTER_API_KEY","")},
@@ -89,19 +92,21 @@ jobs:
             {"key": "BREVO_API_KEY",             "value": os.environ.get("BREVO_API_KEY","")},
             {"key": "BREVO_SMTP_LOGIN",          "value": os.environ.get("BREVO_SMTP_LOGIN","")},
             {"key": "BREVO_SMTP_PASSWORD",       "value": os.environ.get("BREVO_SMTP_PASSWORD","")},
-            {"key": "BREVO_SENDER_EMAIL",        "value": "samsalameh.cv@gmail.com"},
+            {"key": "BREVO_SENDER_EMAIL",        "value": os.environ.get("GMAIL_SMTP_USER","")},
             {"key": "RESEND_API_KEY",            "value": os.environ.get("RESEND_API_KEY","")},
-            {"key": "RESEND_FROM_EMAIL",         "value": "samsalameh.cv@gmail.com"},
+            # Fix: RESEND_FROM_EMAIL must NOT be a free domain (gmail/yahoo) or Resend is skipped
+            # Set to empty so smtp_engine falls back to Brevo/Zoho/Gmail SMTP instead
+            {"key": "RESEND_FROM_EMAIL",         "value": ""},
             {"key": "RENDER_API_KEY",            "value": key},
             {"key": "RENDER_SERVICE_ID",         "value": svc},
             {"key": "RENDER_EXTERNAL_URL",       "value": "https://sam-bot-v2.onrender.com"},
             {"key": "RENDER",                    "value": "true"},
             {"key": "SENDER_NAME",               "value": "Sam Salameh"},
-            {"key": "SENDER_EMAIL",              "value": "samsalameh.cv@gmail.com"},
+            {"key": "SENDER_EMAIL",              "value": os.environ.get("GMAIL_SMTP_USER","")},
             {"key": "CANDIDATE_NAME",            "value": "Sam Salameh"},
-            {"key": "CANDIDATE_PHONE",           "value": "+961 70 841 1009"},
+            {"key": "CANDIDATE_PHONE",           "value": os.environ.get("CANDIDATE_PHONE", "+961 70 841 1009")},
             {"key": "LINKEDIN_URL",              "value": "https://www.linkedin.com/in/sam-salameh"},
-            {"key": "TEST_RECEIVER_EMAIL",       "value": "samsalameh.cv@gmail.com"},
+            {"key": "TEST_RECEIVER_EMAIL",       "value": os.environ.get("GMAIL_SMTP_USER","")},
             {"key": "KILL_SWITCH_ACTIVE",        "value": "false"},
             {"key": "MAX_PARALLEL_STRIKES",      "value": "3"},
             {"key": "MAX_EMAILS_PER_DAY",        "value": "1900"},
@@ -121,22 +126,8 @@ jobs:
           status, resp = render_request("PUT", f"/services/{svc}/env-vars", env_vars)
           print(f"Step 1 - Env sync: HTTP {status} ({len(env_vars)} vars)")
 
-          # Step 2: Trigger deploy (env vars already set, deploy picks them up)
+          # Step 2: Trigger deploy
           status2, resp2 = render_request("POST", f"/services/{svc}/deploys", {"clearCache": "do_not_clear"})
           deploy_id = resp2.get("deploy", resp2).get("id", "?")
           print(f"Step 2 - Deploy triggered: HTTP {status2}, ID={deploy_id[:12] if deploy_id != '?' else '?'}")
-
-          # Step 3: Wait for deploy to complete, then sync env vars AGAIN
-          # Render resets env vars during deploy - we must sync AFTER deploy finishes
-          print("Step 3 - Waiting 300s for deploy to fully complete...")
-          time.sleep(300)
-
-          status3, resp3 = render_request("PUT", f"/services/{svc}/env-vars", env_vars)
-          print(f"Step 3 - Post-deploy env sync: HTTP {status3} ({len(env_vars)} vars)")
-
-          # Step 4: One more sync after 60s to be absolutely sure
-          time.sleep(60)
-          status4, resp4 = render_request("PUT", f"/services/{svc}/env-vars", env_vars)
-          print(f"Step 4 - Final env sync: HTTP {status4} ({len(env_vars)} vars)")
-          print("Done! Bot deployed with all credentials.")
-          PYEOF
+          print("Done! Bot deploying with all credentials. Render will auto-restart.")

@@ -128,7 +128,8 @@ class EmailRotator:
                                    "limit": PROVIDER_LIMITS["brevo"], "priority": 4})
 
         # ── Mailjet HTTP API ───────────────────────────────────────────────────
-        if os.getenv("MAILJET_API_KEY") and os.getenv("MAILJET_SECRET_KEY"):
+        # Fix: use MAILJET_API_SECRET to match core/config.py (was MAILJET_SECRET_KEY)
+        if os.getenv("MAILJET_API_KEY") and (os.getenv("MAILJET_API_SECRET") or os.getenv("MAILJET_SECRET_KEY")):
             providers.append({"name": "mailjet", "display_name": "Mailjet",
                                "limit": PROVIDER_LIMITS["mailjet"], "priority": 5})
 

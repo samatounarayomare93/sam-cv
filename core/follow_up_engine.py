@@ -33,7 +33,7 @@ class FollowUpEngine:
             f"<p>I am following up on my application for the <b>{job_title}</b> position I submitted last week. "
             "I remain highly interested in joining your team and would welcome the opportunity for a brief call. "
             "Please find my CV attached for your reference.</p>"
-            "<p>Best regards,<br>Sam Salameh<br>+961 70 841 100</p>"
+            "<p>Best regards,<br>Sam Salameh<br>+961 70 841 1009</p>"
         )
 
     async def execute_second_strike(self, lead):

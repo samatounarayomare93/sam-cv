@@ -38,7 +38,9 @@ class AlphaOrchestrator:
         return required
 
     def __init__(self, concurrency_limit: int = int(os.getenv("MAX_PARALLEL_STRIKES", "5"))):
-        self.semaphore = asyncio.Semaphore(concurrency_limit)
+        # Fix: lazy-init semaphore inside event loop to avoid DeprecationWarning on Python 3.10+
+        self._concurrency_limit = concurrency_limit
+        self.semaphore = None
         self.telemetry = TelegramNotifier()
         self.jitter = HumanParityJitter()
         self.is_running = True
@@ -79,14 +81,24 @@ class AlphaOrchestrator:
         return kill_switch
 
     async def execute_divine_loop(self):
+        # Lazy-init semaphore inside running event loop
+        if self.semaphore is None:
+            self.semaphore = asyncio.Semaphore(self._concurrency_limit)
         await self.scheduler.run()
 
     async def close(self):
         await self.scrape_service.close()
-        if self.db:
-            await self.db.close()
-        if self.ai:
-            await self.ai.close()
+        # RealityShapingDB has no async close() — just close the HTTP session
+        if self.db and hasattr(self.db, '_session') and self.db._session:
+            try:
+                await self.db._session.aclose()
+            except Exception:
+                pass
+        if self.ai and hasattr(self.ai, 'close'):
+            try:
+                await self.ai.close()
+            except Exception:
+                pass
 
 
 async def run_orchestrator():
