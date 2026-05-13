@@ -292,10 +292,10 @@ class AlphaOrchestrator:
         return self._dedup_lock
 
     async def poisson_jitter(self, target_mean: int):
-        """100% STEALTH: Mimics human jitter behavior using Poisson distribution."""
+        """Human-like jitter with a hard cap to prevent long stalls."""
         import random
         import math
-        
+
         # Simple Poisson-like distribution
         L = math.exp(-target_mean)
         k = 0
@@ -304,12 +304,14 @@ class AlphaOrchestrator:
             k = k + 1
             p = p * random.random()
         delay = k - 1
-        
+
         # Add 20% variance
-        final_delay = max(2, delay + random.uniform(-0.2, 0.2) * delay)
+        final_delay = max(1, delay + random.uniform(-0.2, 0.2) * delay)
         # Apply circadian multiplier
         final_delay /= self.get_circadian_intensity()
-        
+        # Hard cap: never wait more than target_mean * 2 seconds
+        final_delay = min(final_delay, target_mean * 2)
+
         await self.telemetry_stream("INFO", f"💓 Heartbeat: Mimicking human pulse... Delaying {final_delay:.1f}s")
         await asyncio.sleep(final_delay)
 
@@ -1273,28 +1275,30 @@ class AlphaOrchestrator:
                     break
                 
                 # ALPHA-CENTAURI: Swarm Heartbeat
-                if self.db: 
+                if self.db:
                     try:
                         # [🛡️ SELF-HEALING]: Run auto-recovery before starting the cycle
                         await self._perform_self_healing()
-                        
-                        logging.info("🔥 [LOOP-START] Checking heartbeat...")
-                        await self.db.send_heartbeat()
-                        logging.info("🔥 [LOOP-START] Checking leadership...")
-                        is_leader = await self.db.claim_bot_leadership()
-                        logging.info(f"🔥 [LOOP-START] Leadership status: {is_leader}")
-                        
-                        if is_leader:
-                            logging.info("🔥 [LOOP-START] we are leader! Syncing cloud...")
-                            # [🔥 FIX]: Only fetch leads ONCE per cycle (was fetched twice causing double API calls)
-                            # Leads will be fetched again below in the main processing block
-                            logging.info("📡 [LOOP-START] Leadership confirmed. Proceeding to main processing...")
+
+                        # On Render: always leader — skip expensive DB leadership check
+                        import os as _os
+                        if _os.getenv("RENDER"):
+                            is_leader = True
+                            # Only send heartbeat every 5 cycles to reduce DB load
+                            if strike_counter % 5 == 0:
+                                await self.db.send_heartbeat()
                         else:
-                            logging.info("💤 STANDBY: This node is currently an Auxiliary Node.")
-                            # [🔥 FIX]: Don't exit on standby - just wait and retry leadership
-                            logging.info("🔄 Retrying leadership in next cycle...")
+                            logging.info("🔥 [LOOP-START] Checking heartbeat...")
+                            await self.db.send_heartbeat()
+                            logging.info("🔥 [LOOP-START] Checking leadership...")
+                            is_leader = await self.db.claim_bot_leadership()
+                            logging.info(f"🔥 [LOOP-START] Leadership: {is_leader}")
+
+                        if not is_leader:
+                            logging.info("💤 STANDBY: Auxiliary Node — waiting...")
                     except Exception as e:
                         logging.error(f"❌ CLOUD SYNC FAILURE: {e}")
+                        is_leader = True  # assume leader on error to keep running
 
                 # SCALED MODE: No fatigue breaks - run continuously
                 strike_counter += 1

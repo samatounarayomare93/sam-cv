@@ -688,18 +688,10 @@ class RealityShapingDB:
         return self.sync_get_vip_stats()
 
     async def get_variant_weights(self) -> Dict[str, float]:
-        if not self.enabled: return {"AGGRESSIVE": 1.0, "EMPATHETIC": 1.0, "ANALYTICAL": 1.0, "VISIONARY": 1.0}
-        success, data = await self._request_with_retry("GET", f"{self.url}/rest/v1/applications?select=psychological_variant")
-        weights = {"AGGRESSIVE": 1.0, "EMPATHETIC": 1.0, "ANALYTICAL": 1.0, "VISIONARY": 1.0}
-        if success and isinstance(data, list):
-            counts = {"AGGRESSIVE": 0, "EMPATHETIC": 0, "ANALYTICAL": 0, "VISIONARY": 0}
-            for entry in data:
-                variant = entry.get("psychological_variant")
-                if variant in counts: counts[variant] += 1
-            total = sum(counts.values())
-            if total > 0:
-                for v in weights: weights[v] = (counts[v] + 1) / (total + 3) * 3
-        return weights
+        """Returns balanced weights — all variants get equal chance (1.0 each).
+        We don't want one variant to dominate just because it was used more.
+        Equal weights = diverse email styles = better response rates."""
+        return {"AGGRESSIVE": 1.0, "EMPATHETIC": 1.0, "ANALYTICAL": 1.0, "VISIONARY": 1.0}
 
     async def save_task(self, task_data: Dict[str, Any]):
         """[👑 TASK COMMAND]: Persists a high-priority operational task to the Hive-Mind."""
@@ -715,15 +707,19 @@ class RealityShapingDB:
 
         # 2. Local Shadow Mirror
         try:
-            with _SQLITE_WRITE_LOCK:
-                conn = self._sqlite_connect()
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO tasks (type, target, meta, status) VALUES (?, ?, ?, ?)", (ttype, target, meta, status))
-                conn.commit()
-                conn.close()
+            acquired = _SQLITE_WRITE_LOCK.acquire(timeout=5)  # 5s timeout instead of blocking forever
+            if acquired:
+                try:
+                    conn = self._sqlite_connect()
+                    cursor = conn.cursor()
+                    cursor.execute("INSERT INTO tasks (type, target, meta, status) VALUES (?, ?, ?, ?)", (ttype, target, meta, status))
+                    conn.commit()
+                    conn.close()
+                finally:
+                    _SQLITE_WRITE_LOCK.release()
             return True
         except Exception as e:
-            logging.error(f"Failed to save task locally: {e}")
+            logging.debug(f"Failed to save task locally (non-fatal): {e}")
             return False
 
     async def save_potential_lead(self, lead_data: Dict[str, Any], score: int = 0):

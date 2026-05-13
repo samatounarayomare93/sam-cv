@@ -3,6 +3,7 @@ import asyncio
 import logging
 import os
 import json
+import time
 import warnings
 from typing import Dict, Any, Tuple, Optional, List
 import httpx
@@ -762,32 +763,38 @@ class OmniIntelligence:
 
         # ── 1. GROQ (primary free AI) ─────────────────────────────────────────
         if self.groq_key:
-            for attempt in range(2):
-                try:
-                    response = await session.post(
-                        "https://api.groq.com/openai/v1/chat/completions",
-                        headers={"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"},
-                        json={"model": "llama-3.3-70b-versatile",
-                              "messages": [{"role": "user", "content": prompt[:12000]}],
-                              "response_format": {"type": "json_object"}, "temperature": 0.3}
-                    )
-                    if response.status_code == 200:
-                        logging.info("✅ [AI] Groq responded")
-                        return _parse_response(response.json()['choices'][0]['message']['content'])
-                    elif response.status_code == 429:
-                        logging.warning("⏳ [AI] Groq rate limited — trying DeepSeek")
+            # Check if Groq is in cooldown (rate limited recently)
+            groq_cooldown_until = getattr(self, '_groq_cooldown_until', 0)
+            if time.time() < groq_cooldown_until:
+                logging.debug("⏳ [AI] Groq in cooldown — skipping to DeepSeek")
+            else:
+                for attempt in range(2):
+                    try:
+                        response = await session.post(
+                            "https://api.groq.com/openai/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"},
+                            json={"model": "llama-3.3-70b-versatile",
+                                  "messages": [{"role": "user", "content": prompt[:12000]}],
+                                  "response_format": {"type": "json_object"}, "temperature": 0.3}
+                        )
+                        if response.status_code == 200:
+                            logging.info("✅ [AI] Groq responded")
+                            return _parse_response(response.json()['choices'][0]['message']['content'])
+                        elif response.status_code == 429:
+                            logging.warning("⏳ [AI] Groq rate limited — cooling down 60s, trying DeepSeek")
+                            self._groq_cooldown_until = time.time() + 60  # 60s cooldown
+                            break
+                        else:
+                            logging.warning(f"⚠️ [AI] Groq HTTP {response.status_code}")
+                            break
+                    except Exception as e:
+                        logging.warning(f"⚠️ [AI] Groq error: {e}")
+                        if self._session:
+                            try: await self._session.aclose()
+                            except: pass
+                            self._session = None
+                            session = await self._get_session()
                         break
-                    else:
-                        logging.warning(f"⚠️ [AI] Groq HTTP {response.status_code}")
-                        break
-                except Exception as e:
-                    logging.warning(f"⚠️ [AI] Groq error: {e}")
-                    if self._session:
-                        try: await self._session.aclose()
-                        except: pass
-                        self._session = None
-                        session = await self._get_session()
-                    break
 
         # ── 2. DEEPSEEK (free tier: 500 req/day, very smart) ─────────────────
         deepseek_key = os.getenv("DEEPSEEK_API_KEY", "")

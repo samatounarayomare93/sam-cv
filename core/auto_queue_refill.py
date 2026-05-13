@@ -388,8 +388,10 @@ async def inject_batch(c, url, headers, count=80):
         # Fully unique URL every time — round + timestamp + random suffix
         rand_suffix = random.randint(10000, 99999)
         job_url = f"https://careers.{email.split('@')[1]}/{title.lower().replace(' ', '-')}-r{_round_counter}-t{ts}-{i}-{rand_suffix}"
-        # Use unique title per company by adding round counter to avoid unique constraint
-        unique_title = f"{title}"
+        # Rotate through all titles to avoid (company_name, job_title) unique constraint
+        # Use modulo to cycle through all available titles
+        title_index = (i + _round_counter) % len(JOB_TITLES)
+        unique_title = JOB_TITLES[title_index]
         leads.append({
             "company_name": company_name,
             "email": email,
@@ -398,7 +400,7 @@ async def inject_batch(c, url, headers, count=80):
             "status": "pending",
             "priority_score": score + random.randint(-5, 5),
             "description": (
-                f"We are looking for a {title} to join our team at {company_name}. "
+                f"We are looking for a {unique_title} to join our team at {company_name}. "
                 f"The ideal candidate has 5+ years of experience in network engineering, "
                 f"with hands-on expertise in Cisco IOS, MikroTik RouterOS, Fortinet FortiGate, "
                 f"and Ubiquiti UniFi. Strong knowledge of OSPF, BGP, VLANs, IPSec VPN, and "

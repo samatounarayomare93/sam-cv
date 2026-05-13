@@ -88,14 +88,19 @@ class EmailRotator:
         is_render = bool(os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID") or
                          os.getenv("RENDER_EXTERNAL_URL"))
 
-        # ── Resend: works with ANY from address (uses onboarding@resend.dev on free plan) ──
-        if os.getenv("RESEND_API_KEY"):
+        # ── Resend: only useful with verified custom domain ──────────────────
+        resend_from = os.getenv("RESEND_FROM_EMAIL", "")
+        _free_domains = {'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com'}
+        _resend_domain = resend_from.split('@')[-1].lower() if '@' in resend_from else ''
+        _resend_has_domain = resend_from and _resend_domain not in _free_domains
+
+        if os.getenv("RESEND_API_KEY") and _resend_has_domain:
             providers.append({"name": "resend_1", "display_name": "Resend #1",
                                "limit": PROVIDER_LIMITS["resend_1"], "priority": 1})
-        if os.getenv("RESEND_API_KEY_2"):
+        if os.getenv("RESEND_API_KEY_2") and _resend_has_domain:
             providers.append({"name": "resend_2", "display_name": "Resend #2",
                                "limit": PROVIDER_LIMITS["resend_2"], "priority": 2})
-        if os.getenv("RESEND_API_KEY_3"):
+        if os.getenv("RESEND_API_KEY_3") and _resend_has_domain:
             providers.append({"name": "resend_3", "display_name": "Resend #3",
                                "limit": PROVIDER_LIMITS["resend_3"], "priority": 3})
 
