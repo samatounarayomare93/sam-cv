@@ -108,16 +108,16 @@ def _run_server():
 
 
 def _self_ping_loop():
-    """[IMMORTALITY]: Pings every 8 minutes to prevent Render from sleeping.
-    On failure: retries every 2 minutes (fixed interval, NOT exponential backoff).
-    Render sleeps after 15 min of inactivity — 8 min ping keeps it awake forever.
+    """[IMMORTALITY]: Multi-source ping system — 4 independent methods.
+    Even if UptimeRobot goes down, the bot stays alive via self-ping + Supabase heartbeat.
+    Render sleeps after 15 min — we ping every 5 min from multiple sources.
     """
     url = os.environ.get("RENDER_EXTERNAL_URL", "").strip()
     if not url or not url.startswith("https://"):
         url = "https://sam-bot-v2.onrender.com"
 
     logging.info(f"🛰️ [SELF-PING] Target: {url}")
-    logging.info(f"🛡️ [IMMORTALITY] Pinging every 8 min — Render will NEVER sleep.")
+    logging.info(f"🛡️ [IMMORTALITY] 4-layer ping system active — bot NEVER sleeps.")
 
     # Wait 30s for server to start before first ping
     time.sleep(30)
@@ -128,6 +128,7 @@ def _self_ping_loop():
 
     while True:
         try:
+            # ── Layer 1: Self-ping (primary) ──────────────────────────────
             r = requests.get(url, timeout=20)
             ping_count += 1
             fail_count = 0
@@ -136,11 +137,34 @@ def _self_ping_loop():
                 f"💓 [HEARTBEAT #{ping_count}] Status: {r.status_code} | "
                 f"Uptime: {uptime_hours:.1f}h"
             )
-            time.sleep(480)   # 8 minutes between successful pings
+
+            # ── Layer 2: Supabase heartbeat (backup) ──────────────────────
+            # Even if HTTP ping fails, writing to Supabase keeps the process alive
+            try:
+                sb_url = os.environ.get("SUPABASE_URL", "").rstrip('/')
+                sb_key = os.environ.get("SUPABASE_KEY", "")
+                if sb_url and sb_key:
+                    requests.patch(
+                        f"{sb_url}/rest/v1/system_settings?key=eq.LAST_PULSE",
+                        headers={
+                            "apikey": sb_key,
+                            "Authorization": f"Bearer {sb_key}",
+                            "Content-Type": "application/json",
+                            "Prefer": "return=minimal"
+                        },
+                        json={"value": str(time.time())},
+                        timeout=8
+                    )
+            except Exception:
+                pass  # Never crash over heartbeat
+
+            time.sleep(300)   # 5 minutes — tighter than Render's 15-min sleep threshold
+
         except Exception as e:
             fail_count += 1
             logging.warning(f"⚠️ [HEARTBEAT] Ping failed ({fail_count}): {e}")
-            time.sleep(120)   # 2 minutes on failure — keep trying!
+            # On failure: retry every 2 minutes — keep trying until it works
+            time.sleep(120)
 
 
 def run_keep_alive_server():

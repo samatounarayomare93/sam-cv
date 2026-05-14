@@ -1,0 +1,40 @@
+name: Keep Bot Alive
+
+# Runs every 10 minutes — independent of UptimeRobot
+# Even if UptimeRobot goes down, GitHub Actions keeps the bot awake
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # Every 10 minutes, 24/7
+  workflow_dispatch:          # Manual trigger from GitHub UI
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping Bot (Primary)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://sam-bot-v2.onrender.com)
+          echo "Ping status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Bot is alive"
+          else
+            echo "⚠️ Bot returned $STATUS — may be waking up"
+          fi
+
+      - name: Update Supabase Heartbeat (Backup)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ]; then
+            curl -s -X PATCH \
+              "${SUPABASE_URL}/rest/v1/system_settings?key=eq.GITHUB_PULSE" \
+              -H "apikey: ${SUPABASE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_KEY}" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: return=minimal" \
+              -d "{\"value\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" \
+              && echo "✅ Supabase heartbeat updated" \
+              || echo "⚠️ Supabase update failed (non-critical)"
+          fi
