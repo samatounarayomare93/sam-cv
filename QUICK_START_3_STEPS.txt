@@ -1,0 +1,67 @@
+PROJECT CHRONOS - FINAL 3 STEPS
+════════════════════════════════════════════════════════════════════════
+
+✅ STEP 1: RUN DATABASE SQL SCRIPT
+   File: SUPABASE_RUN_THIS.sql
+   Time: 2-3 minutes
+   
+   1. Go to: https://supabase.com/dashboard/project/lckiazbadymeikmxesit
+   2. Click: SQL Editor → New Query
+   3. Open SUPABASE_RUN_THIS.sql and copy entire content (Ctrl+A, Ctrl+C)
+   4. Paste into Supabase editor (Ctrl+V)
+   5. Click: RUN button (top right)
+   6. Wait: Success notification
+   7. See: 8 tables with row counts
+   ✅ DONE
+
+────────────────────────────────────────────────────────────────────────
+
+✅ STEP 2: CHECK RENDER ENVIRONMENT VARIABLES
+   File: RENDER_ENV_SETUP.md
+   Time: 3-5 minutes
+   
+   1. Go to: https://dashboard.render.com
+   2. Find: sam-bot-v2 service
+   3. Click: Settings → Environment Variables
+   4. Verify ALL 8 required variables exist:
+      • GEMINI_API_KEY
+      • GROQ_API_KEY
+      • TELEGRAM_BOT_TOKEN
+      • TELEGRAM_CHAT_ID
+      • SUPABASE_URL = https://lckiazbadymeikmxesit.supabase.co
+      • SUPABASE_KEY
+      • GMAIL_ADDRESS
+      • GMAIL_APP_PASSWORD
+   5. If missing any: Add them using RENDER_ENV_SETUP.md as reference
+   6. Wait: Deployment shows "Live" (green)
+   ✅ DONE
+
+────────────────────────────────────────────────────────────────────────
+
+✅ STEP 3: TEST TELEGRAM BOT
+   File: TELEGRAM_DASHBOARD_GUIDE.md
+   Time: 2-3 minutes
+   
+   1. Open: Telegram app
+   2. Find: @SamChronosJobBot
+   3. Send: /start
+   4. Bot should return dashboard with buttons
+   5. Test commands:
+      • /health → Should show all green
+      • /stats → Should show numbers
+      • /logs → Should show recent activity
+      • /queue → Should show pending leads
+   6. If /queue is empty: Send /scrape_now and wait 2-3 min
+   ✅ DONE
+
+════════════════════════════════════════════════════════════════════════
+TOTAL TIME: ~10-15 minutes
+
+After all 3 steps complete:
+🎉 BOT IS LIVE AND FULLY OPERATIONAL
+
+Questions? Read:
+• SETUP_INDEX.md - Complete overview
+• FINAL_SETUP_COMPLETE.md - Detailed walkthrough
+• RENDER_ENV_SETUP.md - Environment variables reference
+• TELEGRAM_DASHBOARD_GUIDE.md - Bot commands reference
