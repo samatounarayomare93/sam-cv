@@ -350,11 +350,15 @@ def send_email(to_email, company_name, job_title, custom_body, platform, mission
     except Exception as e:
         logging.debug(f"Email rotation check failed: {e}")
     
-    # [👑 VIP RECOVERY]: Robust fallback for reply-to
+    # [👑 VIP RECOVERY]: Robust fallback for reply-to — never send empty Reply-To header
     if not reply_to:
-        reply_to = os.getenv("REPLY_TO_EMAIL", os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "")))
-
-    # [🛡️ TEST_MODE REDIRECT]: Only redirect if NOT a manual test strike (force_recipient bypasses this)
+        reply_to = (
+            os.getenv("REPLY_TO_EMAIL") or
+            os.getenv("SENDER_EMAIL") or
+            os.getenv("GMAIL_SMTP_USER") or
+            os.getenv("ZOHO_SMTP_USER") or
+            ""
+        )
     if not force_recipient and getattr(config, 'TEST_MODE', False) and to_email != getattr(config, 'TEST_RECEIVER_EMAIL', ''):
         test_recv = getattr(config, 'TEST_RECEIVER_EMAIL', '') or os.getenv("TEST_RECEIVER_EMAIL", "")
         if test_recv:

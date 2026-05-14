@@ -95,7 +95,9 @@ def _run_server():
     host = '0.0.0.0'
     logging.info(f"🌐 [CLOUD-ALIVE] Binding Heartbeat to {host}:{port}...")
     try:
-        web.run_app(app, host=host, port=port, handle_signals=False, access_log=None, loop=loop)
+        # Fix: remove deprecated loop= parameter (aiohttp 3.x deprecated, 4.x removed)
+        # asyncio.set_event_loop(loop) above already binds the loop for this thread
+        web.run_app(app, host=host, port=port, handle_signals=False, access_log=None)
     except OSError as e:
         if e.errno == 10048 or e.errno == 98:  # 98 = EADDRINUSE on Linux
             logging.warning(f"⚠️ [CLOUD-ALIVE] Port {port} already in use. Skipping.")
@@ -183,5 +185,5 @@ def keep_alive():
     p.start()
 
     logging.info("🛡️ [IMMORTALITY] Heartbeat threads launched.")
-    logging.info("🛡️ [IMMORTALITY] Self-ping every 8 min — bot runs 24/7.")
+    logging.info("🛡️ [IMMORTALITY] Self-ping every 5 min — bot runs 24/7.")
     logging.info("💡 [TIP] Add https://sam-bot-v2.onrender.com to UptimeRobot.com for extra reliability (free)")

@@ -35,7 +35,17 @@ class OmniIntelligence:
         self._initialized = True
         
         self.gemini_key = os.getenv("GEMINI_API_KEY")
-        self.groq_key = os.getenv("GROQ_API_KEY")
+
+        # ── Multi-key Groq rotation: GROQ_API_KEY, GROQ_API_KEY_2, GROQ_API_KEY_3 ...
+        _groq_keys = []
+        for _i in range(1, 10):
+            _suffix = "" if _i == 1 else f"_{_i}"
+            _k = os.getenv(f"GROQ_API_KEY{_suffix}", "")
+            if _k:
+                _groq_keys.append(_k)
+        self._groq_keys: list = _groq_keys          # all available keys
+        self._groq_key_index: int = 0               # current rotation index
+        self.groq_key: str = _groq_keys[0] if _groq_keys else ""  # active key
         self.groq_timeout = aiohttp.ClientTimeout(total=30, connect=10)
         self.cv_content = self._load_cv()
         
@@ -64,6 +74,26 @@ class OmniIntelligence:
         elif self.primary_engine is None:
             logging.info("🛰️ SOVEREIGN PROTOCOL: Apex-Static Engine Initialized.")
     
+    def _next_groq_key(self) -> str:
+        """Round-robin rotate through all available Groq API keys."""
+        if not self._groq_keys:
+            return ""
+        key = self._groq_keys[self._groq_key_index % len(self._groq_keys)]
+        self._groq_key_index = (self._groq_key_index + 1) % len(self._groq_keys)
+        self.groq_key = key  # keep self.groq_key in sync
+        return key
+
+    def _mark_groq_key_exhausted(self):
+        """Mark current key as rate-limited and rotate to next one immediately."""
+        if len(self._groq_keys) > 1:
+            exhausted = self._groq_keys[self._groq_key_index % len(self._groq_keys)]
+            logging.warning(f"⏳ [AI] Groq key #{self._groq_key_index % len(self._groq_keys) + 1} rate-limited — rotating to next key")
+            self._groq_key_index = (self._groq_key_index + 1) % len(self._groq_keys)
+            self.groq_key = self._groq_keys[self._groq_key_index]
+        else:
+            logging.warning("⏳ [AI] Groq rate limited — cooling down 60s")
+            self._groq_cooldown_until = time.time() + 60
+
     async def _get_session(self) -> httpx.AsyncClient:
         """Always return a fresh session bound to the current event loop."""
         # Always create fresh — avoids 'Event loop is closed' after restart
@@ -417,7 +447,7 @@ class OmniIntelligence:
                         persona = target_persona if target_persona != "Modern" else data.get("culture_persona", "Modern")
                         
                         # Sector Reflection Loop (If Groq is available)
-                        if self.groq_key and score > 85:
+                        if self._groq_keys and score > 85:
                             try:
                                 logging.info("🧠 REFLECTION TRIGGERED: Groq is critiquing the draft...")
                                 cover_letter = await self.reflect_on_outreach(cover_letter, job_title)
@@ -466,7 +496,7 @@ class OmniIntelligence:
                     return result
             
             # 2. Secondary Engine Attempt (Groq)
-            if self.groq_key:
+            if self._groq_keys:
                 try:
                     return await self._fallback_groq(system_prompt, job_title, news_headline, company_values, competitor_fail, internal_lingo, executive_names, peer_inspiration)
                 except Exception as e:
@@ -493,7 +523,8 @@ class OmniIntelligence:
         """
         try:
             session = await self._get_session()
-            headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
+            active_key = self._next_groq_key()
+            headers = {"Authorization": f"Bearer {active_key}", "Content-Type": "application/json"}
             data = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": prompt[:8000]}]}
             
             response = await session.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=data)
@@ -525,8 +556,9 @@ class OmniIntelligence:
         """
         try:
             # Shift to high-intelligence model for the Ghost-Pass
-            if self.groq_key:
-                headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
+            if self._groq_keys:
+                active_key = self._next_groq_key()
+                headers = {"Authorization": f"Bearer {active_key}", "Content-Type": "application/json"}
                 data = {
                     "model": "llama-3.3-70b-versatile", 
                     "messages": [{"role": "user", "content": prompt}],
@@ -702,7 +734,7 @@ class OmniIntelligence:
         Performs deep structural analysis of code/HTML for self-healing and regeneration.
         Uses Groq (Llama-3-70b) for maximum parsing performance.
         """
-        if not self.groq_key:
+        if not self._groq_keys:
             logging.error("SENTINEL FAILURE: Groq API Key required for structural analysis.")
             return {}
 
@@ -712,7 +744,8 @@ class OmniIntelligence:
         if now < access_cooldown_until:
             return {}
 
-        headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
+        active_key = self._next_groq_key()
+        headers = {"Authorization": f"Bearer {active_key}", "Content-Type": "application/json"}
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [{"role": "user", "content": f"Respond in JSON format only.\n\n{prompt[:4000]}"}],
@@ -812,29 +845,32 @@ class OmniIntelligence:
 
         session = await self._get_session()
 
-        # ── 1. GROQ (primary free AI) ─────────────────────────────────────────
-        if self.groq_key:
-            # Check if Groq is in cooldown (rate limited recently)
+        # ── 1. GROQ (primary free AI) — rotates across all keys ─────────────
+        if self._groq_keys:
+            # Check if ALL Groq keys are in cooldown
             groq_cooldown_until = getattr(self, '_groq_cooldown_until', 0)
             if time.time() < groq_cooldown_until:
                 logging.debug("⏳ [AI] Groq in cooldown — skipping to DeepSeek")
             else:
-                for attempt in range(2):
+                # Try each key once before giving up on Groq entirely
+                for _attempt_key in range(len(self._groq_keys)):
+                    active_key = self._next_groq_key()
                     try:
                         response = await session.post(
                             "https://api.groq.com/openai/v1/chat/completions",
-                            headers={"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"},
+                            headers={"Authorization": f"Bearer {active_key}", "Content-Type": "application/json"},
                             json={"model": "llama-3.3-70b-versatile",
                                   "messages": [{"role": "user", "content": prompt[:12000]}],
                                   "response_format": {"type": "json_object"}, "temperature": 0.3}
                         )
                         if response.status_code == 200:
-                            logging.info("✅ [AI] Groq responded")
+                            key_num = self._groq_keys.index(active_key) + 1
+                            logging.info(f"✅ [AI] Groq responded (key #{key_num})")
                             return _parse_response(response.json()['choices'][0]['message']['content'])
                         elif response.status_code == 429:
-                            logging.warning("⏳ [AI] Groq rate limited — cooling down 60s, trying DeepSeek")
-                            self._groq_cooldown_until = time.time() + 60  # 60s cooldown
-                            break
+                            self._mark_groq_key_exhausted()
+                            # Try next key immediately
+                            continue
                         else:
                             logging.warning(f"⚠️ [AI] Groq HTTP {response.status_code}")
                             break
@@ -1069,11 +1105,11 @@ class OmniIntelligence:
                     contents=prompt
                 )
                 return response.text.strip()
-            elif self.groq_key:
-                # Fix: structural_query returns a JSON dict with json_object format.
-                # The prompt asks for HTML text, not JSON — use direct Groq call instead.
+            elif self._groq_keys:
+                # Fix: use key rotation instead of direct self.groq_key
                 session = await self._get_session()
-                headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
+                active_key = self._next_groq_key()
+                headers = {"Authorization": f"Bearer {active_key}", "Content-Type": "application/json"}
                 resp = await session.post(
                     "https://api.groq.com/openai/v1/chat/completions",
                     headers=headers,

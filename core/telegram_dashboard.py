@@ -508,7 +508,7 @@ class SovereignDashboard:
             await update.effective_message.reply_text("🔄 <b>REBOOT REQUEST</b>\nOn cloud, Render automatically restarts the bot if needed. System is running 24/7.", parse_mode='HTML')
 
         elif cmd == "/fix" or cmd == "/reset" or cmd == "/forcestart":
-            """[🔥 EMERGENCY FIX]: Force reset leadership, clear kill switch, restart engine."""
+            # [🔥 EMERGENCY FIX]: Force reset leadership, clear kill switch, restart engine.
             await update.effective_message.reply_text("🔧 <b>EMERGENCY FIX INITIATED...</b>\n<i>Resetting all locks and restarting engine...</i>", parse_mode='HTML')
             
             steps = []

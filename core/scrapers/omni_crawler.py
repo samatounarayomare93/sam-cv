@@ -27,7 +27,10 @@ from core.scrapers.healer_intelligence import get_patrol
 try:
     from ddgs import DDGS
 except ImportError:
-    from duckduckgo_search import DDGS
+    try:
+        from duckduckgo_search import DDGS
+    except ImportError:
+        DDGS = None
 from urllib.parse import urlparse
 
 

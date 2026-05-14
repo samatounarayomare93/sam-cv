@@ -311,9 +311,10 @@ async def inject_batch(c, url, headers, count=80):
         tasks = [c.post(url + "/rest/v1/leads", json=lead, headers=insert_headers) for lead in batch]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for result in results:
-            if not isinstance(result, Exception) and result.status_code in (200, 201, 409):
-                # 409 = duplicate (already exists) — count as OK, not failure
-                success += 1
+            if not isinstance(result, Exception):
+                if result.status_code in (200, 201):
+                    success += 1   # genuinely new lead inserted
+                # 409 = duplicate already in DB — silently skip, don't count as "new"
         await asyncio.sleep(0.2)
     
     return success

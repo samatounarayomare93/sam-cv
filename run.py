@@ -1,11 +1,13 @@
 import sys
 import io
+import asyncio
+
 # Force UTF-8 encoding on Windows to prevent UnicodeEncodeError for emojis
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
-
-import asyncio
+    # Fix: curl_cffi requires SelectorEventLoop on Windows (Proactor doesn't support add_reader)
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 import gc
 import logging
 from logging.handlers import RotatingFileHandler

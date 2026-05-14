@@ -36,7 +36,10 @@ def _safe_ddgs_search(query: str, max_results: int = 10) -> list:
         try:
             from ddgs import DDGS
         except ImportError:
-            from duckduckgo_search import DDGS
+            try:
+                from duckduckgo_search import DDGS
+            except ImportError:
+                return []
         with DDGS(timeout=20) as ddgs:
             return list(ddgs.text(query, max_results=max_results, region='wt-wt'))
     except Exception as e:

@@ -103,20 +103,41 @@ class MultiAIFallback:
         self.last_request_time[provider_name] = time.time()
     
     def _call_groq(self, prompt: str, model: str = "llama-3.3-70b-versatile") -> Optional[str]:
-        """Call Groq API."""
+        """Call Groq API with automatic key rotation."""
         try:
             from groq import Groq
-            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-            
-            response = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=2000
-            )
-            
-            return response.choices[0].message.content
-            
+
+            # Collect all available Groq keys
+            groq_keys = []
+            for i in range(1, 10):
+                suffix = "" if i == 1 else f"_{i}"
+                k = os.getenv(f"GROQ_API_KEY{suffix}", "")
+                if k:
+                    groq_keys.append(k)
+
+            if not groq_keys:
+                return None
+
+            # Try each key in rotation
+            for key in groq_keys:
+                try:
+                    client = Groq(api_key=key)
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.7,
+                        max_tokens=2000
+                    )
+                    return response.choices[0].message.content
+                except Exception as e:
+                    err = str(e)
+                    if "429" in err or "rate" in err.lower():
+                        logging.warning(f"Groq key rate-limited, trying next key...")
+                        continue
+                    raise
+
+            return None
+
         except Exception as e:
             logging.error(f"Groq API error: {e}")
             return None

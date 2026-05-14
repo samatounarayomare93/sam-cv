@@ -299,14 +299,16 @@ class RealityShapingDB:
             loop = None
 
         if loop is None or loop.is_closed():
-            # No usable loop — create a fresh one
+            # No usable loop — create a fresh one, restore original after
+            original_loop = loop
             new_loop = asyncio.new_event_loop()
             asyncio.set_event_loop(new_loop)
             try:
                 return new_loop.run_until_complete(coro)
             finally:
                 new_loop.close()
-                asyncio.set_event_loop(None)
+                # Restore original loop (or None if there wasn't one)
+                asyncio.set_event_loop(original_loop)
         elif loop.is_running():
             # Already inside an async context (e.g. called from a thread pool)
             import concurrent.futures
@@ -329,87 +331,79 @@ class RealityShapingDB:
         headers: Dict = None,
         params: Dict = None
     ) -> tuple:
-        async with self._request_semaphore: 
+        async with self._request_semaphore:
             session = await self._get_session()
-            try:
-                # [🛡️ AUTH-ELEVATION] Use service role if requested OR if anon failed previously
-                req_headers = self.headers.copy()
-                if headers: req_headers.update(headers)
-                
-                if use_service_role and self.service_role_key:
-                    req_headers["apikey"] = self.service_role_key
-                    req_headers["Authorization"] = f"Bearer {self.service_role_key}"
+            # Convert recursion → iterative loop to avoid stack overflow on rapid failures
+            for attempt in range(self._max_retries + 1):
+                try:
+                    req_headers = self.headers.copy()
+                    if headers: req_headers.update(headers)
 
-                kwargs = {"headers": req_headers}
-                if payload: kwargs["json"] = payload
-                if params: kwargs["params"] = params
-                response = await session.request(method, endpoint, **kwargs)
-                text = response.text
-                if response.status_code in [200, 201, 204, 206]:
-                    if response.status_code == 204: return True, {}
-                    # [👑 CLOUD UNITY]: Support reading row counts from PostgREST headers
-                    if "count=exact" in str(req_headers.get("Prefer", "")):
-                        range_header = response.headers.get("Content-Range", "0-0/0")
-                        return True, {"count": int(range_header.split("/")[-1])}
-                    try: return True, response.json()
-                    except: return True, text
-                
-                # [🛡️ CONFLICT-SILENCER]: 409 is often a duplicate we explicitly asked to merge or ignore
-                if response.status_code == 409:
-                    return True, {"status": "already_exists"}
+                    if use_service_role and self.service_role_key:
+                        req_headers["apikey"] = self.service_role_key
+                        req_headers["Authorization"] = f"Bearer {self.service_role_key}"
 
-                if response.status_code == 401:
-                    # [🛡️ AUTH-FAILOVER]: If Anon Key failed, attempt escalating to Service Role
-                    if self.service_role_key and req_headers.get("apikey") != self.service_role_key:
-                        logging.warning("⚠️ AUTH FAILURE (401): Escalating to Service Role privileges...")
-                        headers_escalated = req_headers.copy()
-                        headers_escalated["apikey"] = self.service_role_key
-                        headers_escalated["Authorization"] = f"Bearer {self.service_role_key}"
-                        # Try one more time with escalated privileges directly
-                        response = await session.request(method, endpoint, headers=headers_escalated, json=payload, **({"params": params} if params else {}))
-                        if response.status_code in [200, 201, 204, 206]:
-                            if response.status_code == 204: return True, {}
-                            if "count=exact" in str(req_headers.get("Prefer", "")):
-                                range_header = response.headers.get("Content-Range", "0-0/0")
-                                return True, {"count": int(range_header.split("/")[-1])}
-                            try: return True, response.json()
-                            except: return True, response.text
-                        if response.status_code == 409:
-                            return True, {"status": "already_exists"}
-                        logging.error(f"❌ ESCALATION FAILED: HTTP {response.status_code}")
-                    else:
-                        if not self.service_role_key and use_service_role:
-                            logging.debug("🏰 SOVEREIGN MODE: Service Role requested but missing. Falling back to Anon.")
+                    kwargs = {"headers": req_headers}
+                    if payload: kwargs["json"] = payload
+                    if params:  kwargs["params"] = params
+                    response = await session.request(method, endpoint, **kwargs)
+                    text = response.text
+
+                    if response.status_code in [200, 201, 204, 206]:
+                        if response.status_code == 204: return True, {}
+                        if "count=exact" in str(req_headers.get("Prefer", "")):
+                            range_header = response.headers.get("Content-Range", "0-0/0")
+                            return True, {"count": int(range_header.split("/")[-1])}
+                        try: return True, response.json()
+                        except: return True, text
+
+                    if response.status_code == 409:
+                        return True, {"status": "already_exists"}
+
+                    if response.status_code == 401:
+                        if self.service_role_key and req_headers.get("apikey") != self.service_role_key:
+                            logging.warning("⚠️ AUTH FAILURE (401): Escalating to Service Role privileges...")
+                            headers_escalated = req_headers.copy()
+                            headers_escalated["apikey"] = self.service_role_key
+                            headers_escalated["Authorization"] = f"Bearer {self.service_role_key}"
+                            response = await session.request(method, endpoint, headers=headers_escalated, json=payload, **({"params": params} if params else {}))
+                            if response.status_code in [200, 201, 204, 206]:
+                                if response.status_code == 204: return True, {}
+                                if "count=exact" in str(req_headers.get("Prefer", "")):
+                                    range_header = response.headers.get("Content-Range", "0-0/0")
+                                    return True, {"count": int(range_header.split("/")[-1])}
+                                try: return True, response.json()
+                                except: return True, response.text
+                            if response.status_code == 409:
+                                return True, {"status": "already_exists"}
+                            logging.error(f"❌ ESCALATION FAILED: HTTP {response.status_code}")
                         else:
-                            # Suppress spam - only log once per minute
                             logging.debug("❌ CRITICAL AUTH FAILURE: Service Role already engaged or missing.")
+                        return False, {"error": f"HTTP {response.status_code}", "detail": text}
 
-                if response.status_code in [429, 500, 502, 503, 504] and retry_count < self._max_retries:
-                    delay = self._base_delay * (2 ** retry_count)
-                    logging.warning(f"⚠️ [DB] HTTP {response.status_code} on {method} {endpoint.split('?')[0].split('/')[-1]} — retry {retry_count + 1}/{self._max_retries} in {delay:.1f}s")
-                    await asyncio.sleep(delay)
-                    # Fix: forward ALL original args including use_service_role, headers, params
-                    return await self._request_with_retry(method, endpoint, payload, retry_count + 1, use_service_role, headers, params)
-                return False, {"error": f"HTTP {response.status_code}", "detail": text}
-            except Exception as e:
-                if retry_count < self._max_retries:
+                    if response.status_code in [429, 500, 502, 503, 504]:
+                        if attempt < self._max_retries:
+                            delay = self._base_delay * (2 ** attempt)
+                            logging.warning(f"⚠️ [DB] HTTP {response.status_code} on {method} {endpoint.split('?')[0].split('/')[-1]} — retry {attempt + 1}/{self._max_retries} in {delay:.1f}s")
+                            await asyncio.sleep(delay)
+                            continue
+                    return False, {"error": f"HTTP {response.status_code}", "detail": text}
+
+                except Exception as e:
                     err_msg = str(e)
-                    # [🔥 FIX]: Handle event loop errors — reset session and semaphore
                     if "event loop" in err_msg.lower() or isinstance(e, RuntimeError):
-                        logging.warning(f"⚠️ [DB] Event loop error detected — creating fresh session")
-                        try:
-                            if self._session and not self._session.is_closed:
-                                pass  # Can't await close here safely
-                        except Exception:
-                            pass
-                        self._session = None  # Force new session on next call
-                        self._semaphore = None  # Reset semaphore too
-                    logging.warning(f"⚠️ [DB] Exception on {method} {endpoint.split('?')[0].split('/')[-1]} — retry {retry_count + 1}/{self._max_retries}: {type(e).__name__}: {e}")
-                    await asyncio.sleep(self._base_delay)
-                    # Fix: forward ALL original args including use_service_role, headers, params
-                    return await self._request_with_retry(method, endpoint, payload, retry_count + 1, use_service_role, headers, params)
-                logging.error(f"❌ [DB] All retries exhausted for {method} {endpoint.split('?')[0].split('/')[-1]}: {e}")
-                return False, {"error": str(e)}
+                        logging.warning("⚠️ [DB] Event loop error — resetting session")
+                        self._session = None
+                        self._semaphore = None
+                        session = await self._get_session()
+                    if attempt < self._max_retries:
+                        logging.warning(f"⚠️ [DB] Exception on {method} {endpoint.split('?')[0].split('/')[-1]} — retry {attempt + 1}/{self._max_retries}: {type(e).__name__}: {e}")
+                        await asyncio.sleep(self._base_delay)
+                        continue
+                    logging.error(f"❌ [DB] All retries exhausted for {method} {endpoint.split('?')[0].split('/')[-1]}: {e}")
+                    return False, {"error": str(e)}
+
+            return False, {"error": "max retries exceeded"}
 
     async def check_duplicates_batch(self, urls_or_emails: List[str]) -> List[bool]:
         if not self.enabled: return [False] * len(urls_or_emails)
