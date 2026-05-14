@@ -1,0 +1,23 @@
+# Swarm Agents - Lightweight Requirements
+# Optimized for free cloud deployment
+
+# Core HTTP & Async
+httpx>=0.27.0
+aiohttp>=3.9.0
+asyncio-throttle>=1.0.2
+
+# Configuration
+python-dotenv>=1.0.0
+
+# Database (SQLite - built-in, no install needed)
+# sqlite3 is part of Python standard library
+
+# AI APIs (optional - fallback to keyword matching if not available)
+# google-generativeai>=0.3.0  # Only if using Gemini
+# groq>=0.4.0  # Only if using Groq
+
+# Email
+# smtplib is part of Python standard library
+
+# Utilities
+tenacity>=8.2.0
