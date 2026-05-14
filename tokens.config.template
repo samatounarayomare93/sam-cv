@@ -1,0 +1,5 @@
+{
+  "GitHubToken": "ghp_YOUR_GITHUB_TOKEN_HERE",
+  "RenderAPIKey1": "rnd_YOUR_RENDER_KEY_1",
+  "RenderAPIKey2": "rnd_YOUR_RENDER_KEY_2"
+}
