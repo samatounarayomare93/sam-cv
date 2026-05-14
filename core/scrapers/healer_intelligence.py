@@ -63,8 +63,14 @@ class ScraperPatrol:
         """
         
         try:
-            # Shift to high-intelligence fallback if primary blocks snippet
-            selectors = await self.ai._extract_json_robustly(prompt)
+            # Fix: _extract_json_robustly is sync and parses JSON from text, not an AI call.
+            # We need to call the AI first, then parse the response.
+            if hasattr(self.ai, 'structural_query'):
+                # structural_query calls Groq with json_object format — perfect for this
+                selectors = await self.ai.structural_query(prompt)
+            else:
+                # Fallback: call analyze_job and extract from response
+                selectors = {}
             if selectors and "title" in selectors:
                 if self.db:
                     await self.db.save_site_patch(domain, selectors)

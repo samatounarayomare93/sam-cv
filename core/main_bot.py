@@ -1278,6 +1278,7 @@ class AlphaOrchestrator:
                     break
                 
                 # ALPHA-CENTAURI: Swarm Heartbeat
+                is_leader = True  # Default: always leader (safe fallback when db=None)
                 if self.db:
                     try:
                         # [🛡️ SELF-HEALING]: Run auto-recovery before starting the cycle
@@ -1416,8 +1417,9 @@ class AlphaOrchestrator:
                         and len(l.get('company_name', '').strip()) >= 3
                     ]
                     logging.info(f"📥 PERSISTENCE: Archiving {len(clean_leads)}/{len(raw_leads)} clean leads to the Hive-Mind...")
-                    save_tasks = [self.db.save_potential_lead(l, score=l.get('priority_score', 80)) for l in clean_leads]
-                    await asyncio.gather(*save_tasks, return_exceptions=True)
+                    if self.db:
+                        save_tasks = [self.db.save_potential_lead(l, score=l.get('priority_score', 80)) for l in clean_leads]
+                        await asyncio.gather(*save_tasks, return_exceptions=True)
                     
                     # Limit to top 10 most valuable, process sequentially to save RAM
                     for lead in raw_leads[:10]:
@@ -1507,8 +1509,9 @@ async def run_orchestrator():
             try:
                 from core.ai_agent import OmniIntelligence
                 ai = OmniIntelligence()
-                diagnosis = await ai.structural_query(f"The bot crashed with this error: {error_trace}. Explain the cause in simple terms for the user and suggest a fix. Keep it brief.")
-                msg = f"🚨 <b>CORE CRASH DETECTED</b>\n\n<b>Diagnosis:</b> {diagnosis.get('answer', str(e))}\n\n<i>Phoenix restart initiated ({restart_count}/hr)</i>"
+                diagnosis = await ai.structural_query(f"The bot crashed with this error: {error_trace[:500]}. Explain the cause briefly and suggest a fix. Return JSON with key 'answer'.")
+                answer = diagnosis.get('answer') or diagnosis.get('explanation') or diagnosis.get('cause') or str(e)
+                msg = f"🚨 <b>CORE CRASH DETECTED</b>\n\n<b>Diagnosis:</b> {answer}\n\n<i>Phoenix restart initiated ({restart_count}/hr)</i>"
                 
                 from core.db_client import get_db
                 db = get_db()

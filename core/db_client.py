@@ -814,11 +814,21 @@ class RealityShapingDB:
     async def get_pending_leads_count(self) -> int:
         """Optimized count of pending strikes in the cloud queue."""
         if not self.enabled: return 0
-        # Use limit=1 with count header for efficiency instead of fetching all rows
-        success, data = await self._request_with_retry("GET", 
-            f"{self.url}/rest/v1/leads?status=eq.pending&select=id&limit=500")
-        if success and isinstance(data, list):
-            return len(data)
+        # Fix: use count=exact header for a single-row response instead of fetching 500 rows
+        count_headers = self.headers.copy()
+        count_headers["Prefer"] = "count=exact"
+        success, data = await self._request_with_retry(
+            "GET",
+            f"{self.url}/rest/v1/leads?status=eq.pending&select=id&limit=1",
+            headers=count_headers
+        )
+        if success and isinstance(data, dict):
+            return data.get("count", 0)
+        # Fallback: fetch and count
+        success2, data2 = await self._request_with_retry(
+            "GET", f"{self.url}/rest/v1/leads?status=eq.pending&select=id&limit=500")
+        if success2 and isinstance(data2, list):
+            return len(data2)
         return 0
 
     async def get_pending_leads(self, limit: int = 10) -> List[Dict]:
