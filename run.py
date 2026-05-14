@@ -14,6 +14,26 @@ import shutil
 import traceback
 import time
 
+# Ensure ffmpeg is available for pydub even on clean Windows hosts.
+if shutil.which("ffmpeg") is None:
+    try:
+        import imageio_ffmpeg
+        ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
+        runtime_bin = os.path.join(".sovereign_runtime", "bin")
+        os.makedirs(runtime_bin, exist_ok=True)
+
+        # pydub searches for an executable named exactly "ffmpeg".
+        ffmpeg_shim = os.path.join(runtime_bin, "ffmpeg.exe")
+        if not os.path.exists(ffmpeg_shim):
+            shutil.copyfile(ffmpeg_bin, ffmpeg_shim)
+
+        if runtime_bin not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = runtime_bin + os.pathsep + os.environ.get("PATH", "")
+
+        logging.info(f"[FFMPEG] Runtime fallback enabled: {ffmpeg_shim}")
+    except Exception:
+        pass
+
 # Monkeypatch curl_cffi to prevent Event Loop Closed crashes during GC
 try:
     import curl_cffi.aio

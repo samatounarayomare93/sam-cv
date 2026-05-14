@@ -706,31 +706,82 @@ class OmniIntelligence:
             logging.error("SENTINEL FAILURE: Groq API Key required for structural analysis.")
             return {}
 
-        # [🛡️ RATE LIMIT PROTECTION]: Small delay to avoid hitting daily token limit
-        await asyncio.sleep(0.5)
+        # Respect cooldown windows to avoid hammering APIs after hard failures.
+        now = time.time()
+        access_cooldown_until = getattr(self, '_groq_access_cooldown_until', 0)
+        if now < access_cooldown_until:
+            return {}
 
         headers = {"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"}
-        # Truncate prompt aggressively to save tokens
         data = {
             "model": "llama-3.3-70b-versatile",
             "messages": [{"role": "user", "content": f"Respond in JSON format only.\n\n{prompt[:4000]}"}],
             "response_format": {"type": "json_object"},
             "temperature": 0.0
         }
-        
-        try:
-            session = await self._get_session()
-            response = await session.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=data)
-            if response.status_code == 200:
-                content = response.json()['choices'][0]['message']['content']
-                return json.loads(content)
-            elif response.status_code == 429:
-                logging.warning("⏳ GROQ RATE LIMITED in structural_query — returning empty dict")
+
+        # Gentle baseline pacing so background loops don't burn quota.
+        await asyncio.sleep(0.35)
+
+        for attempt in range(3):
+            try:
+                session = await self._get_session()
+                response = await session.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json=data
+                )
+
+                if response.status_code == 200:
+                    try:
+                        content = response.json()['choices'][0]['message']['content']
+                        return json.loads(content)
+                    except Exception:
+                        parsed = self._extract_json_robustly(response.text)
+                        return parsed if isinstance(parsed, dict) else {}
+
+                if response.status_code == 429:
+                    # Back off for one minute when rate-limited.
+                    self._groq_cooldown_until = time.time() + 60
+                    logging.warning("⏳ GROQ RATE LIMITED in structural_query — cooldown 60s")
+                    return {}
+
+                if response.status_code in (401, 403):
+                    # Access denial is often network/egress-policy related; reset client and retry.
+                    if attempt < 2:
+                        try:
+                            if self._session and not self._session.is_closed:
+                                await self._session.aclose()
+                        except Exception:
+                            pass
+                        self._session = None
+                        await asyncio.sleep(0.8 + (attempt * 0.7))
+                        continue
+
+                    # Avoid noisy repeated failures in hot loops.
+                    self._groq_access_cooldown_until = time.time() + 120
+                    logging.error(f"Structural Query Failed ({response.status_code}): {response.text[:200]}")
+                    return {}
+
+                if response.status_code in (500, 502, 503, 504) and attempt < 2:
+                    await asyncio.sleep(0.7 + (attempt * 0.8))
+                    continue
+
+                logging.error(f"Structural Query Failed ({response.status_code}): {response.text[:200]}")
                 return {}
-            logging.error(f"Structural Query Failed ({response.status_code}): {response.text[:200]}")
-        except Exception as e:
-            logging.error(f"Structural Query connection error: {e}")
-        
+
+            except Exception as e:
+                if attempt < 2:
+                    try:
+                        if self._session and not self._session.is_closed:
+                            await self._session.aclose()
+                    except Exception:
+                        pass
+                    self._session = None
+                    await asyncio.sleep(0.6 + (attempt * 0.8))
+                    continue
+                logging.error(f"Structural Query connection error: {e}")
+
         return {}
 
     async def _fallback_groq(self, prompt: str, job_title: str, news_headline: str = None, company_values: str = None, competitor_fail: str = None, internal_lingo: str = None, executive_names: str = None, peer_inspiration: str = None) -> Tuple[bool, str, str, str, int, str, list, str, str, str, list]:
