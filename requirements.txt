@@ -12,7 +12,8 @@ aiohttp>=3.9.0
 asyncio-throttle>=1.0.2
 
 # Database & Backend
-supabase>=2.0.0
+# Supabase access is handled via direct REST calls in core/db_client.py
+# (avoids heavy SDK dependency chain and native build issues on Windows/Render)
 curl-cffi>=0.7.0
 
 # AI & NLP

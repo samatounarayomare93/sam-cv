@@ -80,6 +80,11 @@ cover_letters/
 
 # SQLite databases
 *.db
+*.db-shm
+*.db-wal
+
+# Accidental nested repo/submodule clone
+sam-cv/
 
 # Scratch / verification scripts (dev-only)
 scratch/

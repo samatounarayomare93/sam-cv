@@ -1264,24 +1264,21 @@ def send_email_via_brevo_http(to_email, company_name, job_title, custom_body, at
     
     CRITICAL: Sender MUST be an ACTIVE verified sender in Brevo dashboard.
     Check: app.brevo.com → Senders & IPs → Senders
-    The Brevo account email (samatou683@gmail.com) is always active.
+    Set BREVO_ACCOUNT_EMAIL env var to your verified Brevo sender email.
     """
     global _BREVO_SESSION_DISABLED, _BREVO_DISABLED_UNTIL  # declare once at top
     api_key = getattr(config, 'BREVO_API_KEY', None) or os.getenv("BREVO_API_KEY", "").strip()
     if not api_key: return False
 
     # Active verified senders in Brevo (in priority order):
-    # PRIMARY:  samatou683@gmail.com — Brevo account owner (always active, always verified)
+    # PRIMARY:  BREVO_ACCOUNT_EMAIL env var (set to the Brevo account owner email)
     # FALLBACK: samsalameh.cv@gmail.com — Sam's real email (only if separately verified in Brevo)
-    brevo_account = os.getenv("BREVO_ACCOUNT_EMAIL", "samatou683@gmail.com").strip()
+    brevo_account = os.getenv("BREVO_ACCOUNT_EMAIL", os.getenv("GMAIL_SMTP_USER", "samsalameh.cv@gmail.com")).strip()
     gmail_user    = (getattr(config, 'GMAIL_SMTP_USER', '') or os.getenv("GMAIL_SMTP_USER", "samsalameh.cv@gmail.com")).strip()
 
-    # [👑 SENDER FIX]: Use the Brevo account email (samatou683@gmail.com) as the primary sender.
+    # [👑 SENDER FIX]: Use the Brevo account email as the primary sender.
     # This is the verified account owner — Brevo always accepts it.
-    # samsalameh.cv@gmail.com is NOT verified in Brevo and will be rejected with 400 unauthorized.
     sender_email = brevo_account
-    
-    logging.info(f"📧 [BREVO] Using verified account sender: {sender_email}")
 
     # Reply-To: always use the real Gmail so replies go to Sam's inbox
     if not reply_to:
