@@ -580,7 +580,7 @@ class OmniIntelligence:
             return 'THE_ARCHITECT'
         return 'THE_LOYALIST'
 
-    def _apex_static_fallback(self, job_title: str, news_headline: str = None, executive_names: str = None, location: str = "Global") -> Tuple[bool, str, str, str, int, str, list, str, str, str]:
+    def _apex_static_fallback(self, job_title: str, news_headline: str = None, executive_names: str = None, location: str = "Global") -> tuple:
         """[👑 APEX DEITY] Elite Procedural Engine - Network Engineer Specialist."""
         is_uk = any(x in location.lower() for x in ["dubai", "london", "uk", "emirates", "qatar", "riyadh", "beirut", "lebanon"])
         org = "organisation" if is_uk else "organization"
@@ -1002,11 +1002,11 @@ class OmniIntelligence:
         """Generates a high-velocity tactical prep guide for a specific job."""
         prompt = f"""
         TARGET: {company_name} - {job_title}
-        MISSION: Prepare Sam Salameh for a high-stakes interview.
+        MISSION: Prepare Sam Salameh (Senior Network Engineer, male) for a high-stakes interview.
         
         OUTPUT:
-        1. 'Predator Positioning': How to frame her background to make them feel they NEED her.
-        2. '3 Psychological Hooks': Questions she should ask to expose their pain points.
+        1. 'Predator Positioning': How to frame his background to make them feel they NEED him.
+        2. '3 Psychological Hooks': Questions he should ask to expose their pain points.
         3. 'The Closer': A 1-sentence closing statement that guarantees a follow-up.
         
         Keep it elite, short, and data-driven. Use HTML <b> and <i> tags.

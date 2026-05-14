@@ -1924,12 +1924,7 @@ class SovereignDashboard:
             )
             try:
                 # Queue a scrape task in DB so the engine picks it up
-                await self.db.sync_add_task(task_type="FORCE_SCRAPE", target="ALL_SCRAPERS", meta="manual_trigger") if hasattr(self.db, 'sync_add_task') else None
-                # Also try async version
-                try:
-                    await self.db.add_task(task_type="FORCE_SCRAPE", target="ALL_SCRAPERS", meta="manual_trigger")
-                except Exception:
-                    pass
+                await self.db.add_task(task_type="FORCE_SCRAPE", target="ALL_SCRAPERS", meta="manual_trigger")
                 await status_msg.edit_text(
                     "🌍 <b>SCRAPE TRIGGERED</b>\n"
                     "━━━━━━━━━━━━━━━\n"

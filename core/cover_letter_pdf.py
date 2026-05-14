@@ -35,9 +35,8 @@ def _safe(text):
 def _build_cover_letter_html(company_name, job_title, hiring_manager="Hiring Manager"):
     """Build the HTML for the cover letter — matches reference PDF design exactly."""
     today = datetime.date.today().strftime("%B %d, %Y")
-    # Use sam.dev1@hotmail.com as in the reference PDF
     phone = os.getenv("CANDIDATE_PHONE", "+961 70 841 1009")
-    email_display = "sam.dev1@hotmail.com"
+    email_display = os.getenv("SENDER_EMAIL", os.getenv("GMAIL_SMTP_USER", "samsalameh.cv@gmail.com"))
 
     return f"""<!DOCTYPE html>
 <html lang="en">

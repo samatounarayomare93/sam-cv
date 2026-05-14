@@ -1517,7 +1517,7 @@ async def run_orchestrator():
                 db = get_db()
                 await db.stream_log("CRITICAL", f"AI_DIAGNOSIS: {msg}")
                 # We can't easily import dashboard here without circular issues, so we use a DB task for notification
-                await db.sync_add_task(task_type="broadcast_notification", target="ALL_USERS", meta=msg)
+                await db.add_task(task_type="broadcast_notification", target="ALL_USERS", meta=msg)
             except Exception as _diag_err:
                 logging.warning(f"⚠️ [PHOENIX] AI diagnosis/notification failed: {_diag_err}")
             

@@ -239,9 +239,27 @@ COMPANY_POOL = [
 _round_counter = 0
 
 async def get_pending_count(c, url, headers):
-    r = await c.get(url + "/rest/v1/leads?status=eq.pending&select=id", headers=headers)
+    # Use count=exact header to get the real count without fetching all rows
+    # (avoids wrong count when there are >1000 pending leads)
+    count_headers = {k: v for k, v in headers.items()}
+    count_headers["Prefer"] = "count=exact"
+    r = await c.get(
+        url + "/rest/v1/leads?status=eq.pending&select=id&limit=1",
+        headers=count_headers
+    )
     if r.status_code == 200:
-        return len(r.json())
+        # PostgREST returns count in Content-Range header: "0-0/TOTAL"
+        content_range = r.headers.get("Content-Range", "")
+        if "/" in content_range:
+            try:
+                return int(content_range.split("/")[-1])
+            except (ValueError, IndexError):
+                pass
+        # Fallback: count returned rows
+        try:
+            return len(r.json())
+        except Exception:
+            return 0
     return 0
 
 async def inject_batch(c, url, headers, count=80):

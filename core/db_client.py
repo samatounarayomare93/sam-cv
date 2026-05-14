@@ -133,22 +133,20 @@ class RealityShapingDB:
         if not self.enabled:
             return
         try:
-            # Check if system_logs exists
-            s, r = await self._request_with_retry("GET", f"{self.url}/rest/v1/system_logs?select=count&limit=1")
-            if s:
+            # Check if system_logs exists by trying to fetch 1 row
+            s, r = await self._request_with_retry("GET", f"{self.url}/rest/v1/system_logs?select=id&limit=1")
+            if s and isinstance(r, list):
                 return  # Table exists, nothing to do
 
-            # Table missing — try to create it via a stored procedure trick:
-            # Insert a row into system_settings with the DDL as a "pending" task
-            # Then use Supabase's pg_catalog to execute it
-            # This won't work directly, but we log a clear warning
+            # Table missing — log a clear warning with the fix URL
             logging.warning("⚠️ [DB] system_logs table missing in Supabase.")
-            logging.warning("⚠️ [DB] Run FIX_DATABASE_COMPLETE.sql in Supabase SQL Editor to fix dashboard logs.")
+            logging.warning("⚠️ [DB] Run FIX_ALL_ISSUES.sql in Supabase SQL Editor to fix dashboard logs.")
             logging.warning("⚠️ [DB] URL: https://supabase.com/dashboard/project/lckiazbadymeikmxesit/sql/new")
         except Exception as e:
             logging.debug(f"[DB] _ensure_tables check failed: {e}")
 
     async def register_node(self):
+        """Register this node in the Supabase nodes table."""
         if not self.enabled: return
         endpoint = f"{self.url}/rest/v1/nodes"
         payload = {
@@ -159,7 +157,7 @@ class RealityShapingDB:
         }
         headers = self.headers.copy()
         headers["Prefer"] = "resolution=merge-duplicates"
-        success, resp = await self._request_with_retry("POST", endpoint, payload)
+        success, resp = await self._request_with_retry("POST", endpoint, payload, headers=headers)
         if success:
             logging.info(f"👑 NODE REGISTERED: [{self.node_name}] ID: {self.node_id[:8]}...")
         elif isinstance(resp, dict) and "404" in resp.get('error', ''):
@@ -920,16 +918,19 @@ class RealityShapingDB:
         except: pass
 
     async def stream_log(self, level: str, message: str):
-        # Write to local SQLite first (always works)
+        # Write to local SQLite first (always works, never fails)
         try:
             conn = self._sqlite_connect()
             cursor = conn.cursor()
             cursor.execute("INSERT INTO system_logs (level, message) VALUES (?, ?)", (level, message))
             conn.commit()
             conn.close()
-        except: pass
-        # Also write to Supabase so the dashboard can display live logs
-        if self.enabled:
+        except Exception:
+            pass
+
+        # Write to Supabase — but ONLY for important messages (not every INFO log)
+        # This prevents rate limiting from hundreds of log writes per minute
+        if self.enabled and level in ("ERROR", "CRITICAL", "SUCCESS", "WARNING"):
             try:
                 payload = {"level": level, "message": message[:500]}  # cap at 500 chars
                 await self._request_with_retry(
@@ -954,7 +955,12 @@ class RealityShapingDB:
 
     def get_advanced_health(self) -> Dict:
         """[🔍 APEX AUDIT]: Multi-layered health check with Cloud-Sovereign metrics."""
-        import psutil
+        try:
+            import psutil
+            _has_psutil = True
+        except ImportError:
+            _has_psutil = False
+
         from pathlib import Path
         
         # Default local metrics
@@ -969,29 +975,30 @@ class RealityShapingDB:
             cursor.execute("SELECT COUNT(*) FROM applications")
             heartbeat_count = cursor.fetchone()[0]
             conn.close()
-        except: pass
-        
-        # [👑 CLOUD OVERRIDE]: If cloud is enabled, prioritize these metrics for the HUD
-        if self.enabled:
-            try:
-                # We can't use await here since this is a synchronous method called in many places
-                # However, get_advanced_health is often used in async contexts in the dashboard.
-                # For now, we'll stick to local or let the caller provide stats.
-                # Actually, most callers in telegram_dashboard are async.
-                pass
-            except: pass
+        except Exception:
+            pass
 
         pdf_dir = Path("pdf_cache")
         pdf_count = len(list(pdf_dir.glob("*.pdf"))) if pdf_dir.exists() else 0
-        process = psutil.Process()
-        memory_usage = process.memory_info().rss / (1024 * 1024)
+
+        if _has_psutil:
+            try:
+                process = psutil.Process()
+                memory_usage = process.memory_info().rss / (1024 * 1024)
+                uptime = str(datetime.now() - datetime.fromtimestamp(process.create_time())).split('.')[0]
+            except Exception:
+                memory_usage = 0.0
+                uptime = "N/A"
+        else:
+            memory_usage = 0.0
+            uptime = "N/A"
         
         return {
             "recon_rows": recon_count,
             "heartbeat_rows": heartbeat_count,
             "pdf_cache_count": pdf_count,
             "memory_mb": round(memory_usage, 2),
-            "uptime": str(datetime.now() - datetime.fromtimestamp(process.create_time())).split('.')[0]
+            "uptime": uptime
         }
 
     async def get_settings(self, key: str, default: Any = None) -> Any:
@@ -1193,23 +1200,20 @@ class RealityShapingDB:
             if success: stats["strikes"] = data.get("count", 0)
             
             # 2. Get Scanned (Leads) count
-            success, data = self._sync_request("GET", "leads", "select=id", headers={"Prefer": "count=exact"})
+            success, data = self._sync_request("GET", "leads", "select=id&limit=1", headers={"Prefer": "count=exact"})
             if success: stats["scanned"] = data.get("count", 0)
             
             # 3. Get Intel (Pending Leads) count
-            success, data = self._sync_request("GET", "leads", "status=eq.pending&select=id", headers={"Prefer": "count=exact"})
+            success, data = self._sync_request("GET", "leads", "status=eq.pending&select=id&limit=1", headers={"Prefer": "count=exact"})
             if success: stats["intel"] = data.get("count", 0)
             
-            # 4. Update Heartbeat (LAST_PULSE) in Cloud
+            # 4. Update Heartbeat in system_settings (table always exists)
             now = datetime.now().isoformat()
-            self._sync_request("POST", "system_state", payload={
+            self._sync_request("POST", "system_settings", payload={
                 "key": "LAST_PULSE",
-                "value": now
+                "value": now,
+                "updated_at": now
             }, headers={"Prefer": "resolution=merge-duplicates"})
-            
-            # 5. Sync counters to system_state for external HUDs
-            self._sync_request("POST", "system_state", payload={"key": "applications_sent_total", "value": str(stats["strikes"])}, headers={"Prefer": "resolution=merge-duplicates"})
-            self._sync_request("POST", "system_state", payload={"key": "scouted_leads_total", "value": str(stats["scanned"])}, headers={"Prefer": "resolution=merge-duplicates"})
             
         else:
             # Fallback to local SQLite if cloud is disabled
@@ -1223,7 +1227,8 @@ class RealityShapingDB:
                 cursor.execute("SELECT COUNT(*) FROM tasks WHERE type = 'ORACLE_LEAD' AND status = 'PENDING'")
                 stats["intel"] = cursor.fetchone()[0]
                 conn.close()
-            except: pass
+            except Exception:
+                pass
             
         health = self.get_advanced_health()
         stats["uptime"] = health.get('uptime', 'N/A')
@@ -1253,24 +1258,6 @@ class RealityShapingDB:
         except Exception as e:
             logging.error(f"❌ Failed to register platform locally: {e}")
 
-    async def get_active_platforms(self) -> List[Dict[str, Any]]:
-        """Retrieves the list of all registered platforms to hunt."""
-        if self.enabled:
-            success, data = await self._request_with_retry("GET", f"{self.url}/rest/v1/platform_registry?status=eq.ACTIVE")
-            if success and isinstance(data, list):
-                return data
-        
-        try:
-            conn = self._sqlite_connect()
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute('SELECT * FROM platform_registry WHERE status = "ACTIVE"')
-            rows = cursor.fetchall()
-            conn.close()
-            return [dict(r) for r in rows]
-        except Exception:
-            return []
-
     async def get_recon_summary(self) -> Dict[str, int]:
         """Returns compact recon counts for dashboards and health views."""
         summary = {"applications": 0, "recon": 0, "tasks": 0}
@@ -1287,21 +1274,6 @@ class RealityShapingDB:
         except Exception:
             pass
         return summary
-
-    async def add_discovered_link(self, url: str, source: str):
-        """Logs a potential platform link found during discovery."""
-        if self.enabled:
-            endpoint = f"{self.url}/rest/v1/discovered_links"
-            payload = {"url": url, "source": source}
-            await self._request_with_retry("POST", endpoint, payload, headers={"Prefer": "resolution=merge-duplicates"})
-        
-        try:
-            conn = self._sqlite_connect()
-            cursor = conn.cursor()
-            cursor.execute('INSERT OR IGNORE INTO discovered_links (url, source) VALUES (?, ?)', (url, source))
-            conn.commit()
-            conn.close()
-        except: pass
 
     async def get_pending_links(self, limit: int = 20) -> List[Dict[str, Any]]:
         """Fetch links that haven't been validated as platforms yet."""

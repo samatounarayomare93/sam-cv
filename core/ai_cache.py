@@ -12,9 +12,15 @@ import time
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-# Cache directory
+# Cache directory — created lazily to avoid errors on import
 CACHE_DIR = Path("cache/ai_analysis")
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+def _ensure_cache_dir():
+    """Create cache directory safely — handles both local and cloud environments."""
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
 
 # Cache duration (24 hours by default)
 CACHE_DURATION_HOURS = int(os.getenv("AI_CACHE_DURATION_HOURS", "24"))
@@ -37,81 +43,44 @@ def _generate_cache_key(job_title: str, description: str, company_name: str = ""
 
 
 def get_cached_analysis(job_title: str, description: str, company_name: str = "") -> Optional[Dict[str, Any]]:
-    """
-    Retrieve cached AI analysis if available and not expired.
-    
-    Returns:
-        Dict with analysis results or None if not cached/expired
-    """
     if not CACHE_ENABLED:
         return None
-    
     try:
+        _ensure_cache_dir()
         cache_key = _generate_cache_key(job_title, description, company_name)
         cache_file = CACHE_DIR / f"{cache_key}.json"
-        
         if not cache_file.exists():
             return None
-        
-        # Check if expired
         file_age = time.time() - cache_file.stat().st_mtime
         if file_age > CACHE_DURATION_SECONDS:
-            # Delete expired cache
             cache_file.unlink()
             return None
-        
-        # Load and return cached data
         with open(cache_file, 'r', encoding='utf-8') as f:
             cached_data = json.load(f)
-        
         logging.info(f"✅ AI CACHE HIT: {job_title[:50]}... (saved API call)")
         return cached_data
-        
     except Exception as e:
         logging.warning(f"Cache read error: {e}")
         return None
 
 
-def save_analysis_to_cache(
-    job_title: str, 
-    description: str, 
-    company_name: str,
-    analysis_result: Dict[str, Any]
-) -> bool:
-    """
-    Save AI analysis result to cache.
-    
-    Args:
-        job_title: Job title
-        description: Job description
-        company_name: Company name
-        analysis_result: Complete analysis result from AI
-    
-    Returns:
-        True if saved successfully, False otherwise
-    """
+def save_analysis_to_cache(job_title: str, description: str, company_name: str, analysis_result: Dict[str, Any]) -> bool:
     if not CACHE_ENABLED:
         return False
-    
     try:
+        _ensure_cache_dir()
         cache_key = _generate_cache_key(job_title, description, company_name)
         cache_file = CACHE_DIR / f"{cache_key}.json"
-        
-        # Add metadata
         cache_data = {
             "cached_at": time.time(),
             "job_title": job_title,
             "company_name": company_name,
             "analysis": analysis_result
         }
-        
-        # Save to file
         with open(cache_file, 'w', encoding='utf-8') as f:
             json.dump(cache_data, f, ensure_ascii=False, indent=2)
-        
         logging.debug(f"💾 Cached analysis for: {job_title[:50]}...")
         return True
-        
     except Exception as e:
         logging.warning(f"Cache write error: {e}")
         return False
@@ -205,4 +174,5 @@ def clear_all_cache() -> int:
 
 # Auto-cleanup on module import (runs once when bot starts)
 if CACHE_ENABLED:
+    _ensure_cache_dir()
     clear_expired_cache()

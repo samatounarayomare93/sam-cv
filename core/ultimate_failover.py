@@ -6,6 +6,7 @@ Self-healing system that keeps the bot running even if ALL API keys fail
 import logging
 import os
 import asyncio
+import time
 from typing import Dict, Any, Optional
 import random
 
@@ -199,10 +200,9 @@ https://www.linkedin.com/in/sam-salameh</p>"""
         # Check AI
         if ai:
             try:
-                # Quick test
                 test_result = await ai.structural_query("test")
                 status['ai_working'] = True
-                self.last_ai_success = asyncio.get_event_loop().time()
+                self.last_ai_success = time.time()
             except Exception as e:
                 logging.warning(f"⚠️ AI check failed: {e}")
                 logging.info("🛡️ Fallback templates active - bot will continue")
@@ -214,7 +214,7 @@ https://www.linkedin.com/in/sam-salameh</p>"""
             brevo_user = getattr(config, 'BREVO_SMTP_LOGIN', '')
             status['email_working'] = bool(zoho_user or brevo_user)
             if status['email_working']:
-                self.last_email_success = asyncio.get_event_loop().time()
+                self.last_email_success = time.time()
         except Exception as e:
             logging.warning(f"⚠️ Email check failed: {e}")
         
@@ -223,7 +223,7 @@ https://www.linkedin.com/in/sam-salameh</p>"""
             try:
                 await db.send_heartbeat()
                 status['db_working'] = True
-                self.last_db_success = asyncio.get_event_loop().time()
+                self.last_db_success = time.time()
             except Exception as e:
                 logging.warning(f"⚠️ DB check failed: {e}")
                 logging.info("🛡️ Local caching active - bot will continue")
